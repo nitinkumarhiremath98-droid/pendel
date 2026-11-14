@@ -448,8 +448,7 @@ export function loginView(view) {
       <button class="btn primary lg" style="width:100%">Log in</button></form>
     <p class="muted small" style="text-align:center;margin-top:18px">New to PENDEL? <a href="/register${location.search}" data-link style="color:var(--accent)">Create an account</a></p>
     ${google ? "" : html`<p class="dim small" style="text-align:center">Google sign-in appears here once a Google Client ID is configured.</p>`}
-    <div class="demo-creds">Demo listener: demo@pendel.local / Demo@12345<br>Demo admin: admin@pendel.local / Admin@12345</div></div>`);
-  googleButton("g-btn");
+        <div class="demo-creds">Demo listener: demo@pendel.local / Demo@12345${["localhost", "127.0.0.1"].includes(location.hostname) ? html`<br>Demo admin: admin@pendel.local / Admin@12345` : ""}</div></div>`);
   $("#login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = e.target, btn = $("button", f);
