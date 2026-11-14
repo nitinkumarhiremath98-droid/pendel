@@ -11,6 +11,54 @@ PENDEL is a full-stack, multilingual music streaming platform built around one i
 
 ![PENDEL home](docs/screenshots/home.png)
 
+## New in v3: 50,000+ full songs in every language (YouTube)
+
+PENDEL can import **complete official songs** for all 26 languages from YouTube, which plays them in a visible YouTube player inside the app.
+
+**One-time setup (about 1 hour, mostly waiting):**
+1. Get a free YouTube API key (see *Turn on full songs* below) and add it to `.env` as `YOUTUBE_API_KEY=...`. Restart PENDEL.
+2. Log in as admin, open **Admin → YouTube catalogue** and click **Run round 1**. PENDEL finds playlists such as "kannada sad songs" or "telugu love songs" for every language and mood and imports every song in them. Language and mood come from the playlist, so labels are accurate. Trailers, teasers, jukeboxes, live streams and non-embeddable videos are skipped. Leave PENDEL running; the page shows progress.
+3. Round 1 typically adds tens of thousands of songs using about a third of the free daily quota. YouTube allows about 100 searches a day, so run **round 2** and **round 3** on the next days for more.
+4. Click **Export snapshot**, then publish it:
+   ```powershell
+   git add catalog/youtube_snapshot.json.gz
+   git commit -m "Add YouTube catalogue"
+   git push
+   ```
+   Render reloads the snapshot on every start, without using any quota. Also add `YOUTUBE_API_KEY` in Render's Environment settings so it can refresh old snapshots automatically.
+
+**Rules PENDEL follows:** songs play only in the visible YouTube player (no audio-only playback, no downloads); titles and thumbnails are shown unchanged; stored YouTube data is refreshed or removed within 30 days (export a new snapshot monthly).
+
+**Limits:**
+- The exact count depends on how big the playlists YouTube returns are. Add more with rounds 2–3 or by importing a label's channel (paste its link in *Import a channel or playlist*).
+- A YouTube song's highlight is an estimated 25-second window from about a third of the way in, because PENDEL can't analyse YouTube audio. Admins can set exact windows.
+- YouTube songs stop when the phone screen locks or the browser tab is in the background; that is how YouTube's player works. PENDEL's own songs and Apple previews keep playing.
+- YouTube may show its own ads inside its player.
+
+## New in v2: real songs in every language + 1-hour Mood Sessions
+
+- **World catalogue:** PENDEL is connected to Apple's public **iTunes Search API**, giving millions of real releases in 26 languages, from Telugu, Tamil, Hindi and Kannada to K-pop and Latin. Every song plays its **official 30-second preview** as its highlight in the Highlights feed, on language and mood pages, and in search. Nothing is copied: audio streams from Apple's servers.
+- **Full songs:** add a free YouTube API key and "Play full song" plays the official video in a visible YouTube player inside PENDEL. Admins can also paste a video link and set their **own 20–30 s highlight** on it.
+- **Mood Session:** pick a mood, one or more languages and a length (30 min, 1 h, 90 min or 2 h). PENDEL builds a non-stop queue: either a **Highlights marathon** (about 120 back-to-back best moments per hour) or **Full songs**.
+- **Trending on Apple Music:** the home page shows the live most-played chart for India.
+- PENDEL's own 39 songs keep everything they had: full audio, waveform highlight editor and synced lyrics.
+
+### Turn on full songs (free YouTube API key, about 5 minutes)
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com/) and create a project, for example "PENDEL".
+2. Open **APIs & Services → Library**, search for **YouTube Data API v3** and click **Enable**.
+3. Open **APIs & Services → Credentials → Create credentials → API key**. Restrict the key to *YouTube Data API v3*.
+4. Add it as `YOUTUBE_API_KEY` in your `.env` file (local) or in Render's **Environment** settings (live site).
+
+Each new song costs one YouTube search, and the result is remembered. The free daily quota covers roughly 100 new songs a day. Songs without a found video still play their 30-second preview.
+
+### Limits of the world catalogue (be honest in interviews)
+
+- Previews are chosen by Apple, so they may not be the chorus. Use the admin YouTube editor for hand-picked highlights.
+- Apple has no "language" field. PENDEL labels songs by the language it searched for and Apple's genre names (Telugu, Tamil, Bollywood, K-Pop…), so a few songs may be mislabelled. Admins can fix the language in the song editor.
+- Lyrics are only shown for PENDEL's own songs, because real song lyrics need a lyrics licence.
+- This setup is for a portfolio or demo. A commercial streaming business needs licensing deals with music labels.
+
 ## Screenshots
 
 | Song Highlights (swipe feed) | Full player with synced lyrics |
@@ -34,11 +82,11 @@ PENDEL is a full-stack, multilingual music streaming platform built around one i
 - **Free and Premium plans:** skip limits, house ads and Premium-only tracks, with a UPI/card payment architecture (Razorpay-ready, test mode by default).
 - **Admin dashboard:** role-based access, analytics, song and licence management, bulk CSV import, lyrics editor, copyright takedowns and an audit log.
 - **Security:** PBKDF2 password hashing, signed bearer tokens, expiring HMAC-signed audio URLs, a strict Content Security Policy and rate limiting.
-- **Tested:** 17 automated API tests and a Playwright browser walkthrough.
+- **Tested:** 31 automated API tests (including simulated Apple and YouTube responses and a 68,000-song import) and a Playwright browser walkthrough.
 
 **Tech stack:** Python 3.10+ (standard library HTTP server, no frameworks) · SQLite · vanilla JavaScript ES modules · HTML/CSS · NumPy · FFmpeg · deployed on Render.
 
-All 39 demo songs, covers and lyrics are original works generated by code and released as CC0. No copyrighted music is included.
+PENDEL's own 39 demo songs, covers and lyrics are original works generated by code and released as CC0. World-catalogue songs are streamed from Apple (30-second previews) and YouTube (official videos); PENDEL never stores their audio.
 
 ---
 
@@ -70,7 +118,7 @@ On macOS or Linux the commands are the same; use `python3`.
 ## Tests
 
 ```powershell
-python -m unittest tests.test_api -v      # 17 API tests on a throwaway database
+python -m unittest tests.test_api -v      # 31 API tests on a throwaway database (Apple/YouTube responses simulated)
 ```
 
 `tests/e2e_browser.py` is a Playwright browser walkthrough. It needs `pip install playwright` and the server running; set `BASE` to the server's URL.

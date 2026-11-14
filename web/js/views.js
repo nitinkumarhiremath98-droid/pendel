@@ -44,6 +44,9 @@ export async function homeView(view, query, alive) {
   render(view, html`
     <h2 style="margin-bottom:16px">${greet}${session.user ? `, ${session.user.display_name.split(" ")[0]}` : ""}</h2>
     <div id="hero-slot">${feat.length ? hero() : ""}</div>
+    <section class="section"><div class="section-head"><div><h2>Mood Session</h2><p>One tap, one hour of music for how you feel, in your languages</p></div><a class="chip" href="/mood" data-link>${icon("timer")}Customise</a></div>
+      <div class="mood-grid">${[["love", "Love", "#ff4f8b"], ["sad", "Sad", "#5b7cfa"], ["devotional", "Devotional", "#ff9f43"], ["dj", "DJ & Party", "#00e0c6"], ["motivational", "Motivation", "#ffb020"], ["melody", "Melody", "#3ad29f"]]
+        .map(([m, n, c]) => html`<a class="mood-pick" style="--c1:${c};display:flex;flex-direction:column;justify-content:space-between" href="/mood?mood=${m}&minutes=60" data-link>${n}<span style="font-size:12px;font-weight:500;opacity:.85">1-hour session</span></a>`)}</div></section>
     ${d.made_for_you.length ? html`<section class="section"><div class="section-head"><div><h2>Made For You</h2><p>Mixes built from your listening, favourites and languages</p></div></div>
       <div class="rail">${d.made_for_you.map((m) => { const q = registerQueue(m.songs, m.title); return html`<article class="card" data-action="play-all" data-queue="${q}" tabindex="0"><div class="card-art">${mosaic(m.songs.map((s) => s.cover_url))}<button class="play-btn grad card-play" data-action="play-all" data-queue="${q}" aria-label="Play ${m.title}">${icon("play")}</button></div><div class="card-title">${m.title}</div><div class="card-sub">${m.subtitle}</div></article>`; })}</div></section>` : ""}
     ${top.map((r) => rail(r.title, r.songs, { subtitle: r.subtitle, ranked: r.ranked, hlFeed: r.highlight_feed || "", moreHref: r.key === "recent" ? "/songs?sort=newest" : r.key === "popular" ? "/songs?sort=popular" : "" }))}
@@ -197,24 +200,29 @@ export async function songView(view, slug, query, alive) {
           <div class="hero-meta"><a href="/artist/${s.artist.slug}" data-link><strong>${s.artist.name}</strong></a>${s.album ? html`<a href="/album/${s.album.slug}" data-link>${s.album.title}</a>` : ""}<span>${s.year}</span><span>${fmtTime(s.duration)}</span><span>${fmtNum(s.plays)} plays</span></div>
           <div class="hero-actions">
             <button class="btn primary lg" data-action="play" data-id="${s.id}">${icon("play")}${s.premium_only && !session.premium ? "Play (Premium)" : "Play full song"}</button>
-            ${s.highlight ? html`<button class="btn lg" data-action="play-highlight" data-id="${s.id}">${icon("spark")}Highlight ${fmtTime(s.highlight.start)}–${fmtTime(s.highlight.end)}</button>` : ""}
+            ${s.highlight ? html`<button class="btn lg" data-action="play-highlight" data-id="${s.id}">${icon("spark")}${s.highlight.source === "provider" ? "30s preview" : `Highlight ${fmtTime(s.highlight.start)}–${fmtTime(s.highlight.end)}`}</button>` : ""}
             <button class="icon-btn ${s.is_favourite ? "fav-on" : ""}" data-action="fav" data-id="${s.id}" aria-label="Favourite" aria-pressed="${s.is_favourite}">${icon(s.is_favourite ? "heart-fill" : "heart")}</button>
             <button class="icon-btn" data-action="add-to-playlist" data-id="${s.id}" aria-label="Add to playlist">${icon("plus")}</button>
             <button class="icon-btn" data-action="share-song" data-id="${s.id}" aria-label="Share">${icon("share")}</button>
             <button class="icon-btn" data-action="song-menu" data-id="${s.id}" aria-label="More">${icon("more")}</button>
-          </div></div></div></section>
+          </div>
+          ${s.is_external ? html`<div class="hero-actions" style="margin-top:10px">
+            ${s.source === "youtube" ? html`<a class="btn sm" href="${s.external_url}" target="_blank" rel="noopener">${icon("external")}Watch on YouTube</a>`
+              : html`${s.external_url ? html`<a class="btn sm" href="${s.external_url}" target="_blank" rel="noopener">${icon("external")}Open in Apple Music</a>` : ""}
+            <a class="btn sm" href="${s.youtube_url}" target="_blank" rel="noopener">${icon("external")}Find on YouTube</a>`}</div>` : ""}
+          </div></div></section>
     <div class="split">
       <div class="panel"><h3>Details</h3><dl class="kv">
         <dt>Language</dt><dd><a href="/language/${s.language.code}" data-link>${s.language.name}</a> <span class="dim" lang="${s.language.code}">${s.language.native}</span></dd>
         <dt>Genre</dt><dd>${s.genre || "—"}</dd>
         <dt>Categories</dt><dd class="chips">${s.categories.map((c) => html`<a class="tag" href="/category/${c.slug}" data-link>${c.name}</a>`)}</dd>
         <dt>Released</dt><dd>${s.year || "—"}</dd><dt>Duration</dt><dd>${fmtTime(s.duration)}</dd>
-        <dt>Highlight</dt><dd>${s.highlight ? `${fmtTime(s.highlight.start)} – ${fmtTime(s.highlight.end)} (${Math.round(s.highlight.end - s.highlight.start)}s, ${s.highlight.source === "auto" ? "auto-detected" : "hand-picked"})` : "Not set"}</dd>
-        <dt>Licence</dt><dd class="small">${s.license ? `${s.license.licensor} · ${s.license.license_type.toUpperCase()}${s.license.allow_offline ? " · offline allowed" : ""}` : "—"}</dd>
+        <dt>Highlight</dt><dd>${!s.highlight ? "Not set" : s.highlight.source === "provider" ? "Official 30-second preview chosen by Apple Music" : s.source === "youtube" && s.highlight.source === "auto" ? `${fmtTime(s.highlight.start)} – ${fmtTime(s.highlight.end)} (estimated; an admin can fine-tune it)` : `${fmtTime(s.highlight.start)} – ${fmtTime(s.highlight.end)} (${Math.round(s.highlight.end - s.highlight.start)}s, ${s.highlight.source === "auto" ? "auto-detected" : "hand-picked"})`}</dd>
+        <dt>${s.is_external ? "Source" : "Licence"}</dt><dd class="small">${s.source === "youtube" ? "Official upload on YouTube · plays in full in the YouTube player" : s.is_external ? "Apple Music catalogue · official 30-second preview · full song plays via YouTube when connected" : s.license ? `${s.license.licensor} · ${s.license.license_type.toUpperCase()}${s.license.allow_offline ? " · offline allowed" : ""}` : "—"}</dd>
       </dl></div>
       <div class="panel"><h3>The highlight</h3>
         ${hlLines.length ? html`<div class="lyrics-panel" style="margin-top:8px">${hlLines.map((l) => html`<p class="ly-line on" style="font-size:20px;margin-bottom:10px" lang="${s.language.code}" dir="auto">${l.text}</p>`)}</div>`
-          : html`<p class="muted">${s.highlight ? (s.has_lyrics ? "This highlight is instrumental." : "Lyrics aren't licensed for this song, so we show the music only.") : "No highlight has been set yet."}</p>`}
+          : html`<p class="muted">${s.source === "youtube" ? "This full song plays in the YouTube player. Its highlight is an estimated 25-second window. Lyrics for catalogue songs need a lyrics licence, so they aren't shown." : s.is_external ? "This song's highlight is its official 30-second preview from Apple Music. Lyrics for catalogue songs need a lyrics licence, so they aren't shown." : s.highlight ? (s.has_lyrics ? "This highlight is instrumental." : "Lyrics aren't licensed for this song, so we show the music only.") : "No highlight has been set yet."}</p>`}
         ${lyr?.available ? html`<button class="btn sm" data-action="play-with-lyrics" data-id="${s.id}" style="margin-top:10px">${icon("lyrics")}Play with full lyrics</button>` : ""}
       </div>
     </div>
@@ -448,7 +456,8 @@ export function loginView(view) {
       <button class="btn primary lg" style="width:100%">Log in</button></form>
     <p class="muted small" style="text-align:center;margin-top:18px">New to PENDEL? <a href="/register${location.search}" data-link style="color:var(--accent)">Create an account</a></p>
     ${google ? "" : html`<p class="dim small" style="text-align:center">Google sign-in appears here once a Google Client ID is configured.</p>`}
-        <div class="demo-creds">Demo listener: demo@pendel.local / Demo@12345${["localhost", "127.0.0.1"].includes(location.hostname) ? html`<br>Demo admin: admin@pendel.local / Admin@12345` : ""}</div></div>`);
+    <div class="demo-creds">Demo listener: demo@pendel.local / Demo@12345${["localhost", "127.0.0.1"].includes(location.hostname) ? html`<br>Demo admin: admin@pendel.local / Admin@12345` : ""}</div></div>`);
+  googleButton("g-btn");
   $("#login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = e.target, btn = $("button", f);
@@ -612,4 +621,84 @@ function razorpayCheckout(co) {
   const s = document.createElement("script"); s.src = "https://checkout.razorpay.com/v1/checkout.js"; s.onload = go;
   s.onerror = () => toast("Couldn't load the payment window. Check your connection.", { error: true });
   document.head.append(s);
+}
+
+
+// ------------------------------------------------------------------ Mood Session (non-stop, 30 min to 2 hours)
+const sessionState = { data: null, startedAt: null };
+export async function moodView(view, query, alive) {
+  const [{ categories }, { languages }, world] = await Promise.all([get("/api/categories"), get("/api/languages"), get("/api/world/status").catch(() => ({ enabled: false }))]);
+  if (!alive()) return;
+  const prefs = session.user?.preferred_languages?.length ? session.user.preferred_languages.slice(0, 4) : ["hi", "te", "ta", "en"];
+  const st = { mood: query.mood || "love", langs: new Set(query.langs ? query.langs.split(",") : prefs), minutes: +(query.minutes || 60), mode: query.mode || "highlights" };
+  const moods = [{ slug: "trending", name: "Trending", color: "#7c3aed" }, ...categories.filter((c) => !["independent", "international"].includes(c.slug))];
+  const langList = languages.filter((l) => l.featured);
+  render(view, html`<h1>Mood Session</h1><p class="muted" style="margin-top:-4px">Pick a mood and your languages. PENDEL builds a non-stop session that lasts as long as you want.</p>
+    <section class="section"><div class="section-head"><h2>1 · Mood</h2></div>
+      <div class="mood-grid" id="m-mood">${moods.map((m) => html`<button class="mood-pick" style="--c1:${m.color}" data-mood="${m.slug}" aria-pressed="${m.slug === st.mood}">${m.name.replace(/ Songs$/, "")}</button>`)}</div></section>
+    <section class="section"><div class="section-head"><h2>2 · Languages</h2><p>Pick one or more</p></div>
+      <div class="chips" id="m-langs">${langList.map((l) => html`<button class="chip" data-lang="${l.code}" aria-pressed="${st.langs.has(l.code)}">${l.name}</button>`)}</div></section>
+    <section class="section"><div class="section-head"><h2>3 · Length and style</h2></div>
+      <div class="toolbar">
+        <div class="seg" id="m-min" role="group" aria-label="Session length">${[30, 60, 90, 120].map((n) => html`<button data-min="${n}" aria-pressed="${n === st.minutes}">${n === 60 ? "1 hour" : n === 120 ? "2 hours" : `${n} min`}</button>`)}</div>
+        <div class="seg" id="m-mode" role="group" aria-label="Session style"><button data-mode="highlights" aria-pressed="${st.mode === "highlights"}">Highlights marathon</button><button data-mode="full" aria-pressed="${st.mode === "full"}">Full songs</button></div>
+        <button class="btn primary lg" id="m-go">${icon("play")}Start session</button>
+      </div>
+      <p class="dim small">Highlights marathon: back-to-back 20–30 second best moments. Full songs: complete tracks${world.enabled && !world.full_songs ? " (world catalogue songs play in full once a YouTube API key is added; until then PENDEL songs are used)" : ""}.</p>
+    </section>
+    <div id="m-out">${sessionState.data ? "" : ""}</div>`);
+  const out = $("#m-out");
+  const pick = (box, attr, val) => $$(`[${attr}]`, box).forEach((b) => b.setAttribute("aria-pressed", String(b.getAttribute(attr) === String(val))));
+  $("#m-mood").onclick = (e) => { const b = e.target.closest("[data-mood]"); if (b) { st.mood = b.dataset.mood; pick($("#m-mood"), "data-mood", st.mood); } };
+  $("#m-langs").onclick = (e) => { const b = e.target.closest("[data-lang]"); if (!b) return; const c = b.dataset.lang; st.langs.has(c) ? st.langs.delete(c) : st.langs.add(c); b.setAttribute("aria-pressed", String(st.langs.has(c))); };
+  $("#m-min").onclick = (e) => { const b = e.target.closest("[data-min]"); if (b) { st.minutes = +b.dataset.min; pick($("#m-min"), "data-min", st.minutes); } };
+  $("#m-mode").onclick = (e) => { const b = e.target.closest("[data-mode]"); if (b) { st.mode = b.dataset.mode; pick($("#m-mode"), "data-mode", st.mode); } };
+
+  const fmtMin = (sec) => sec >= 3600 ? `${Math.floor(sec / 3600)} h ${Math.round((sec % 3600) / 60)} min` : `${Math.round(sec / 60)} min`;
+  function drawSession() {
+    const d = sessionState.data;
+    if (!d) return;
+    const q = registerQueue(d.songs, "Mood session");
+    render(out, html`<section class="panel"><div class="section-head"><div><h2>Your ${d.mood === "trending" ? "Trending" : d.mood} session</h2>
+        <p>${d.songs.length} ${d.mode === "highlights" ? "highlights" : "songs"} · ${fmtMin(d.total_seconds)} of ${fmtMin(d.target_seconds)}</p></div>
+        <button class="btn" id="m-again">${icon("shuffle")}New mix</button></div>
+      ${d.note ? html`<div class="notice">${d.note}</div>` : ""}
+      <div class="session-bar"><span id="m-bar"></span></div>
+      <div class="session-stats"><span id="m-played">0 min played</span><span id="m-left"></span><span id="m-now"></span></div></section>
+      ${songList(d.songs, { label: "Mood session" })}`);
+    $("#m-again").onclick = start;
+    tick();
+  }
+  function tick() {
+    const d = sessionState.data, bar = $("#m-bar");
+    if (!d || !bar) return;
+    const lens = d.songs.map((s) => d.mode === "highlights" ? (s.highlight ? s.highlight.end - s.highlight.start : 30) : s.duration);
+    const i = player.queue.findIndex((s) => s.id === player.song?.id);
+    const inSession = player.sessionMode && i >= 0 && player.queue.length === d.songs.length;
+    const done = inSession ? lens.slice(0, i).reduce((a, b) => a + b, 0) + player.pos : 0;
+    bar.style.width = `${Math.min(100, (100 * done) / d.total_seconds)}%`;
+    $("#m-played").textContent = `${fmtMin(done)} played`;
+    $("#m-left").textContent = `${fmtMin(Math.max(0, d.total_seconds - done))} left`;
+    $("#m-now").textContent = inSession ? `Now: ${player.song.title} (${i + 1}/${d.songs.length})` : "";
+  }
+  async function start() {
+    if (!st.langs.size) return toast("Pick at least one language", { error: true });
+    const go = $("#m-go"); go.disabled = true;
+    render(out, skeletonRows(6));
+    try {
+      const p = new URLSearchParams({ mood: st.mood, langs: [...st.langs].join(","), minutes: st.minutes, mode: st.mode, seed: Date.now() });
+      const d = await get(`/api/sessions/mood?${p}`);
+      if (!alive()) return;
+      if (!d.songs.length) { render(out, emptyState("timer", "Nothing to play for that mix yet", d.note || "Try another mood or add languages.")); return; }
+      sessionState.data = d;
+      drawSession();
+      out.scrollIntoView({ behavior: "smooth", block: "start" });
+      player.hlQueue = false;
+      player.play(d.songs[0], { queue: d.songs, index: 0, mode: d.mode === "highlights" ? "highlight" : "full", session: d.mode });
+    } catch (e) { render(out, errorState(e)); } finally { go.disabled = false; }
+  }
+  $("#m-go").onclick = start;
+  if (sessionState.data) drawSession();
+  const off1 = player.on("time", tick), off2 = player.on("change", tick);
+  return () => { off1(); off2(); };
 }

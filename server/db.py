@@ -349,8 +349,39 @@ def setting(key):
     return r["value"] if r else DEFAULT_SETTINGS.get(key)
 
 
+MIGRATIONS = [
+    # v2: world catalogue (iTunes / YouTube)
+    "ALTER TABLE songs ADD COLUMN source TEXT NOT NULL DEFAULT 'pendel'",
+    "ALTER TABLE songs ADD COLUMN external_id TEXT",
+    "ALTER TABLE songs ADD COLUMN external_url TEXT",
+    "ALTER TABLE songs ADD COLUMN youtube_id TEXT",
+    "ALTER TABLE artists ADD COLUMN source TEXT NOT NULL DEFAULT 'pendel'",
+    "CREATE INDEX IF NOT EXISTS idx_songs_source ON songs(source)",
+    "CREATE TABLE IF NOT EXISTS external_cache (url TEXT PRIMARY KEY, body TEXT NOT NULL, fetched_at INTEGER NOT NULL)",
+    "INSERT OR IGNORE INTO languages(code,name,native_name,region,featured,sort_order) VALUES('und','Other languages','Other','international',0,999)",
+    # v3: YouTube full-song catalogue
+    """CREATE TABLE IF NOT EXISTS youtube_imports (id TEXT PRIMARY KEY, label TEXT NOT NULL, source TEXT NOT NULL, lang TEXT NOT NULL,
+       mood TEXT, max_videos INTEGER NOT NULL, status TEXT NOT NULL, seen INTEGER NOT NULL DEFAULT 0, added INTEGER NOT NULL DEFAULT 0,
+       error TEXT, created_at INTEGER NOT NULL, finished_at INTEGER)""",
+    "DROP INDEX IF EXISTS idx_songs_status_plays",  # made SQLite scan by status instead of looking songs up by id
+    "CREATE INDEX IF NOT EXISTS idx_songs_plays ON songs(play_count DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_songs_released ON songs(release_year DESC, created_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_songs_youtube ON songs(youtube_id)",
+]
+
+
+def migrate():
+    for sql in MIGRATIONS:
+        try:
+            run(sql)
+        except sqlite3.OperationalError as e:
+            if "duplicate column" not in str(e):
+                raise
+
+
 def init():
     conn().executescript(SCHEMA)
+    migrate()
     for k, v in DEFAULT_SETTINGS.items():
         run("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
     seed_plans()

@@ -55,7 +55,7 @@ async def main():
         await page.click(".avatar"); await page.click("text=Log out"); await page.wait_for_timeout(300)
         await page.goto(BASE + "/login"); await page.fill("#em", "admin@pendel.local"); await page.fill("#pw", "Admin@12345"); await page.click("#login-form button"); await page.wait_for_selector(".avatar")
         await page.goto(BASE + "/admin"); await page.wait_for_selector(".chart"); await shot("16_admin_dash")
-        await page.goto(BASE + "/admin/songs"); await page.wait_for_selector("[data-edit]"); await page.click("[data-edit] >> nth=0")
+        await page.goto(BASE + "/admin/songs"); await page.wait_for_selector("#ssrc"); await page.select_option("#ssrc", "pendel"); await page.wait_for_timeout(800); await page.click("[data-edit] >> nth=0")
         await page.wait_for_selector("#wave"); await page.wait_for_timeout(2500); await shot("17_admin_editor")
         await page.click("#hauto"); await page.wait_for_timeout(2500); print("auto msg:", await page.inner_text("#hmsg"))
         await page.click("#hsave"); await page.wait_for_timeout(2500); print("save msg:", await page.inner_text("#hmsg"))

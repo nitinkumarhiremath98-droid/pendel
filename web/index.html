@@ -28,6 +28,7 @@
         <a href="/" data-link data-nav="home"><svg class="i"><use href="/img/icons.svg#home"/></svg>Home</a>
         <a href="/explore" data-link data-nav="explore"><svg class="i"><use href="/img/icons.svg#compass"/></svg>Explore</a>
         <a href="/highlights" data-link data-nav="highlights"><svg class="i"><use href="/img/icons.svg#spark"/></svg>Song Highlights</a>
+        <a href="/mood" data-link data-nav="mood"><svg class="i"><use href="/img/icons.svg#timer"/></svg>Mood Session</a>
         <a href="/languages" data-link data-nav="languages"><svg class="i"><use href="/img/icons.svg#globe"/></svg>Languages</a>
         <a href="/songs" data-link data-nav="songs"><svg class="i"><use href="/img/icons.svg#disc"/></svg>Full Songs</a>
         <a href="/search" data-link data-nav="search"><svg class="i"><use href="/img/icons.svg#search"/></svg>Search</a>
@@ -174,6 +175,11 @@
 
   <div class="toasts" id="toasts" aria-live="assertive"></div>
   <div id="modal-root"></div>
+  <!-- Full world-catalogue songs play in this visible YouTube player (required by YouTube's terms) -->
+  <aside class="yt-dock" id="yt-dock" hidden aria-label="YouTube player">
+    <div class="yt-frame-wrap"><div id="yt-frame"></div></div>
+    <div class="yt-caption">Full song via YouTube</div>
+  </aside>
   <audio id="audio" preload="auto"></audio>
   <noscript><p style="padding:2rem">PENDEL needs JavaScript to play music.</p></noscript>
 </body>

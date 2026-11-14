@@ -8,7 +8,9 @@ Browser SPA ──HTTP/JSON──▶ server/app.py (ThreadingHTTPServer)
    └──── signed URL ───────────▶ ├── Storage driver        media/  or S3-compatible bucket (+ CDN)
                                  ├── highlights.py         ffmpeg + numpy analysis, preview cutting
                                  ├── recommend.py          content-based scoring
-                                 └── payments.py           sandbox / Razorpay (pluggable)
+                                 ├── payments.py           sandbox / Razorpay (pluggable)
+                                 └── external.py           world catalogue: iTunes Search API + Apple RSS chart
+                                                           (cached 12 h), YouTube Data API for full songs
 ```
 
 - **Auth:** PBKDF2-SHA256 password hashes (200k iterations); HMAC-signed bearer tokens with a per-user `token_version` (used for "log out everywhere" and password changes); login and sign-up rate limits.
@@ -32,3 +34,7 @@ Browser SPA ──HTTP/JSON──▶ server/app.py (ThreadingHTTPServer)
 | Background jobs | Move highlight detection, preview cutting and transcoding to a queue (Celery/RQ/SQS workers). |
 | Recommendations | Keep the current content-based scorer as the cold-start layer. Add collaborative filtering or embeddings trained on `listening_history` behind the same `recommend()` interface. |
 | Analytics | Stream play events to a warehouse (BigQuery/ClickHouse) and keep only recent rows in the OLTP database. |
+
+## World catalogue (v2)
+
+Tracks from the iTunes Search API are *materialised* into the normal `songs` table (`id = sng_it<trackId>`, `source = 'itunes'`) the first time they appear, so favourites, playlists, history, sessions and recommendations need no special cases. Their only audio asset is Apple's preview URL (never downloaded). Full songs resolve lazily to a YouTube video id (admin-set or found with the YouTube Data API, cached on the song) and play in the browser through the IFrame Player API in a visible dock. API responses are cached in `external_cache` for 12 hours; after a network failure PENDEL stops calling out for two minutes so pages never hang. A background thread warms the cache at about 15 calls per minute, under Apple's ~20/minute limit.

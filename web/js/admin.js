@@ -5,7 +5,7 @@ const PERMS = { super_admin: ["*"], content_manager: ["content", "takedown", "an
 const can = (p) => { const r = PERMS[session.user?.admin_role] || []; return r.includes("*") || r.includes(p); };
 const TABS = [
   ["dashboard", "Dashboard", "analytics"], ["songs", "Songs", "content"], ["import", "Bulk upload", "content"], ["artists", "Artists", "content"],
-  ["albums", "Albums", "content"], ["taxonomy", "Categories & languages", "content"], ["users", "Users", "users"], ["playlists", "Playlists", "playlists"],
+  ["youtube", "YouTube catalogue", "content"], ["albums", "Albums", "content"], ["taxonomy", "Categories & languages", "content"], ["users", "Users", "users"], ["playlists", "Playlists", "playlists"],
   ["takedowns", "Takedowns", "takedown"], ["plans", "Plans & settings", "*"], ["audit", "Audit log", "*"],
 ];
 const LICENSE_TYPES = [["label", "Record label"], ["distributor", "Distributor"], ["publisher", "Publisher"], ["direct", "Direct from artist"], ["royalty_free", "Royalty-free"], ["cc0", "CC0 / public domain"]];
@@ -19,7 +19,7 @@ export async function adminView(view, tab, query, alive) {
     <div class="tabs" role="tablist">${tabs.map(([k, l]) => html`<a class="tab ${k === tab ? "active" : ""}" role="tab" aria-selected="${k === tab}" href="/admin/${k}" data-link>${l}</a>`)}</div>
     <div id="admin-body">${skeletonRows()}</div>`);
   const body = $("#admin-body");
-  const fn = { dashboard, songs: songsTab, import: importTab, artists, albums, taxonomy, users, playlists, takedowns, plans, audit }[tab];
+  const fn = { dashboard, songs: songsTab, import: importTab, youtube: youtubeTab, artists, albums, taxonomy, users, playlists, takedowns, plans, audit }[tab];
   await fn(body, alive);
 }
 
@@ -75,9 +75,10 @@ async function getLookups(force = false) { if (!lookups || force) lookups = awai
 async function songsTab(el, alive) {
   render(el, html`<div class="toolbar"><input class="input" id="sq" type="search" placeholder="Search title, artist or ID" aria-label="Search songs">
     <select class="input" id="sst" aria-label="Status" style="min-width:150px;flex:0 0 160px"><option value="">All statuses</option><option value="published">Published</option><option value="draft">Draft</option><option value="taken_down">Taken down</option></select>
+    <select class="input" id="ssrc" aria-label="Source" style="min-width:150px;flex:0 0 170px"><option value="">All sources</option><option value="pendel">PENDEL songs</option><option value="itunes">Apple Music previews</option><option value="youtube">YouTube full songs</option></select>
     <button class="btn primary" id="new-song" style="margin-left:auto">${icon("plus")}Add song</button></div><div id="slist">${skeletonRows()}</div>`);
   const load = async () => {
-    const p = new URLSearchParams({ q: $("#sq").value, status: $("#sst").value });
+    const p = new URLSearchParams({ q: $("#sq").value, status: $("#sst").value, source: $("#ssrc").value });
     const d = await get("/api/admin/songs?" + p);
     if (!alive()) return;
     render($("#slist"), d.songs.length ? html`<div class="table-wrap"><table class="tbl"><thead><tr><th></th><th>Song</th><th>Language</th><th>Highlight</th><th>Audio</th><th>Licence</th><th>Status</th><th></th></tr></thead><tbody>
@@ -93,6 +94,7 @@ async function songsTab(el, alive) {
   };
   $("#sq").addEventListener("input", debounce(load, 250));
   $("#sst").addEventListener("change", load);
+  $("#ssrc").addEventListener("change", load);
   $("#new-song").onclick = () => songEditor(null, load);
   await load();
 }
@@ -116,6 +118,7 @@ async function songEditor(song, reload) {
       <div class="field"><span class="lbl">Categories (pick all that fit)</span><div class="chips">${L.categories.map((c) => html`<label class="chip"><input type="checkbox" name="cat" value="${c.slug}" ${raw(song?.categories.some((x) => x.slug === c.slug) ? "checked" : "")} style="accent-color:var(--pink)">${c.name}</label>`)}</div></div>
       <label class="check"><input type="checkbox" name="is_featured" ${raw(song?.is_featured ? "checked" : "")}>Featured on the home page</label>
       <label class="check"><input type="checkbox" name="is_explicit" ${raw(song?.is_explicit ? "checked" : "")}>Explicit</label>
+      ${song?.is_external ? html`<div class="ed-section"><h4>Source</h4><p class="muted small">${song.source === "youtube" ? html`Full song from YouTube (<a href="${song.external_url}" target="_blank" rel="noopener" style="color:var(--accent)">watch</a>). It plays in the visible YouTube player; nothing is stored on PENDEL. Its highlight is an estimated window: set an exact one below.` : html`World catalogue song from Apple Music (${song.external_url ? html`<a href="${song.external_url}" target="_blank" rel="noopener" style="color:var(--accent)">open</a>` : "no link"}). Its audio is Apple's official 30-second preview; nothing is stored on PENDEL.`} You can fix its language and moods above.</p></div>` : html`
       <div class="ed-section"><h4>Licensing (required)</h4><div class="form-grid">
         <div class="field"><label>Licensor / rights holder</label><input class="input" name="licensor" required maxlength="120" value="${lic.licensor}"></div>
         <div class="field"><label>Licence type</label><select class="input" name="license_type">${LICENSE_TYPES.map(([v, l]) => opt(v, l, lic.license_type))}</select></div>
@@ -127,10 +130,17 @@ async function songEditor(song, reload) {
         <label class="check"><input type="checkbox" name="allow_free_full_stream" ${raw(lic.allow_free_full_stream ? "checked" : "")}>Full song may stream on the Free plan (otherwise Premium only; highlights stay free)</label>
         <label class="check"><input type="checkbox" name="allow_offline" ${raw(lic.allow_offline ? "checked" : "")}>Offline downloads permitted</label>
         <label class="check"><input type="checkbox" name="allow_lyrics" ${raw(lic.allow_lyrics ? "checked" : "")}>Lyrics display is licensed</label>
-      </div>
+      </div>`}
       <div class="modal-actions" style="justify-content:space-between"><span class="dim small">${song ? song.id : "Save first, then upload audio and set the highlight."}</span><div style="display:flex;gap:8px"><button type="button" class="btn ghost" data-close>Close</button><button class="btn primary">${song ? "Save changes" : "Create draft"}</button></div></div>
     </form>
-    ${song ? html`
+    ${song?.is_external ? html`
+      <div class="ed-section"><h4>Full song & custom highlight (YouTube)</h4>
+        <p class="dim small" style="margin-top:-6px">Paste the official YouTube video of this song. PENDEL then plays the full song in a visible YouTube player, and you can choose your own 20–30 s highlight window on that video.</p>
+        <div class="toolbar"><input class="input" id="yid" placeholder="https://www.youtube.com/watch?v=… or video ID" value="${song.youtube_id || ""}" style="flex:1 1 320px"><button class="btn sm primary" id="ysave">Save video</button>
+          <a class="btn sm" href="${song.youtube_url}" target="_blank" rel="noopener">${icon("external")}Search YouTube</a></div>
+        <div class="toolbar"><label class="small">Highlight start (s) <input class="input" id="yhs" type="number" step="0.1" min="0" value="${song.highlight?.source === "provider" ? "" : song.highlight?.start ?? ""}" style="width:110px;min-width:0;display:inline-block;height:36px"></label>
+          <label class="small">End (s) <input class="input" id="yhe" type="number" step="0.1" min="0" value="${song.highlight?.source === "provider" ? "" : song.highlight?.end ?? ""}" style="width:110px;min-width:0;display:inline-block;height:36px"></label>
+          <button class="btn sm primary" id="yhsave">Save highlight</button><span class="dim small" id="yhmsg">${song.highlight?.source === "provider" ? "Currently using Apple's 30 s preview." : ""}</span></div></div>` : song ? html`
       <div class="ed-section"><h4>Audio & artwork</h4>
         <div class="toolbar"><label class="btn">${icon("upload")}Upload licensed audio<input type="file" id="aud" accept="audio/*" class="sr-only"></label>
           <select class="input" id="aq" style="min-width:150px;flex:0 0 170px" aria-label="Audio quality"><option value="standard">Standard quality</option><option value="high">High quality (Premium)</option></select>
@@ -158,10 +168,10 @@ async function songEditor(song, reload) {
     e.preventDefault();
     const f = e.target, fd = new FormData(f);
     const body = {
+      ...(song?.is_external ? {} : { license: { licensor: fd.get("licensor"), license_type: fd.get("license_type"), territories: fd.get("territories"), reference: fd.get("reference"), valid_from: fd.get("valid_from"), valid_until: fd.get("valid_until"),
+        allow_free_full_stream: f.allow_free_full_stream.checked, allow_offline: f.allow_offline.checked, allow_lyrics: f.allow_lyrics.checked } }),
       title: fd.get("title"), artist_id: fd.get("artist_id"), album_id: fd.get("album_id") || null, language_code: fd.get("language_code"), genre: fd.get("genre"),
       release_year: fd.get("release_year") || null, status: fd.get("status"), categories: fd.getAll("cat"), is_featured: f.is_featured.checked, is_explicit: f.is_explicit.checked,
-      license: { licensor: fd.get("licensor"), license_type: fd.get("license_type"), territories: fd.get("territories"), reference: fd.get("reference"), valid_from: fd.get("valid_from"), valid_until: fd.get("valid_until"),
-        allow_free_full_stream: f.allow_free_full_stream.checked, allow_offline: f.allow_offline.checked, allow_lyrics: f.allow_lyrics.checked },
     };
     if (fd.get("trending_pin")) body.trending_pin = fd.get("trending_pin");
     try {
@@ -172,6 +182,17 @@ async function songEditor(song, reload) {
     } catch (err) { toastError(err); }
   });
   if (!song) return;
+  if (song.is_external) {
+    const reopen = async () => { reload(); songEditor((await get(`/api/admin/songs?q=${song.id}`)).songs[0], reload); };
+    $("#ysave", m).onclick = async () => {
+      try { await patch(`/api/admin/songs/${song.id}`, { youtube_id: $("#yid", m).value.trim() }); toast("YouTube video saved"); reopen(); } catch (err) { toastError(err); }
+    };
+    $("#yhsave", m).onclick = async () => {
+      try { await put(`/api/admin/songs/${song.id}/highlight`, { start: +$("#yhs", m).value, end: +$("#yhe", m).value }); toast("Highlight saved: it now plays from the YouTube video"); reopen(); }
+      catch (err) { $("#yhmsg", m).textContent = err.message; }
+    };
+    return;
+  }
 
   // audio + cover uploads
   $("#aud", m).addEventListener("change", async (e) => {
@@ -549,4 +570,59 @@ async function audit(el, alive) {
   if (!alive()) return;
   render(el, d.entries.length ? html`<div class="table-wrap"><table class="tbl"><thead><tr><th>When</th><th>Admin</th><th>Action</th><th>Entity</th><th>Details</th></tr></thead><tbody>
     ${d.entries.map((a) => html`<tr><td>${new Date(a.at * 1000).toLocaleString()}</td><td class="small">${a.admin_email || "system"}</td><td>${a.action}</td><td class="small">${a.entity} ${a.entity_id || ""}</td><td class="small dim" style="max-width:360px;word-break:break-word">${a.details || ""}</td></tr>`)}</tbody></table></div>` : emptyState("list", "No admin activity yet"));
+}
+
+
+// ------------------------------------------------------------------ YouTube full-song catalogue
+async function youtubeTab(el, alive) {
+  const [d, L] = await Promise.all([get("/api/admin/youtube"), getLookups()]);
+  if (!alive()) return;
+  const u = d.usage;
+  const busy = d.jobs.some((j) => ["queued", "running"].includes(j.status));
+  render(el, html`
+    ${d.key ? "" : html`<div class="notice"><strong>Add a YouTube API key first.</strong> Put <code>YOUTUBE_API_KEY=…</code> in your <code>.env</code> file and restart PENDEL. The README explains how to get a free key in about 5 minutes.</div>`}
+    <div class="admin-grid">
+      <div class="stat"><div class="k">Full songs from YouTube</div><div class="v">${fmtNum(d.songs)}</div></div>
+      <div class="stat"><div class="k">Quota used today</div><div class="v">${fmtNum(u.units)} / ${fmtNum(u.units_limit)}</div></div>
+      <div class="stat"><div class="k">Searches used today</div><div class="v">${u.searches} / ${u.searches_limit}</div></div>
+      <div class="stat"><div class="k">Snapshot for Render</div><div class="v" style="font-size:18px">${d.snapshot.exists ? `${(d.snapshot.bytes / 1e6).toFixed(1)} MB · ${fmtDate(d.snapshot.modified)}` : "not created"}</div></div>
+    </div>
+    <div class="split">
+      <div class="panel"><h3>1 · Starter pack</h3>
+        <p class="muted small">Imports official full songs for every language and mood (Kannada, Telugu, Tamil, Hindi … Korean, Spanish and more) from YouTube playlists. Round 1 usually brings tens of thousands of songs. YouTube allows about 95 searches a day, so run round 2 and round 3 on later days for more.</p>
+        <div class="toolbar">${d.rounds.map((r) => html`<button class="btn ${r === 1 ? "primary" : ""}" data-round="${r}" ${raw(d.key ? "" : "disabled")}>${icon("upload")}Run round ${r}</button>`)}</div>
+      </div>
+      <div class="panel"><h3>2 · Import a channel or playlist</h3>
+        <form id="ytf"><div class="field"><label>Channel link, @handle, playlist link, or search words</label><input class="input" name="source" required placeholder="https://www.youtube.com/@SomeLabel  or  kannada folk songs"></div>
+          <div class="form-grid"><div class="field"><label>Language</label><select class="input" name="lang">${L.languages.map((l) => html`<option value="${l.code}">${l.name}</option>`)}</select></div>
+          <div class="field"><label>Mood (optional)</label><select class="input" name="mood"><option value="">Detect from titles</option>${L.categories.map((c) => html`<option value="${c.slug}">${c.name}</option>`)}</select></div>
+          <div class="field"><label>Max songs</label><input class="input" type="number" name="max" value="1000" min="50" max="20000"></div></div>
+          <button class="btn primary" ${raw(d.key ? "" : "disabled")}>Import</button></form>
+      </div>
+    </div>
+    <div class="panel"><h3>3 · Publish to your live site</h3>
+      <p class="muted small">Render's free plan forgets its database on every restart. Export a snapshot, then commit and push it. The live site reloads it on start-up without using any quota. YouTube's rules require stored data to be refreshed within 30 days, so export a fresh snapshot at least once a month (PENDEL also refreshes old snapshots automatically when a key is set).</p>
+      <div class="toolbar"><button class="btn primary" id="yt-snap">Export snapshot</button><button class="btn" id="yt-refresh" ${raw(d.key ? "" : "disabled")}>Refresh all songs now</button><span class="dim small" id="yt-msg"></span></div>
+      <pre class="small" style="background:var(--bg-2);padding:10px 14px;border-radius:10px;overflow:auto">git add catalog/youtube_snapshot.json.gz
+git commit -m "Update YouTube catalogue"
+git push</pre>
+    </div>
+    <div class="split">
+      <div class="panel"><h3>Songs by language</h3>${d.by_language.length ? html`<div class="table-wrap"><table class="tbl"><tbody>${d.by_language.map((r) => html`<tr><td>${r.name}</td><td>${fmtNum(r.n)}</td></tr>`)}</tbody></table></div>` : html`<p class="dim small">Nothing imported yet.</p>`}</div>
+      <div class="panel"><h3>Import jobs ${busy ? html`<span class="badge">running</span>` : ""}</h3>${d.jobs.length ? html`<div class="table-wrap" style="max-height:420px"><table class="tbl"><thead><tr><th>Job</th><th>Status</th><th>Checked</th><th>Added</th></tr></thead><tbody>
+        ${d.jobs.map((j) => html`<tr><td class="small">${j.label}<div class="dim">${j.lang}${j.mood ? ` · ${j.mood}` : ""}</div>${j.error ? html`<div style="color:#fb7185">${j.error}</div>` : ""}</td><td><span class="status ${j.status === "done" ? "published" : j.status === "failed" ? "taken_down" : "draft"}">${j.status}</span></td><td>${fmtNum(j.seen)}</td><td>${fmtNum(j.added)}</td></tr>`)}</tbody></table></div>` : html`<p class="dim small">No imports yet.</p>`}</div>
+    </div>`);
+  const again = () => alive() && youtubeTab(el, alive);
+  el.onclick = async (e) => {
+    const b = e.target.closest("[data-round]");
+    if (b) { try { const r = await post("/api/admin/youtube/starter", { round: +b.dataset.round }); toast(`Started ${r.jobs} imports. Leave PENDEL running; this page updates itself.`); again(); } catch (err) { toastError(err); } }
+    if (e.target.closest("#yt-snap")) { try { const r = await post("/api/admin/youtube/snapshot", {}); $("#yt-msg", el).textContent = `Saved ${fmtNum(r.songs)} songs to ${r.file} (${(r.bytes / 1e6).toFixed(1)} MB). Now commit and push it.`; } catch (err) { toastError(err); } }
+    if (e.target.closest("#yt-refresh")) { try { await post("/api/admin/youtube/refresh", {}); toast("Refreshing all songs in the background"); } catch (err) { toastError(err); } }
+  };
+  $("#ytf", el).addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    try { await post("/api/admin/youtube/import", { source: f.source.value, lang: f.lang.value, mood: f.mood.value || null, max: +f.max.value }); toast("Import started"); again(); } catch (err) { toastError(err); }
+  });
+  if (busy) setTimeout(() => { if (alive() && document.body.contains(el)) again(); }, 4000);
 }

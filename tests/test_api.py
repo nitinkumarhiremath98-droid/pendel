@@ -2,16 +2,18 @@
 
     python -m unittest tests.test_api -v
 """
-import json, os, shutil, subprocess, sys, tempfile, threading, time, unittest, urllib.error, urllib.request
+import json, os, re, shutil, subprocess, sys, tempfile, threading, time, unittest, urllib.error, urllib.request
 
 TMP = tempfile.mkdtemp(prefix="pendel-test-")
-os.environ.update({"DATABASE_PATH": os.path.join(TMP, "test.db"), "PORT": "8799", "PENDEL_QUIET": "1", "PAYMENT_PROVIDERS": "sandbox"})
+os.environ.update({"DATABASE_PATH": os.path.join(TMP, "test.db"), "PORT": "8799", "PENDEL_QUIET": "1", "PAYMENT_PROVIDERS": "sandbox",
+                   "PENDEL_FAKE_WORLD": "1", "WORLD_WARMUP": "0", "YOUTUBE_API_KEY": ""})
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from server import app, db, config, security  # noqa: E402
 from http.server import ThreadingHTTPServer  # noqa: E402
 
 BASE = "http://127.0.0.1:8799"
+re_junk = re.compile(r"trailer|jukebox", re.I).search
 
 
 def call(method, path, body=None, token=None, raw=None, ctype=None):
@@ -59,7 +61,7 @@ class PENDELAPI(unittest.TestCase):
         self.assertEqual(len(next(r for r in d["rails"] if r["key"] == "top20")["songs"]), 20)
 
     def test_every_song_has_language_and_valid_highlight(self):
-        for s in db.q("SELECT s.id, s.language_code, h.start_sec, h.end_sec, s.duration_sec FROM songs s LEFT JOIN song_highlights h ON h.song_id=s.id WHERE s.status='published'"):
+        for s in db.q("SELECT s.id, s.language_code, h.start_sec, h.end_sec, s.duration_sec FROM songs s LEFT JOIN song_highlights h ON h.song_id=s.id WHERE s.status='published' AND s.source='pendel'"):
             self.assertTrue(s["language_code"])
             self.assertIsNotNone(s["start_sec"])
             self.assertTrue(20 <= s["end_sec"] - s["start_sec"] <= 30)
@@ -223,6 +225,167 @@ class PENDELAPI(unittest.TestCase):
         self.assertIn('"@type": "MusicRecording"', page)
         with urllib.request.urlopen(BASE + "/sitemap.xml") as r:
             self.assertIn("/language/te", r.read().decode())
+
+
+    # ------------------------------------------------------------------ v2: world catalogue + mood sessions
+    def test_world_language_page_tags_language(self):
+        st, d = call("GET", "/api/languages/ta")
+        world = next(sec for sec in d["sections"] if sec["key"] == "world")["songs"]
+        self.assertTrue(world)
+        self.assertTrue(all(s["language"]["code"] == "ta" and s["is_external"] and s["source"] == "itunes" for s in world))
+        self.assertEqual(world[0]["highlight"]["source"], "provider")
+        self.assertFalse(world[0]["premium_only"])
+
+    def test_world_language_filter_is_strict(self):
+        st, d = call("GET", "/api/languages/kn")
+        world = next(sec for sec in d["sections"] if sec["key"] == "world")["songs"]
+        self.assertTrue(world)
+        self.assertTrue(all(s["genre"] == "Kannada" for s in world), {s["genre"] for s in world})
+        every_kn = [s for sec in d["sections"] for s in sec["songs"] if s["is_external"]]
+        self.assertTrue(all(s["language"]["code"] == "kn" for s in every_kn))
+
+    def test_fix_languages_repairs_wrong_labels(self):
+        from server import external
+        sid = call("GET", "/api/world/mood?lang=te&mood=love")[1]["songs"][0]["id"]
+        db.run("UPDATE songs SET language_code='kn' WHERE id=?", (sid,))  # simulate a v2.0 mislabel
+        self.assertGreaterEqual(external.fix_languages(), 1)
+        self.assertEqual(db.one("SELECT language_code FROM songs WHERE id=?", (sid,))["language_code"], "te")
+
+    def test_world_song_streams_preview_and_no_lyrics(self):
+        sid = call("GET", "/api/world/mood?lang=hi&mood=love")[1]["songs"][0]["id"]
+        st, hl = call("GET", f"/api/stream/{sid}?kind=highlight")
+        self.assertEqual((hl["mode"], hl["provider"]), ("preview", "Apple Music"))
+        st, full = call("GET", f"/api/stream/{sid}?kind=full")
+        self.assertEqual((full["mode"], full["reason"]), ("restricted", "external_full"))
+        self.assertIn("youtube.com/results", full["links"]["youtube"])
+        self.assertFalse(call("GET", f"/api/songs/{sid}/lyrics")[1]["available"])
+
+    def test_world_songs_work_with_favourites_and_playlists(self):
+        sid = call("GET", "/api/world/mood?lang=te&mood=sad")[1]["songs"][0]["id"]
+        self.assertEqual(call("PUT", f"/api/me/favourites/{sid}", token=self.user)[0], 200)
+        st, d = call("POST", "/api/playlists", {"title": "World mix", "song_ids": [sid]}, token=self.user)
+        self.assertEqual(d["songs"][0]["id"], sid)
+        self.assertIn(sid, [x["id"] for x in call("GET", "/api/me/auto-playlists/sad", token=self.user)[1]["songs"]])
+
+    def test_world_in_search_feed_home(self):
+        st, d = call("GET", "/api/search?q=bollywood%20track")
+        self.assertTrue(any(s["is_external"] for s in d["songs"]))
+        st, d = call("GET", "/api/highlights?feed=devotional&lang=kn")
+        self.assertTrue(any(i["is_external"] for i in d["items"]))
+        self.assertTrue(all("devotional" in [c["slug"] for c in i["categories"]] for i in d["items"]))
+        st, d = call("GET", "/api/home")
+        chart = next(r for r in d["rails"] if r["key"] == "world-chart")
+        self.assertEqual(len(chart["songs"]), 30)
+
+    def test_one_hour_highlight_session(self):
+        st, d = call("GET", "/api/sessions/mood?mood=sad&langs=hi,te&minutes=60&mode=highlights")
+        self.assertEqual(st, 200, d)
+        self.assertTrue(d["complete"])
+        self.assertGreaterEqual(d["total_seconds"], 3600)
+        self.assertLess(d["total_seconds"], 3600 + 31)
+        langs = [s["language"]["code"] for s in d["songs"][:6]]
+        self.assertIn("hi", langs); self.assertIn("te", langs)
+        self.assertTrue(all("sad" in [c["slug"] for c in s["categories"]] for s in d["songs"]))
+        self.assertEqual(len({s["id"] for s in d["songs"]}), len(d["songs"]), "no repeats")
+
+    def test_full_session_explains_missing_youtube(self):
+        st, d = call("GET", "/api/sessions/mood?mood=sad&langs=ko&minutes=60&mode=full")
+        self.assertFalse(d["complete"])
+        self.assertIn("YouTube API key", d["note"])
+        self.assertEqual(call("GET", "/api/sessions/mood?mood=nope&mode=full")[0], 400)
+
+    def test_youtube_full_song_and_custom_highlight(self):
+        from server import config as cfg
+        cfg.YOUTUBE_API_KEY = "test-key"
+        try:
+            sid = call("GET", "/api/world/mood?lang=pa&mood=party")[1]["songs"][0]["id"]
+            st, full = call("GET", f"/api/stream/{sid}?kind=full")
+            self.assertEqual((full["mode"], full["video_id"]), ("youtube", "abcDEF12345"))
+            st, d = call("GET", "/api/sessions/mood?mood=party&langs=pa&minutes=30&mode=full")
+            self.assertTrue(d["complete"], d["note"])
+            # admin sets a video by link and a custom 25 s window on it
+            self.assertEqual(call("PATCH", f"/api/admin/songs/{sid}", {"youtube_id": "https://youtu.be/XYZxyz12345"}, token=self.admin)[0], 200)
+            self.assertEqual(call("PUT", f"/api/admin/songs/{sid}/highlight", {"start": 60, "end": 85}, token=self.admin)[0], 200)
+            st, hl = call("GET", f"/api/stream/{sid}?kind=highlight")
+            self.assertEqual((hl["mode"], hl["video_id"], hl["start"], hl["end"]), ("youtube", "XYZxyz12345", 60.0, 85.0))
+            self.assertEqual(call("PATCH", f"/api/admin/songs/{sid}", {"youtube_id": "not a video"}, token=self.admin)[0], 400)
+        finally:
+            cfg.YOUTUBE_API_KEY = ""
+
+    # ------------------------------------------------------------------ v3: YouTube full-song catalogue
+    def test_youtube_import_and_full_song_playback(self):
+        from server import config as cfg, youtube_catalog as ytc
+        self.assertEqual(call("POST", "/api/admin/youtube/starter", {}, token=self.admin)[0], 400, "needs a key")
+        cfg.YOUTUBE_API_KEY = "test-key"
+        try:
+            st, d = call("POST", "/api/admin/youtube/import", {"source": "kannada sad songs", "lang": "kn", "mood": "sad", "max": 300}, token=self.admin)
+            self.assertEqual(st, 200, d)
+            ytc._q.join()
+            st, info = call("GET", "/api/admin/youtube", token=self.admin)
+            job = next(j for j in info["jobs"] if j["id"] == d["job_id"])
+            self.assertEqual(job["status"], "done", job)
+            self.assertGreater(job["added"], 100)
+            self.assertLessEqual(info["usage"]["units"], 20, "playlist imports must use cheap 1-unit calls")
+            kn = call("GET", "/api/languages/kn")[1]
+            full = next(sec for sec in kn["sections"] if sec["key"] == "youtube")["songs"]
+            self.assertTrue(full and all(x["source"] == "youtube" and x["language"]["code"] == "kn" for x in full))
+            self.assertFalse(any(re_junk(x["title"]) for x in full))
+            sid = full[0]["id"]
+            st, f = call("GET", f"/api/stream/{sid}?kind=full")
+            self.assertEqual(f["mode"], "youtube"); self.assertEqual(f["start"], 0)
+            st, h = call("GET", f"/api/stream/{sid}?kind=highlight")
+            self.assertEqual(h["mode"], "youtube"); self.assertAlmostEqual(h["end"] - h["start"], 25, delta=0.2)
+            self.assertIn("sad", [c["slug"] for c in full[0]["categories"]])
+        finally:
+            cfg.YOUTUBE_API_KEY = ""
+
+    def test_full_song_session_uses_youtube_without_key(self):
+        from server import youtube_catalog as ytc
+        ytc.materialise([{"video_id": f"vid{i:08d}", "title": f"Kannada Love Song {i}", "channel": "Label", "channel_id": "UCx", "duration": 240,
+                          "year": 2024, "lang": "kn", "moods": ["love"]} for i in range(30)])
+        st, d = call("GET", "/api/sessions/mood?mood=love&langs=kn&minutes=60&mode=full")
+        self.assertTrue(d["complete"], d["note"])
+        self.assertTrue(any(x["source"] == "youtube" for x in d["songs"]))
+
+    def test_youtube_snapshot_round_trip(self):
+        from server import youtube_catalog as ytc
+        ytc.materialise([{"video_id": "snapVID0001", "title": "Telugu Melody", "channel": "Label", "channel_id": "UCy", "duration": 200,
+                          "year": 2023, "lang": "te", "moods": ["melody"]}])
+        st, r = call("POST", "/api/admin/youtube/snapshot", {}, token=self.admin)
+        self.assertGreaterEqual(r["songs"], 1)
+        sid = ytc.song_id("snapVID0001")
+        db.run("DELETE FROM songs WHERE id=?", (sid,))
+        self.assertGreaterEqual(ytc.load_snapshot(), 1)
+        row = db.one("SELECT language_code, youtube_id FROM songs WHERE id=?", (sid,))
+        self.assertEqual((row["language_code"], row["youtube_id"]), ("te", "snapVID0001"))
+        os.remove(ytc.SNAPSHOT)
+
+    def test_youtube_quota_guard(self):
+        from server import config as cfg, youtube_catalog as ytc
+        cfg.YOUTUBE_API_KEY = "test-key"
+        try:
+            db.run("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (f"yt_units_{ytc._today()}", "9500"))
+            with self.assertRaises(ytc.QuotaExceeded):
+                ytc.call("videos", {"id": "x"})
+        finally:
+            cfg.YOUTUBE_API_KEY = ""
+            db.run("DELETE FROM settings WHERE key LIKE 'yt_units_%'")
+
+    def test_world_offline_degrades_gracefully(self):
+        from server import external
+        real = external.FETCH
+        def boom(url):
+            raise OSError("network down")
+        external.FETCH = boom
+        try:
+            t = time.time()
+            st, d = call("GET", "/api/world/mood?lang=th&mood=melody")
+            self.assertEqual((st, d["songs"]), (200, []))
+            self.assertLess(time.time() - t, 5)
+            self.assertIn("network down", call("GET", "/api/world/status")[1]["last_error"])
+        finally:
+            external.FETCH = real
+            external._down_until[0] = 0
 
 
 if __name__ == "__main__":

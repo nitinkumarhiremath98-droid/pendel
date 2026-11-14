@@ -54,11 +54,22 @@ def recommend(user_id, limit=20, mood=None, exclude_recent=True, language=None):
     recent = set()
     if user_id and exclude_recent:
         recent = {r["song_id"] for r in db.q("SELECT song_id FROM listening_history WHERE user_id=? AND played_at > ?", (user_id, int(time.time()) - 6 * 3600))}
-    songs = db.q("SELECT id, language_code, artist_id, play_count, release_year FROM songs WHERE status='published'" + (" AND language_code=?" if language else ""),
-                 (language,) if language else ())
+    # big catalogues: score the listener's languages (or the busiest songs) instead of every song
+    top_langs = sorted(lang, key=lang.get, reverse=True)[:5] if lang else []
+    if language:
+        where, params = "AND language_code=?", (language,)
+    elif top_langs:
+        where, params = f"AND (language_code IN ({','.join('?' * len(top_langs))}) OR source='pendel')", tuple(top_langs)
+    else:
+        where, params = "", ()
+    songs = db.q(f"""SELECT id, language_code, artist_id, play_count, release_year FROM songs WHERE status='published' {where}
+                     ORDER BY play_count DESC, RANDOM() LIMIT 4000""", params)
     sc = defaultdict(list)
-    for r in db.q("SELECT song_id, category_id FROM song_categories"):
-        sc[r["song_id"]].append(r["category_id"])
+    ids = [s["id"] for s in songs]
+    for i in range(0, len(ids), 900):
+        chunk = ids[i:i + 900]
+        for r in db.q(f"SELECT song_id, category_id FROM song_categories WHERE song_id IN ({','.join('?' * len(chunk))})", chunk):
+            sc[r["song_id"]].append(r["category_id"])
     maxpop = max([s["play_count"] for s in songs] or [1]) or 1
     year = time.gmtime().tm_year
     scored = []

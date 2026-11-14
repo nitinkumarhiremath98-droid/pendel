@@ -2,6 +2,64 @@ import { session, get, post } from "./api.js";
 import { $, $$, esc, fmtTime, toast, setRangeFill, songs as songRegistry } from "./ui.js";
 
 const audio = document.getElementById("audio");
+
+// ------------------------------------------------------------------ playback engines
+// PENDEL songs and Apple previews play in <audio>. Full world-catalogue songs play in a visible
+// YouTube embed (YouTube's terms require the player to be shown). `media` hides the difference.
+const yt = { player: null, ready: null, active: false, state: -1, timer: null };
+export const media = {
+  get engine() { return yt.active ? "youtube" : "audio"; },
+  get currentTime() { return yt.active ? (yt.player?.getCurrentTime?.() || 0) : audio.currentTime; },
+  set currentTime(v) { if (yt.active) yt.player?.seekTo?.(v, true); else audio.currentTime = v; },
+  get paused() { return yt.active ? !(yt.state === 1 || yt.state === 3) : audio.paused; },
+  get ended() { return yt.active ? yt.state === 0 : audio.ended; },
+  play() { if (yt.active) { yt.player?.playVideo?.(); return Promise.resolve(); } return audio.play(); },
+  pause() { if (yt.active) yt.player?.pauseVideo?.(); else audio.pause(); },
+};
+function ensureYT() {
+  if (window.YT?.Player) return Promise.resolve(true);
+  if (!yt.ready) {
+    yt.ready = new Promise((res) => {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { prev?.(); res(true); };
+      const s = document.createElement("script");
+      s.src = "https://www.youtube.com/iframe_api";
+      s.onerror = () => { yt.ready = null; res(false); };
+      document.head.append(s);
+    });
+  }
+  return yt.ready;
+}
+function showDock(on) { const d = document.getElementById("yt-dock"); if (d) d.hidden = !on; document.body.classList.toggle("has-video", on); }
+function stopYT() {
+  if (!yt.active) return;
+  yt.active = false; clearInterval(yt.timer);
+  try { yt.player?.stopVideo?.(); } catch { /* ignore */ }
+  showDock(false);
+}
+async function ytLoad(stream, autoplay) {
+  audio.pause(); audio.removeAttribute("src");
+  yt.active = true; yt.state = -1; showDock(true);
+  if (!(await ensureYT())) { toast("YouTube couldn't load. Check your connection.", { error: true }); stopYT(); return; }
+  const opts = { videoId: stream.video_id, startSeconds: Math.floor(stream.start || 0) };
+  if (stream.end && stream.end > (stream.start || 0) && player.current?.mode === "highlight") opts.endSeconds = Math.ceil(stream.end);
+  const vol = +(localStorage.getItem("rf_vol") ?? 80);
+  if (!yt.player) {
+    await new Promise((res) => {
+      yt.player = new window.YT.Player("yt-frame", {
+        width: "100%", height: "100%", videoId: opts.videoId,
+        playerVars: { autoplay: autoplay ? 1 : 0, playsinline: 1, rel: 0, start: opts.startSeconds, ...(opts.endSeconds ? { end: opts.endSeconds } : {}), origin: location.origin },
+        events: {
+          onReady: () => { yt.player.setVolume(vol); res(); },
+          onStateChange: (e) => { yt.state = e.data; syncUI(); emit("state"); if (e.data === 0) onEnded(); },
+          onError: () => { toast("This video can't be played here. Try “Open on YouTube”.", { error: true }); },
+        },
+      });
+    });
+  } else if (autoplay) yt.player.loadVideoById(opts); else yt.player.cueVideoById(opts);
+  clearInterval(yt.timer);
+  yt.timer = setInterval(() => { if (yt.active && yt.state === 1) onTime(media.currentTime); }, 250);
+}
 const listeners = {};
 const on = (ev, fn) => ((listeners[ev] ||= new Set()).add(fn), () => listeners[ev].delete(fn));
 const emit = (ev, d) => listeners[ev]?.forEach((fn) => fn(d));
@@ -13,13 +71,15 @@ export const player = {
   listened: 0, lastT: null, loadToken: 0, retried: false,
 
   get song() { return this.current?.song || null; },
-  get playing() { return !audio.paused && !audio.ended; },
-  get pos() { return this.current ? Math.max(0, audio.currentTime - this.current.start) : 0; },
+  get playing() { return !media.paused && !media.ended; },
+  get pos() { return this.current ? Math.max(0, media.currentTime - this.current.start) : 0; },
   get length() { return this.current ? Math.max(0.01, this.current.end - this.current.start) : 0; },
   /** position within the original song (used for lyric sync, even when playing a preview cut) */
-  get songTime() { return this.current ? audio.currentTime + (this.current.stream?.song_offset || 0) : 0; },
+  get songTime() { return this.current ? media.currentTime + (this.current.stream?.song_offset || 0) : 0; },
+  sessionMode: null, // 'full' | 'highlights' while a mood session is playing
 
-  async play(song, { queue = null, index = 0, mode = "full", autoplay = true } = {}) {
+  async play(song, { queue = null, index = 0, mode = "full", autoplay = true, session = null } = {}) {
+    this.sessionMode = session;
     if (queue) { this.queue = queue.slice(); this.index = index; this.original = null; if (this.shuffle) this.applyShuffle(); }
     else if (!this.queue.length || this.queue[this.index]?.id !== song.id) { this.queue = [song]; this.index = 0; }
     await this.load(song, mode, autoplay);
@@ -40,13 +100,18 @@ export const player = {
     if (token !== this.loadToken) return;
     if (stream.mode === "restricted") {
       if (!stream.preview) { toast(stream.message, { error: true }); return; }
-      toast("This full song is for Premium listeners. Playing its highlight.", { action: { href: "/premium", label: "Go Premium" }, ms: 5000 });
+      if (stream.reason === "external_full") toast(stream.message, { action: { href: stream.links.youtube, label: "Open on YouTube", external: true }, ms: 6000 });
+      else toast("This full song is for Premium listeners. Playing its highlight.", { action: { href: "/premium", label: "Go Premium" }, ms: 5000 });
       stream = stream.preview; mode = "highlight";
     }
-    this.current = { song, mode, stream, start: stream.start, end: stream.end };
+    this.current = { song, mode, stream, start: stream.start, end: stream.end, ended: false };
     this.listened = 0; this.lastT = null; this.retried = false;
-    audio.src = stream.url;
-    audio.dataset.seekTo = String(stream.start);
+    if (stream.mode === "youtube") { ytLoad(stream, autoplay); }
+    else {
+      stopYT();
+      audio.src = stream.url;
+      audio.dataset.seekTo = String(stream.start);
+    }
     if (mode === "full") countTrackForAds();
     updateMediaSession(song);
     emit("change", this.current);
@@ -55,17 +120,17 @@ export const player = {
 
   resume() {
     if (!this.current) return;
-    const p = audio.play();
+    const p = media.play();
     if (p) p.catch((e) => { if (e.name === "NotAllowedError") { emit("blocked"); syncUI(); } });
   },
-  pause() { audio.pause(); },
+  pause() { media.pause(); },
   toggle() { if (!this.current) return; this.playing ? this.pause() : this.resume(); },
-  seekFrac(f) { if (this.current) audio.currentTime = this.current.start + Math.max(0, Math.min(0.999, f)) * this.length; },
-  seekBy(d) { if (this.current) audio.currentTime = Math.max(this.current.start, Math.min(this.current.end - 0.2, audio.currentTime + d)); },
+  seekFrac(f) { if (this.current) media.currentTime = this.current.start + Math.max(0, Math.min(0.999, f)) * this.length; },
+  seekBy(d) { if (this.current) media.currentTime = Math.max(this.current.start, Math.min(this.current.end - 0.2, media.currentTime + d)); },
   seekSong(t) { // seek using original-song time (lyrics click)
     if (!this.current) return;
     const local = t - (this.current.stream?.song_offset || 0);
-    if (local >= this.current.start && local < this.current.end) audio.currentTime = local;
+    if (local >= this.current.start && local < this.current.end) media.currentTime = local;
   },
 
   async next(auto = false) {
@@ -74,15 +139,15 @@ export const player = {
     let i = this.index + 1;
     if (i >= this.queue.length) {
       if (this.repeat === "all") i = 0;
-      else { this.pause(); if (auto) { audio.currentTime = this.current.start; emit("ended-queue"); } return; }
+      else { this.pause(); if (auto) { media.currentTime = this.current.start; emit("ended-queue"); } return; }
     }
     this.index = i;
-    await this.load(this.queue[i], this.current?.mode === "highlight" && this.hlQueue ? "highlight" : "full");
+    await this.load(this.queue[i], this.sessionMode === "highlights" || (this.current?.mode === "highlight" && this.hlQueue) ? "highlight" : "full");
   },
   async prev() {
-    if (this.current && this.pos > 3) { audio.currentTime = this.current.start; return; }
+    if (this.current && this.pos > 3) { media.currentTime = this.current.start; return; }
     if (this.index > 0) { this.index -= 1; await this.load(this.queue[this.index], "full"); }
-    else if (this.current) audio.currentTime = this.current.start;
+    else if (this.current) media.currentTime = this.current.start;
   },
   jump(i) { if (i >= 0 && i < this.queue.length) { this.index = i; this.load(this.queue[i], "full"); } },
 
@@ -142,22 +207,23 @@ audio.addEventListener("loadedmetadata", () => {
   audio.dataset.seekTo = "";
   syncUI();
 });
-audio.addEventListener("timeupdate", () => {
+audio.addEventListener("timeupdate", () => { if (!yt.active) onTime(audio.currentTime); });
+function onTime(t) {
   const c = player.current;
   if (!c) return;
-  const t = audio.currentTime;
   if (player.lastT !== null && t > player.lastT && t - player.lastT < 2) player.listened += t - player.lastT;
   player.lastT = t;
   if (t >= c.end - 0.08 && c.mode === "highlight") { onEnded(); return; }
   syncTime();
   emit("time", t);
-});
-audio.addEventListener("ended", onEnded);
+}
+audio.addEventListener("ended", () => { if (!yt.active) onEnded(); });
 audio.addEventListener("play", () => { syncUI(); emit("state"); });
 audio.addEventListener("pause", () => { syncUI(); emit("state"); });
 audio.addEventListener("waiting", () => document.body.classList.add("buffering"));
 audio.addEventListener("playing", () => document.body.classList.remove("buffering"));
 audio.addEventListener("error", async () => {
+  if (yt.active || !audio.getAttribute("src")) return;
   const c = player.current;
   if (!c || player.retried) { if (c) toast("This track couldn't be played. Skipping…", { error: true }); if (c && player.queue.length > 1) player.next(true); return; }
   // signed URLs expire: fetch a fresh one and resume where we were
@@ -172,17 +238,19 @@ audio.addEventListener("error", async () => {
 
 function onEnded() {
   const c = player.current;
-  if (!c) return;
+  if (!c || c.ended) return;
+  c.ended = true;
   player.flushHistory();
   if (c.mode === "highlight") {
-    audio.pause();
-    audio.currentTime = c.start;
+    media.pause();
+    media.currentTime = c.start;
+    if (player.sessionMode) { player.next(true); return; }
     if (player.hlQueue) emit("highlight-ended", c.song);
     else emit("ended", c.song);
     syncUI();
     return;
   }
-  if (player.repeat === "one") { audio.currentTime = c.start; player.resume(); return; }
+  if (player.repeat === "one") { c.ended = false; media.currentTime = c.start; player.resume(); return; }
   player.next(true);
 }
 
@@ -212,7 +280,7 @@ function maybeShowAd() {
   const n = +(sessionStorage.getItem("rf_tracks") || 0);
   if (!every || n === 0 || n % every !== 0 || sessionStorage.getItem("rf_ad_at") === String(n)) return Promise.resolve(false);
   sessionStorage.setItem("rf_ad_at", String(n));
-  audio.pause();
+  media.pause();
   const ov = $("#ad-overlay"), cnt = $(".ad-count b", ov);
   let left = session.config?.ad_duration_seconds || 5;
   cnt.textContent = left; ov.hidden = false;
@@ -241,7 +309,7 @@ if ("mediaSession" in navigator) {
   ms.setActionHandler("previoustrack", () => player.prev());
   ms.setActionHandler("seekbackward", () => player.seekBy(-10));
   ms.setActionHandler("seekforward", () => player.seekBy(10));
-  try { ms.setActionHandler("seekto", (d) => { if (player.current) audio.currentTime = player.current.start + d.seekTime; }); } catch { /* older browsers */ }
+  try { ms.setActionHandler("seekto", (d) => { if (player.current) media.currentTime = player.current.start + d.seekTime; }); } catch { /* older browsers */ }
 }
 
 // ------------------------------------------------------------------ UI binding
@@ -310,10 +378,12 @@ $$(".volume").forEach((r) => {
   r.value = savedVol; setRangeFill(r);
   r.addEventListener("input", () => {
     audio.volume = r.value / 100; audio.muted = false; localStorage.setItem("rf_vol", r.value);
+    try { yt.player?.setVolume?.(+r.value); yt.player?.unMute?.(); } catch { /* not ready */ }
     $$(".volume").forEach((o) => { o.value = r.value; setRangeFill(o); });
     updateMuteIcon();
   });
 });
+export function setMuted(m) { audio.muted = m; try { m ? yt.player?.mute?.() : yt.player?.unMute?.(); } catch { /* not ready */ } updateMuteIcon(); }
 export function updateMuteIcon() {
   $$("[data-action=mute] use").forEach((u) => u.setAttribute("href", `/img/icons.svg#${audio.muted || audio.volume === 0 ? "mute" : "volume"}`));
 }

@@ -53,7 +53,8 @@ export function toast(msg, { error = false, action = null, ms = 3200 } = {}) {
   el.append(document.createTextNode(msg));
   if (action) {
     const a = document.createElement("a");
-    a.href = action.href; a.textContent = action.label; a.dataset.link = "";
+    a.href = action.href; a.textContent = action.label;
+    if (action.external) { a.target = "_blank"; a.rel = "noopener"; } else a.dataset.link = "";
     el.append(a);
   }
   document.getElementById("toasts").append(el);
@@ -119,7 +120,9 @@ export function songCard(s, { queue, index = 0, rank = null } = {}) {
   return html`<article class="card" data-action="open-song" data-slug="${s.slug}" tabindex="0" aria-label="${s.title} by ${s.artist.name}">
     <div class="card-art">
       <img src="${s.cover_url}" alt="" loading="lazy" width="172" height="172">
-      ${s.highlight ? html`<button class="card-hl" data-action="play-highlight" data-id="${s.id}" data-queue="${queue || ""}" aria-label="Play 20-30 second highlight of ${s.title}">${icon("spark")}Highlight</button>` : ""}
+      ${s.highlight ? html`<button class="card-hl" data-action="play-highlight" data-id="${s.id}" data-queue="${queue || ""}" aria-label="Play the highlight of ${s.title}">${icon("spark")}${s.source === "itunes" ? "Preview" : "Highlight"}</button>` : ""}
+      ${s.source === "itunes" ? html`<span class="src-tag" title="Real release from Apple Music: 30-second preview">Apple Music</span>`
+        : s.source === "youtube" ? html`<span class="src-tag" title="Full official song, played in the YouTube player">Full · YouTube</span>` : ""}
       ${s.premium_only ? html`<span class="lock" title="Full song for Premium">${icon("lock")}</span>` : ""}
       ${rank ? html`<span class="card-rank">${rank}</span>` : ""}
       <button class="play-btn grad card-play" data-action="play" data-id="${s.id}" data-queue="${queue || ""}" data-index="${index}" aria-label="Play ${s.title}">${icon("play")}</button>
@@ -152,7 +155,7 @@ export function songRow(s, i, q, { removable = false, draggable = false, showIdx
     <img src="${s.cover_url}" alt="" loading="lazy" width="48" height="48" data-action="play" data-id="${s.id}" data-queue="${q}" data-index="${i}">
     <div class="row-main">
       <div class="row-title"><a href="/song/${s.slug}" data-link>${s.title}</a>${s.premium_only ? html`<span class="badge premium" title="Full song for Premium listeners">Premium</span>` : ""}${s.is_explicit ? html`<span class="badge outline">E</span>` : ""}</div>
-      <div class="row-sub"><a href="/artist/${s.artist.slug}" data-link>${s.artist.name}</a>${s.genre ? ` · ${s.genre}` : ""}</div>
+      <div class="row-sub"><a href="/artist/${s.artist.slug}" data-link>${s.artist.name}</a>${s.genre ? ` · ${s.genre}` : ""}${s.source === "itunes" ? html` · <span class="src-tag">Apple Music preview</span>` : s.source === "youtube" ? html` · <span class="src-tag">Full song · YouTube</span>` : ""}</div>
     </div>
     <div class="row-album">${s.album ? html`<a href="/album/${s.album.slug}" data-link>${s.album.title}</a>` : ""}</div>
     <div class="row-lang">${s.language.name}</div>

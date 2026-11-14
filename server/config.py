@@ -71,3 +71,9 @@ RAZORPAY_WEBHOOK_SECRET = env("RAZORPAY_WEBHOOK_SECRET", "")
 CURRENCY = env("CURRENCY", "INR")
 
 FFMPEG = env("FFMPEG_PATH", "ffmpeg")
+
+# World catalogue: real songs via Apple's public iTunes Search API (30 s previews) + YouTube for full songs
+WORLD_CATALOG = env("WORLD_CATALOG", True, bool)
+WORLD_COUNTRY = env("WORLD_COUNTRY", "IN")          # default Apple storefront for searches and charts
+WORLD_WARMUP = env("WORLD_WARMUP", True, bool)      # slowly pre-fill the cache in the background
+YOUTUBE_API_KEY = env("YOUTUBE_API_KEY", "")         # enables full songs from the world catalogue

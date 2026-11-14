@@ -5,7 +5,7 @@ Run:  python -m server.app        (from the project root)
 import csv, gzip, html, io, json, mimetypes, os, re, secrets, sys, time, traceback, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import config, db, highlights, payments, recommend, security
+from . import config, db, external, highlights, payments, recommend, security, youtube_catalog
 from .storage import storage, is_protected
 
 ROUTES = []
@@ -124,7 +124,7 @@ def public_user(u):
 
 SONG_SELECT = """
 SELECT s.id, s.slug, s.title, s.release_year, s.duration_sec, s.cover_key, s.is_explicit, s.is_featured, s.trending_pin,
-       s.status, s.play_count, s.language_code, s.created_at, s.is_demo,
+       s.status, s.play_count, s.language_code, s.created_at, s.is_demo, s.source, s.external_url, s.youtube_id,
        a.id artist_id, a.slug artist_slug, a.name artist_name,
        al.id album_id, al.slug album_slug, al.title album_title,
        l.name language_name, l.native_name language_native,
@@ -171,9 +171,13 @@ def cards(rows, user=None):
             "genre": r["genre_name"], "year": r["release_year"], "duration": round(r["duration_sec"] or 0, 2),
             "cover_url": storage.url(r["cover_key"]),
             "categories": cats.get(r["id"], []),
-            "highlight": {"start": r["hl_start"], "end": r["hl_end"], "source": r["hl_source"]} if r["hl_start"] is not None else None,
+            "highlight": ({"start": r["hl_start"], "end": r["hl_end"], "source": r["hl_source"]} if r["hl_start"] is not None
+                          else {"start": 0, "end": 30, "source": "provider"} if r["source"] != "pendel" else None),
             "has_lyrics": bool(r["has_lyrics_row"] and r["allow_lyrics"]),
-            "premium_only": not r["allow_free_full_stream"],
+            "premium_only": (not r["allow_free_full_stream"]) if r["source"] == "pendel" else False,
+            "source": r["source"], "is_external": r["source"] != "pendel",
+            "external_url": r["external_url"], "youtube_id": r["youtube_id"] or None,
+            "youtube_url": external.youtube_search_url({"title": r["title"], "artist_name": r["artist_name"]}) if r["source"] != "pendel" else None,
             "is_favourite": r["id"] in favs, "is_explicit": bool(r["is_explicit"]), "is_featured": bool(r["is_featured"]),
             "plays": r["play_count"], "status": r["status"],
         })
@@ -249,28 +253,54 @@ def get_config(req):
     }
 
 
+_home_cache = {"at": 0, "rails": None}
+
+
+def _shared_rails():
+    """Rails that are the same for every listener. Only song ids are cached (2 min), so favourites stay per-user."""
+    if _home_cache["rails"] is not None and time.time() - _home_cache["at"] < 120:
+        return _home_cache["rails"]
+    ids = lambda rows: [r["id"] for r in rows]  # noqa: E731
+    played = "(s.source='pendel' OR s.play_count>0 OR s.trending_pin IS NOT NULL)"  # unplayed imports can't be trending: skip scoring them
+    pub = "s.status='published'"
+    rails = [
+        {"key": "trending", "title": "Trending Now", "subtitle": "What everyone is playing this week", "highlight_feed": "trending",
+         "ids": ids(db.q(f"SELECT s.id FROM songs s WHERE {pub} AND {played} ORDER BY s.trending_pin IS NULL, s.trending_pin, {trending_expr()} DESC LIMIT 16"))},
+        {"key": "popular", "title": "Most Popular", "ids": ids(db.q(f"SELECT s.id FROM songs s WHERE {pub} ORDER BY s.play_count DESC LIMIT 16"))},
+        {"key": "recent", "title": "Recently Released", "ids": ids(db.q(f"SELECT s.id FROM songs s WHERE {pub} ORDER BY s.release_year DESC, s.created_at DESC LIMIT 16"))},
+        {"key": "top20", "title": "Top 20", "subtitle": "The chart, updated live", "ranked": True,
+         "ids": ids(db.q(f"""SELECT s.id FROM songs s WHERE {pub} AND {played} ORDER BY
+                             ((SELECT COUNT(*) FROM listening_history t WHERE t.song_id=s.id AND t.played_at > ?) * 1000 + s.play_count) DESC LIMIT 20""",
+                         (db.now() - 30 * 86400,)))},
+    ]
+    feeds = {r["slug"] for r in db.q("SELECT slug FROM categories WHERE has_highlight_feed=1")}
+    for slug, title in HOME_RAILS:
+        rows = db.q(f"""SELECT s.id FROM songs s JOIN song_categories sc ON sc.song_id=s.id JOIN categories c ON c.id=sc.category_id
+                        WHERE c.slug=? AND {pub} ORDER BY (s.source='pendel') DESC, s.is_featured DESC, s.play_count DESC, s.created_at DESC LIMIT 16""", (slug,))
+        rails.append({"key": slug, "title": title, "category": slug, "highlight_feed": slug if slug in feeds else None, "ids": ids(rows)})
+    _home_cache.update(at=time.time(), rails=rails)
+    return rails
+
+
 @route("GET", r"/api/home", auth="optional")
 def home(req):
     u = req.user
-    rails = []
-    trending = songs_where(order=f"s.trending_pin IS NULL, s.trending_pin, {trending_expr()} DESC", limit=16, user=u)
-    rails.append({"key": "trending", "title": "Trending Now", "subtitle": "What everyone is playing this week", "songs": trending, "highlight_feed": "trending"})
-    rails.append({"key": "popular", "title": "Most Popular", "songs": songs_where(order="s.play_count DESC", limit=16, user=u)})
-    rails.append({"key": "recent", "title": "Recently Released", "songs": songs_where(order="s.release_year DESC, s.created_at DESC", limit=16, user=u)})
-    top = db.q(f"""{SONG_SELECT} WHERE s.status='published' ORDER BY
-                   ((SELECT COUNT(*) FROM listening_history t WHERE t.song_id=s.id AND t.played_at > ?) * 1000 + s.play_count) DESC LIMIT 20""",
-               (db.now() - 30 * 86400,))
-    rails.append({"key": "top20", "title": "Top 20", "subtitle": "The chart, updated live", "songs": cards(top, u), "ranked": True})
+    shared = _shared_rails()
+    rails = [{**{k: v for k, v in r.items() if k != "ids"}, "songs": songs_by_ids(r["ids"], u)} for r in shared[:4]]
+    ll = listener_langs(u)
+    yt = songs_where(f"s.source='youtube' AND s.language_code IN ({','.join('?' * len(ll))})", ll, order="RANDOM()", limit=20, user=u)
+    if yt:
+        rails.append({"key": "youtube-full", "title": "Full songs in your languages", "subtitle": "Complete official songs from YouTube", "songs": yt})
+    world_top = songs_by_ids(external.charts(None, 30), u) if external.enabled() else []
+    if world_top:
+        rails.append({"key": "world-chart", "title": "Trending on Apple Music", "subtitle": f"Most played in {config.WORLD_COUNTRY.upper()} · official 30-second previews",
+                      "songs": world_top, "ranked": True})
     if u:
         rails.append({"key": "recommended", "title": "Recommended For You", "songs": songs_by_ids(recommend.recommend(u["id"], 16), u)})
     else:
         rails.append({"key": "recommended", "title": "Recommended For You", "subtitle": "Sign in to personalise these picks",
                       "songs": songs_by_ids(recommend.recommend(None, 16), u)})
-    feeds = {r["slug"] for r in db.q("SELECT slug FROM categories WHERE has_highlight_feed=1")}
-    for slug, title in HOME_RAILS:
-        w, p = in_category(slug)
-        songs = songs_where(w, p, order="s.is_featured DESC, s.play_count DESC", limit=16, user=u)
-        rails.append({"key": slug, "title": title, "songs": songs, "category": slug, "highlight_feed": slug if slug in feeds else None})
+    rails += [{**{k: v for k, v in r.items() if k != "ids"}, "songs": songs_by_ids(r["ids"], u)} for r in shared[4:]]
     made = []
     if u:
         made = [{**m, "songs": songs_by_ids(m.pop("song_ids"), u)} for m in recommend.made_for_you(u["id"])]
@@ -289,6 +319,9 @@ def languages(req):
 def language_detail(req, code):
     lang = db.one("SELECT * FROM languages WHERE code=? AND is_active=1", (code,))
     require(lang, 404, "Language not found")
+    if code in external.LANGS:
+        for mood in ("trending", "sad", "love", "devotional", "dj"):
+            external.mood_tracks(code, mood, 30)
     u, w = req.user, "s.language_code=?"
     sections = [
         {"key": "trending", "title": f"Trending in {lang['name']}", "songs": songs_where(w, (code,), order=f"{trending_expr()} DESC", limit=16, user=u)},
@@ -297,6 +330,12 @@ def language_detail(req, code):
     for slug, title in (("sad", "Sad Songs"), ("love", "Love Songs"), ("devotional", "Devotional Songs"), ("dj", "DJ Songs")):
         cw, cp = in_category(slug)
         sections.append({"key": slug, "title": title, "category": slug, "songs": songs_where(f"{w} AND {cw}", (code, *cp), limit=16, user=u)})
+    full_yt = songs_where(f"{w} AND s.source='youtube'", (code,), order="s.release_year DESC, s.created_at DESC", limit=60, user=u)
+    if full_yt:
+        sections.append({"key": "youtube", "title": f"Full {lang['name']} songs", "subtitle": "Complete official songs, played in the YouTube player", "songs": full_yt})
+    world = songs_where(f"{w} AND s.source='itunes'", (code,), order="s.created_at DESC", limit=40, user=u)
+    if world:
+        sections.append({"key": "world", "title": f"{lang['name']} songs from Apple Music", "subtitle": "Real releases with official 30-second previews", "songs": world})
     sections.append({"key": "all", "title": "Complete Songs", "songs": songs_where(w, (code,), order="s.title COLLATE NOCASE", limit=100, user=u)})
     artists = db.q("""SELECT a.id, a.slug, a.name, a.image_key, SUM(s.play_count) plays FROM artists a JOIN songs s ON s.artist_id=a.id
                       WHERE s.language_code=? AND s.status='published' GROUP BY a.id ORDER BY plays DESC LIMIT 12""", (code,))
@@ -318,11 +357,23 @@ def categories(req):
 def category_detail(req, slug):
     c = db.one("SELECT * FROM categories WHERE slug=?", (slug,))
     require(c, 404, "Category not found")
-    w, p = in_category(slug)
     lang = req.query.get("lang")
+    for l in ([lang] if lang else listener_langs(req.user)):
+        external.mood_tracks(l, slug, 25)
+    w, p = in_category(slug)
     if lang:
         w, p = w + " AND s.language_code=?", (*p, lang)
-    return {"category": c, "songs": songs_where(w, p, order="s.play_count DESC", limit=200, user=req.user)}
+    return {"category": c, "songs": songs_where(w, p, order="s.play_count DESC, s.created_at DESC", limit=300, user=req.user)}
+
+
+def listener_langs(user, limit=4):
+    """The languages to pull from the world catalogue: the listener's choices, else a broad default."""
+    if user:
+        mine = [r["language_code"] for r in db.q("SELECT language_code FROM user_languages WHERE user_id=?", (user["id"],))]
+        mine = [m for m in mine if m in external.LANGS]
+        if mine:
+            return mine[:limit]
+    return ["hi", "te", "ta", "en"][:limit]
 
 
 SORTS = {"popular": "s.play_count DESC", "newest": "s.release_year DESC, s.created_at DESC", "oldest": "s.release_year ASC",
@@ -403,13 +454,17 @@ def highlight_feed(req):
     feed = req.query.get("feed", "trending")
     offset = int_(req.query.get("offset"), "offset", 0) or 0
     limit = int_(req.query.get("limit"), "limit", 1, 30) or 10
-    where, params = ["h.start_sec IS NOT NULL"], []
+    if offset == 0:
+        for l in ([req.query["lang"]] if req.query.get("lang") else listener_langs(req.user)):
+            external.mood_tracks(l, None if feed in ("trending", "all") else feed, 30)
+    where, params = ["(h.start_sec IS NOT NULL OR s.source<>'pendel')"], []
     if feed != "trending" and feed != "all":
         w, p = in_category(feed)
         where.append(w); params += p
     if req.query.get("lang"):
         where.append("s.language_code=?"); params.append(req.query["lang"])
-    order = f"{trending_expr()} DESC" if feed in ("trending", "all") else "s.play_count DESC"
+    # PENDEL's own songs (hand-picked highlights, synced lyrics) lead; world-catalogue songs follow
+    order = "(s.source='pendel') DESC, " + (f"{trending_expr()} DESC" if feed in ("trending", "all") else "s.play_count DESC") + ", s.created_at DESC"
     if req.user:  # gently prefer the listener's languages (placeholder sits after the WHERE params)
         order = "(s.language_code IN (SELECT language_code FROM user_languages WHERE user_id=?)) DESC, " + order
         params.append(req.user["id"])
@@ -423,11 +478,13 @@ def highlight_feed(req):
 
 
 def stream_info(song_id, kind, user):
-    r = db.one("SELECT s.status, s.duration_sec, lic.allow_free_full_stream, h.start_sec, h.end_sec, h.preview_asset_id FROM songs s LEFT JOIN licensing lic ON lic.song_id=s.id LEFT JOIN song_highlights h ON h.song_id=s.id WHERE s.id=?", (song_id,))
+    r = db.one("SELECT s.status, s.source, s.duration_sec, lic.allow_free_full_stream, h.start_sec, h.end_sec, h.preview_asset_id FROM songs s LEFT JOIN licensing lic ON lic.song_id=s.id LEFT JOIN song_highlights h ON h.song_id=s.id WHERE s.id=?", (song_id,))
     require(r, 404, "Song not found")
     if r["status"] == "taken_down":
         raise ApiError(451, "This song has been removed at the request of the rights holder.", "taken_down")
     require(r["status"] == "published", 404, "Song not found")
+    if r["source"] != "pendel":
+        return world_stream_info(song_id, kind, r)
     premium = user_plan(user["id"] if user else None)["tier"] == "premium"
     full = db.one("SELECT * FROM audio_assets WHERE song_id=? AND kind='full' ORDER BY quality='high' DESC, created_at DESC", (song_id,))
     if not premium and full and full["quality"] == "high":
@@ -447,6 +504,27 @@ def stream_info(song_id, kind, user):
     out = {"mode": "restricted", "reason": "premium_required", "message": "The rights holder has made this full song available to Premium listeners."}
     if r["start_sec"] is not None:
         out["preview"] = stream_info(song_id, "highlight", user)
+    return out
+
+
+def world_stream_info(song_id, kind, r):
+    """World-catalogue songs: highlight = Apple's official preview (or an admin-set YouTube window),
+    full song = visible YouTube embed when a video is known or YOUTUBE_API_KEY is set."""
+    song = db.one("SELECT s.id, s.title, s.youtube_id, s.external_url, s.duration_sec, a.name artist_name FROM songs s JOIN artists a ON a.id=s.artist_id WHERE s.id=?", (song_id,))
+    prev = db.one("SELECT storage_key FROM audio_assets WHERE song_id=? AND kind='preview'", (song_id,))
+    links = {"apple_music": song["external_url"], "youtube": external.youtube_search_url(song)}
+    if kind == "highlight":
+        if r["start_sec"] is not None and song["youtube_id"]:
+            return {"mode": "youtube", "video_id": song["youtube_id"], "start": r["start_sec"], "end": r["end_sec"], "song_offset": 0, "links": links}
+        require(prev, 404, "No preview is available for this song")
+        return {"mode": "preview", "url": prev["storage_key"], "start": 0, "end": 30, "song_offset": None, "provider": "Apple Music", "links": links}
+    vid = external.youtube_id(song)
+    if vid:
+        return {"mode": "youtube", "video_id": vid, "start": 0, "end": song["duration_sec"] or 0, "links": links}
+    out = {"mode": "restricted", "reason": "external_full", "links": links,
+           "message": "This song's full version isn't connected yet. Playing its official 30-second preview."}
+    if prev:
+        out["preview"] = world_stream_info(song_id, "highlight", {"start_sec": None, "end_sec": None})
     return out
 
 
@@ -477,6 +555,95 @@ def album_detail(req, aid):
     return {"album": al, "songs": songs_where("s.album_id=?", (al["id"],), order="s.created_at", limit=100, user=req.user)}
 
 
+# --------------------------------------------------------------------------- world catalogue + mood sessions
+
+@route("GET", r"/api/world/status")
+def world_status(req):
+    return {"enabled": external.enabled(), "full_songs": bool(config.YOUTUBE_API_KEY), "country": config.WORLD_COUNTRY,
+            "last_ok": external.status["last_ok"], "last_error": external.status["last_error"],
+            "songs": db.one("SELECT COUNT(*) n FROM songs WHERE source='itunes'")["n"],
+            "youtube_full_songs": db.one("SELECT COUNT(*) n FROM songs WHERE source='youtube' AND status='published'")["n"],
+            "total_songs": db.one("SELECT COUNT(*) n FROM songs WHERE status='published'")["n"],
+            "languages": sorted(external.LANGS), "moods": sorted(external.MOODS)}
+
+
+@route("GET", r"/api/world/charts", auth="optional")
+def world_charts(req):
+    return {"songs": songs_by_ids(external.charts(req.query.get("country"), 50), req.user)}
+
+
+@route("GET", r"/api/world/mood", auth="optional")
+def world_mood(req):
+    lang = req.query.get("lang") or "hi"
+    require(lang in external.LANGS, 400, "Unsupported language")
+    mood = req.query.get("mood") or "trending"
+    require(mood in external.MOODS, 400, "Unsupported mood")
+    return {"songs": songs_by_ids(external.mood_tracks(lang, mood, int_(req.query.get("limit"), "limit", 1, 100) or 40), req.user)}
+
+
+@route("GET", r"/api/sessions/mood", auth="optional")
+def mood_session(req):
+    """A ready-to-play queue that lasts `minutes` (default 60) for a mood and a set of languages.
+    mode=full: complete songs (PENDEL songs you may stream + world songs when YouTube is connected).
+    mode=highlights: a non-stop run of 20-30 s highlights."""
+    import random
+    qd = req.query
+    mood = qd.get("mood") or "trending"
+    require(mood == "trending" or db.one("SELECT 1 FROM categories WHERE slug=?", (mood,)), 400, "Unknown mood")
+    minutes = int_(qd.get("minutes"), "minutes", 10, 240) or 60
+    mode = qd.get("mode") or "full"
+    require(mode in ("full", "highlights"), 400, "mode must be full or highlights")
+    langs = [l for l in (qd.get("langs") or "").split(",") if l] or listener_langs(req.user)
+    for l in langs:
+        require(db.one("SELECT 1 FROM languages WHERE code=?", (l,)), 400, f"Unknown language {l}")
+    sources = qd.get("sources") or "all"
+    if sources in ("all", "world"):
+        for l in langs:
+            if l in external.LANGS:
+                external.mood_tracks(l, mood, 60)
+    where, params = [f"s.language_code IN ({','.join('?' * len(langs))})"], list(langs)
+    if mood != "trending":
+        w, p = in_category(mood)
+        where.append(w); params += p
+    if sources == "pendel":
+        where.append("s.source='pendel'")
+    elif sources == "world":
+        where.append("s.source<>'pendel'")
+    rows = db.q(f"{SONG_SELECT} WHERE {' AND '.join(where)} AND s.status='published' ORDER BY s.play_count DESC LIMIT 600", params)
+    premium = user_plan(req.user["id"] if req.user else None)["tier"] == "premium"
+    youtube = bool(config.YOUTUBE_API_KEY)
+
+    def length(r):
+        if mode == "highlights":
+            if r["hl_start"] is not None:
+                return r["hl_end"] - r["hl_start"]
+            return 30 if r["source"] != "pendel" else 0
+        if r["source"] == "pendel":
+            return r["duration_sec"] if (premium or r["allow_free_full_stream"]) and r["duration_sec"] else 0
+        return r["duration_sec"] if (youtube or r["youtube_id"]) and r["duration_sec"] else 0
+
+    by_lang = {}
+    for r in rows:
+        if length(r) > 0:
+            by_lang.setdefault(r["language_code"], []).append(r)
+    rng = random.Random(qd.get("seed") or None)
+    for lst in by_lang.values():  # keep popular songs near the top but vary each session
+        lst.sort(key=lambda r: -(r["play_count"] or 0) * rng.random() - rng.random())
+    picked, total, target = [], 0.0, minutes * 60
+    while total < target and any(by_lang.values()):
+        for l in langs:  # round-robin across the chosen languages
+            if by_lang.get(l) and total < target:
+                r = by_lang[l].pop(0)
+                picked.append(r); total += length(r)
+    note = None
+    if total < target:
+        note = f"Only {round(total / 60)} minutes of matching music right now."
+        if mode == "full" and not youtube:
+            note += " Full songs from the world catalogue need a YouTube API key; try Highlights mode or add more languages."
+    return {"mood": mood, "langs": langs, "mode": mode, "target_seconds": target, "total_seconds": round(total),
+            "complete": total >= target, "note": note, "songs": cards(picked, req.user)}
+
+
 # --------------------------------------------------------------------------- search
 
 @route("GET", r"/api/search", auth="optional")
@@ -486,6 +653,7 @@ def search(req):
         return {"q": q, "songs": [], "artists": [], "albums": [], "categories": [], "languages": [], "lyrics_matches": []}
     require(len(q) <= 100, 400, "Search is too long")
     like, pre = f"%{q}%", f"{q}%"
+    world_ids = external.search(q, 30)
     langs = db.q("SELECT code, name, native_name FROM languages WHERE is_active=1 AND (name LIKE ? OR native_name LIKE ? OR code=?)", (like, like, q.lower()))
     cats = db.q("SELECT slug, name, color FROM categories WHERE is_active=1 AND (name LIKE ? OR slug LIKE ?)", (like, like))
     conds = ["s.title LIKE :like", "a.name LIKE :like", "al.title LIKE :like", "g.name LIKE :like"]
@@ -494,8 +662,10 @@ def search(req):
         conds.append(f"s.language_code = :l{i}"); params[f"l{i}"] = l["code"]
     for i, c in enumerate(cats):
         conds.append(f"s.id IN (SELECT sc.song_id FROM song_categories sc JOIN categories c ON c.id=sc.category_id WHERE c.slug=:c{i})"); params[f"c{i}"] = c["slug"]
+    for i, wid in enumerate(world_ids):
+        conds.append(f"s.id = :w{i}"); params[f"w{i}"] = wid
     rank = "(CASE WHEN s.title LIKE :pre THEN 0 WHEN s.title LIKE :like THEN 1 WHEN a.name LIKE :like THEN 2 WHEN al.title LIKE :like THEN 3 ELSE 4 END)"
-    rows = db.q(f"{SONG_SELECT} WHERE ({' OR '.join(conds)}) AND s.status='published' ORDER BY {rank}, s.play_count DESC LIMIT 40", params)
+    rows = db.q(f"{SONG_SELECT} WHERE ({' OR '.join(conds)}) AND s.status='published' ORDER BY {rank}, s.play_count DESC LIMIT 60", params)
     lyric_rows = db.q(f"""{SONG_SELECT} JOIN lyrics y ON y.song_id=s.id WHERE y.plain_text LIKE :like AND lic.allow_lyrics=1 AND s.status='published'
                           GROUP BY s.id LIMIT 10""", params)
     lyric_matches = []
@@ -1073,6 +1243,8 @@ def admin_songs(req):
         where.append("(s.title LIKE ? OR a.name LIKE ? OR s.id=?)"); params += [f"%{qd['q']}%", f"%{qd['q']}%", qd["q"]]
     if qd.get("status"):
         where.append("s.status=?"); params.append(qd["status"])
+    if qd.get("source"):
+        where.append("s.source=?"); params.append(qd["source"])
     if qd.get("lang"):
         where.append("s.language_code=?"); params.append(qd["lang"])
     rows = songs_where(" AND ".join(where), params, order="s.updated_at DESC, s.created_at DESC", limit=500, include_hidden=True)
@@ -1119,6 +1291,12 @@ def _apply_song_fields(sid, b, creating=False):
             sets.append(f"{f}=?"); vals.append(1 if b[f] else 0)
     if "trending_pin" in b:
         sets.append("trending_pin=?"); vals.append(int_(b.get("trending_pin"), "Trending pin", 1, 100))
+    if "youtube_id" in b:
+        yid = s_(b.get("youtube_id"), "YouTube video ID", 300, False)
+        m = re.search(r"(?:v=|youtu\.be/|/embed/|/shorts/)([\w-]{11})", yid or "")
+        yid = m.group(1) if m else yid
+        require(not yid or re.fullmatch(r"[\w-]{11}", yid), 400, "Paste a YouTube link or an 11-character video ID")
+        sets.append("youtube_id=?"); vals.append(yid or None)
     if "status" in b:
         require(b["status"] in ("draft", "published"), 400, "Use the takedown action to remove content")
         sets.append("status=?"); vals.append(b["status"])
@@ -1164,7 +1342,7 @@ def admin_create_song(req):
 def admin_update_song(req, sid):
     get_song(sid, True)
     b = req.json
-    if b.get("status") == "published":
+    if b.get("status") == "published" and get_song(sid, True)["source"] == "pendel":
         require(db.one("SELECT 1 FROM audio_assets WHERE song_id=? AND kind='full'", (sid,)), 400, "Upload the licensed audio before publishing")
         require(db.one("SELECT 1 FROM licensing WHERE song_id=?", (sid,)) or b.get("license"), 400, "Add licensing information before publishing")
     with db.tx():
@@ -1251,10 +1429,17 @@ def admin_upload_audio(req, sid):
 
 
 def _save_highlight(sid, start, end, source, src_local=None):
-    dur = db.one("SELECT duration_sec FROM songs WHERE id=?", (sid,))["duration_sec"]
+    srow = db.one("SELECT duration_sec, source, youtube_id FROM songs WHERE id=?", (sid,))
+    dur = srow["duration_sec"]
     err = highlights.validate_window(start, end, dur)
     require(not err, 400, err or "")
     start, end = round(float(start), 2), round(float(end), 2)
+    if srow["source"] != "pendel":  # world song: the window plays on its YouTube video; Apple's preview asset stays
+        require(srow["youtube_id"], 400, "Set this song's YouTube video ID first: its custom highlight plays from that video")
+        db.run("""INSERT INTO song_highlights(id,song_id,start_sec,end_sec,source,preview_asset_id,updated_at) VALUES(?,?,?,?,?,NULL,?)
+                  ON CONFLICT(song_id) DO UPDATE SET start_sec=excluded.start_sec, end_sec=excluded.end_sec, source=excluded.source, updated_at=excluded.updated_at""",
+               (db.new_id("hl"), sid, start, end, source, db.now()))
+        return
     full = db.one("SELECT storage_key FROM audio_assets WHERE song_id=? AND kind='full' ORDER BY quality='standard' DESC LIMIT 1", (sid,))
     preview_id = None
     if full:
@@ -1747,6 +1932,50 @@ def admin_audit(req):
     return {"entries": db.q("SELECT l.*, u.email admin_email FROM audit_log l LEFT JOIN users u ON u.id=l.admin_id ORDER BY l.id DESC LIMIT 300")}
 
 
+@route("GET", r"/api/admin/youtube", auth="content")
+def admin_youtube(req):
+    return {**youtube_catalog.stats(), "jobs": youtube_catalog.jobs(150), "rounds": sorted(youtube_catalog.ROUNDS)}
+
+
+@route("POST", r"/api/admin/youtube/import", auth="content")
+def admin_youtube_import(req):
+    require(config.YOUTUBE_API_KEY, 400, "Add YOUTUBE_API_KEY to your .env file and restart PENDEL first")
+    b = req.json
+    source = s_(b.get("source"), "Channel, playlist or search", 300)
+    lang = s_(b.get("lang"), "Language", 10)
+    require(db.one("SELECT 1 FROM languages WHERE code=?", (lang,)), 400, "Unknown language")
+    mood = b.get("mood") or None
+    require(mood is None or db.one("SELECT 1 FROM categories WHERE slug=?", (mood,)), 400, "Unknown mood")
+    jid = youtube_catalog.enqueue(source, lang, mood, int_(b.get("max"), "Max songs", 50, 20000) or 1000)
+    audit(req, "youtube_import", "catalog", jid, {"source": source, "lang": lang})
+    return {"ok": True, "job_id": jid}
+
+
+@route("POST", r"/api/admin/youtube/starter", auth="content")
+def admin_youtube_starter(req):
+    require(config.YOUTUBE_API_KEY, 400, "Add YOUTUBE_API_KEY to your .env file and restart PENDEL first")
+    rnd = int_(req.json.get("round"), "Round", 1, 3) or 1
+    n = youtube_catalog.starter_pack(rnd)
+    require(n, 400, "Today's YouTube search limit is already used. Run the next round tomorrow.")
+    audit(req, "youtube_starter", "catalog", None, {"round": rnd, "jobs": n})
+    return {"ok": True, "jobs": n}
+
+
+@route("POST", r"/api/admin/youtube/snapshot", auth="content")
+def admin_youtube_snapshot(req):
+    r = youtube_catalog.export_snapshot()
+    audit(req, "youtube_snapshot", "catalog", None, {"songs": r["songs"]})
+    return {"ok": True, "songs": r["songs"], "bytes": r["bytes"], "file": "catalog/youtube_snapshot.json.gz"}
+
+
+@route("POST", r"/api/admin/youtube/refresh", auth="content")
+def admin_youtube_refresh(req):
+    require(config.YOUTUBE_API_KEY, 400, "Add YOUTUBE_API_KEY first")
+    import threading
+    threading.Thread(target=youtube_catalog.refresh_all, daemon=True).start()
+    return {"ok": True}
+
+
 @route("GET", r"/api/admin/lookups", auth="content")
 def admin_lookups(req):
     return {"artists": db.q("SELECT id, name FROM artists ORDER BY name"),
@@ -1787,10 +2016,10 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
 }
-CSP = ("default-src 'self'; script-src 'self' https://accounts.google.com https://checkout.razorpay.com; "
+CSP = ("default-src 'self'; script-src 'self' https://accounts.google.com https://checkout.razorpay.com https://www.youtube.com https://s.ytimg.com; "
        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com data:; "
        "img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; "
-       "frame-src https://accounts.google.com https://api.razorpay.com https://checkout.razorpay.com; base-uri 'self'; form-action 'self'")
+       "frame-src https://accounts.google.com https://api.razorpay.com https://checkout.razorpay.com https://www.youtube.com https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'")
 
 SEO_ROUTES = re.compile(r"^/(song|artist|language|category|album)/([^/]+)$")
 
@@ -2031,8 +2260,8 @@ def seo_tags(path):
 
 def sitemap():
     urls = ["/", "/highlights", "/languages", "/songs", "/explore"]
-    urls += [f"/song/{r['slug']}" for r in db.q("SELECT slug FROM songs WHERE status='published'")]
-    urls += [f"/artist/{r['slug']}" for r in db.q("SELECT slug FROM artists")]
+    urls += [f"/song/{r['slug']}" for r in db.q("SELECT slug FROM songs WHERE status='published' AND source='pendel'")]
+    urls += [f"/artist/{r['slug']}" for r in db.q("SELECT slug FROM artists WHERE source='pendel'")]
     urls += [f"/language/{r['code']}" for r in db.q("SELECT code FROM languages WHERE is_active=1")]
     urls += [f"/category/{r['slug']}" for r in db.q("SELECT slug FROM categories WHERE is_active=1")]
     body = "".join(f"<url><loc>{html.escape(config.PUBLIC_URL + u)}</loc></url>" for u in urls)
@@ -2041,6 +2270,21 @@ def sitemap():
 
 def main():
     db.init()
+    n = external.fix_languages()
+    if n:
+        print(f"[pendel] Re-labelled the language of {n} world-catalogue songs")
+    external.warm_up()
+
+    def load_youtube():
+        try:
+            added = youtube_catalog.load_snapshot()
+            if added:
+                print(f"[pendel] Loaded {added} full songs from the YouTube catalogue snapshot")
+            youtube_catalog.resume_unfinished()
+        except Exception:
+            traceback.print_exc()
+    import threading
+    threading.Thread(target=load_youtube, daemon=True, name="youtube-snapshot").start()
     srv = ThreadingHTTPServer((config.HOST, config.PORT), Handler)
     srv.daemon_threads = True
     print(f"[pendel] {config.APP_NAME} running at http://{'localhost' if config.HOST in ('127.0.0.1', '0.0.0.0') else config.HOST}:{config.PORT}")

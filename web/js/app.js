@@ -1,5 +1,5 @@
 import { session, onSession, loadSession, get, post, put, patch, del, setAuth } from "./api.js";
-import { player, syncUI, updateMuteIcon } from "./player.js";
+import { player, syncUI, updateMuteIcon, setMuted } from "./player.js";
 import { refreshLyrics } from "./lyrics.js";
 import { html, render, icon, $, $$, toast, toastError, modal, closeModal, openMenu, closeMenu, songs, queues, debounce, esc, errorState } from "./ui.js";
 import * as V from "./views.js";
@@ -10,6 +10,7 @@ const routes = [
   [/^\/$/, V.homeView, "home"],
   [/^\/explore$/, V.exploreView, "explore"],
   [/^\/highlights(?:\/([\w-]+))?$/, highlightsView, "highlights"],
+  [/^\/mood$/, V.moodView, "mood"],
   [/^\/languages$/, V.languagesView, "languages"],
   [/^\/language\/([\w-]+)$/, V.languageView, "languages"],
   [/^\/category\/([\w-]+)$/, V.categoryView, "explore"],
@@ -269,7 +270,7 @@ const actions = {
   "repeat": () => player.cycleRepeat(),
   "seek-back": () => player.seekBy(-10),
   "seek-fwd": () => player.seekBy(10),
-  "mute": () => { player.audio.muted = !player.audio.muted; updateMuteIcon(); },
+  "mute": () => setMuted(!player.audio.muted),
   "open-fullplayer": (el, e) => { if (e.target.closest("button")) return; $("#fullplayer").hidden = false; refreshLyrics(); },
   "close-fullplayer": () => { $("#fullplayer").hidden = true; },
   "toggle-fp-lyrics": (el) => { const fp = $("#fullplayer"); fp.classList.toggle("show-lyrics"); el.classList.toggle("active"); refreshLyrics(); },
