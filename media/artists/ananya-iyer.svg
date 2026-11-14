@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Ananya Iyer">
+<defs><radialGradient id="g" cx="30%" cy="25%" r="90%"><stop offset="0" stop-color="#3a86ff"/><stop offset="1" stop-color="#0b132b"/></radialGradient></defs>
+<rect width="400" height="400" fill="url(#g)"/><circle cx="200" cy="160" r="70" fill="#fff" opacity="0.18"/>
+<path d="M70 400 Q200 230 330 400Z" fill="#fff" opacity="0.18"/>
+<text x="200" y="228" text-anchor="middle" font-family="Segoe UI,Helvetica,Arial,sans-serif" font-size="120" font-weight="800" fill="#fff">AI</text>
+</svg>

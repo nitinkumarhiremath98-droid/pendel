@@ -1,0 +1,5940 @@
+{
+ "artists": [
+  [
+   "aarav-kiran",
+   "Aarav Kiran",
+   "India",
+   "Telugu singer-songwriter known for moonlit melodies.",
+   false
+  ],
+  [
+   "meera-sundar",
+   "Meera Sundar",
+   "India",
+   "Chennai vocalist blending Carnatic phrasing with modern pop.",
+   false
+  ],
+  [
+   "kabir-lights",
+   "Kabir Lights",
+   "India",
+   "Hindi pop duo writing about love, loss and late nights.",
+   false
+  ],
+  [
+   "rohan-vyas",
+   "Rohan Vyas",
+   "India",
+   "Independent Hindi rapper-singer with anthems for the grind.",
+   true
+  ],
+  [
+   "northbound",
+   "Northbound",
+   "Canada",
+   "Stadium-sized indie rock with a motivational streak.",
+   true
+  ],
+  [
+   "lena-hart",
+   "Lena Hart",
+   "United Kingdom",
+   "Bedroom-pop songwriter with a cinematic heart.",
+   true
+  ],
+  [
+   "velvet-static",
+   "Velvet Static",
+   "Germany",
+   "Club producer behind neon-lit electronic sets.",
+   false
+  ],
+  [
+   "rangoli-beats",
+   "Rangoli Beats",
+   "India",
+   "Bengaluru DJ collective fusing folk percussion with EDM.",
+   true
+  ],
+  [
+   "harleen-gill",
+   "Harleen Gill",
+   "India",
+   "Punjabi party starter with dhol in every chorus.",
+   false
+  ],
+  [
+   "saffron-choir",
+   "Saffron Choir",
+   "India",
+   "Devotional ensemble singing bhajans and kirtans.",
+   false
+  ],
+  [
+   "nila-monsoon",
+   "Nila & The Monsoon",
+   "India",
+   "Malayalam indie band inspired by Kerala's backwaters.",
+   true
+  ],
+  [
+   "ishaan-roy",
+   "Ishaan Roy",
+   "India",
+   "Kolkata romantic balladeer.",
+   false
+  ],
+  [
+   "sai-deshmukh",
+   "Sai Deshmukh",
+   "India",
+   "Marathi poet-composer of quiet evening songs.",
+   true
+  ],
+  [
+   "dhwani-patel",
+   "Dhwani Patel",
+   "India",
+   "Gujarati folk-pop singer and garba queen.",
+   false
+  ],
+  [
+   "subhashree-das",
+   "Subhashree Das",
+   "India",
+   "Odia classical-trained vocalist.",
+   true
+  ],
+  [
+   "brahmaputra-collective",
+   "Brahmaputra Collective",
+   "India",
+   "Assamese instrumental folk ensemble.",
+   true
+  ],
+  [
+   "zoya-mirza",
+   "Zoya Mirza",
+   "Pakistan",
+   "Urdu ghazal-pop singer.",
+   false
+  ],
+  [
+   "sol-de-mayo",
+   "Sol de Mayo",
+   "Mexico",
+   "Latin pop band from Guadalajara.",
+   false
+  ],
+  [
+   "maison-bleue",
+   "Maison Bleue",
+   "France",
+   "French chanson revival duo.",
+   true
+  ],
+  [
+   "haneul",
+   "Haneul",
+   "South Korea",
+   "Korean ballad singer with an orchestral sound.",
+   false
+  ],
+  [
+   "sora-kites",
+   "Sora Kites",
+   "Japan",
+   "Tokyo city-pop four-piece.",
+   true
+  ],
+  [
+   "layla-noor",
+   "Layla Noor",
+   "Egypt",
+   "Arabic pop vocalist from Cairo.",
+   false
+  ],
+  [
+   "brisa-azul",
+   "Brisa Azul",
+   "Brazil",
+   "Bossa-inspired singer from Salvador.",
+   true
+  ],
+  [
+   "kavya-strings",
+   "Kavya Strings",
+   "India",
+   "Instrumental composer for focus, calm and film scores.",
+   true
+  ],
+  [
+   "luca-ferri",
+   "Luca Ferri",
+   "Italy",
+   "Italian cantautore.",
+   true
+  ],
+  [
+   "nordlicht",
+   "Nordlicht",
+   "Germany",
+   "German pop-rock band.",
+   false
+  ],
+  [
+   "deniz-aksoy",
+   "Deniz Aksoy",
+   "Turkey",
+   "Istanbul singer of rainy-day songs.",
+   true
+  ],
+  [
+   "lin-yue",
+   "Lin Yue",
+   "Taiwan",
+   "Mandarin ballad singer.",
+   false
+  ],
+  [
+   "raga-retro",
+   "Raga Retro",
+   "India",
+   "Revival orchestra recreating golden-era film sounds.",
+   false
+  ],
+  [
+   "ananya-iyer",
+   "Ananya Iyer",
+   "India",
+   "Indie Kannada songwriter.",
+   true
+  ]
+ ],
+ "languages": [
+  [
+   "te",
+   "Telugu",
+   "తెలుగు",
+   "indian",
+   1
+  ],
+  [
+   "ta",
+   "Tamil",
+   "தமிழ்",
+   "indian",
+   1
+  ],
+  [
+   "kn",
+   "Kannada",
+   "ಕನ್ನಡ",
+   "indian",
+   1
+  ],
+  [
+   "ml",
+   "Malayalam",
+   "മലയാളം",
+   "indian",
+   1
+  ],
+  [
+   "hi",
+   "Hindi",
+   "हिन्दी",
+   "indian",
+   1
+  ],
+  [
+   "bn",
+   "Bengali",
+   "বাংলা",
+   "indian",
+   1
+  ],
+  [
+   "mr",
+   "Marathi",
+   "मराठी",
+   "indian",
+   1
+  ],
+  [
+   "pa",
+   "Punjabi",
+   "ਪੰਜਾਬੀ",
+   "indian",
+   1
+  ],
+  [
+   "gu",
+   "Gujarati",
+   "ગુજરાતી",
+   "indian",
+   1
+  ],
+  [
+   "or",
+   "Odia",
+   "ଓଡ଼ିଆ",
+   "indian",
+   1
+  ],
+  [
+   "as",
+   "Assamese",
+   "অসমীয়া",
+   "indian",
+   1
+  ],
+  [
+   "ur",
+   "Urdu",
+   "اردو",
+   "indian",
+   1
+  ],
+  [
+   "en",
+   "English",
+   "English",
+   "international",
+   1
+  ],
+  [
+   "es",
+   "Spanish",
+   "Español",
+   "international",
+   1
+  ],
+  [
+   "fr",
+   "French",
+   "Français",
+   "international",
+   1
+  ],
+  [
+   "de",
+   "German",
+   "Deutsch",
+   "international",
+   1
+  ],
+  [
+   "ar",
+   "Arabic",
+   "العربية",
+   "international",
+   1
+  ],
+  [
+   "ko",
+   "Korean",
+   "한국어",
+   "international",
+   1
+  ],
+  [
+   "ja",
+   "Japanese",
+   "日本語",
+   "international",
+   1
+  ],
+  [
+   "zh",
+   "Chinese",
+   "中文",
+   "international",
+   1
+  ],
+  [
+   "pt",
+   "Portuguese",
+   "Português",
+   "international",
+   1
+  ],
+  [
+   "it",
+   "Italian",
+   "Italiano",
+   "international",
+   1
+  ],
+  [
+   "ru",
+   "Russian",
+   "Русский",
+   "international",
+   1
+  ],
+  [
+   "tr",
+   "Turkish",
+   "Türkçe",
+   "international",
+   1
+  ],
+  [
+   "id",
+   "Indonesian",
+   "Bahasa Indonesia",
+   "international",
+   1
+  ],
+  [
+   "th",
+   "Thai",
+   "ไทย",
+   "international",
+   1
+  ],
+  [
+   "sa",
+   "Sanskrit",
+   "संस्कृतम्",
+   "indian",
+   0
+  ],
+  [
+   "ne",
+   "Nepali",
+   "नेपाली",
+   "international",
+   0
+  ],
+  [
+   "si",
+   "Sinhala",
+   "සිංහල",
+   "international",
+   0
+  ],
+  [
+   "sw",
+   "Swahili",
+   "Kiswahili",
+   "international",
+   0
+  ],
+  [
+   "vi",
+   "Vietnamese",
+   "Tiếng Việt",
+   "international",
+   0
+  ],
+  [
+   "fil",
+   "Filipino",
+   "Filipino",
+   "international",
+   0
+  ],
+  [
+   "fa",
+   "Persian",
+   "فارسی",
+   "international",
+   0
+  ],
+  [
+   "nl",
+   "Dutch",
+   "Nederlands",
+   "international",
+   0
+  ],
+  [
+   "pl",
+   "Polish",
+   "Polski",
+   "international",
+   0
+  ],
+  [
+   "el",
+   "Greek",
+   "Ελληνικά",
+   "international",
+   0
+  ],
+  [
+   "he",
+   "Hebrew",
+   "עברית",
+   "international",
+   0
+  ],
+  [
+   "uk",
+   "Ukrainian",
+   "Українська",
+   "international",
+   0
+  ],
+  [
+   "yo",
+   "Yoruba",
+   "Yorùbá",
+   "international",
+   0
+  ],
+  [
+   "zxx",
+   "Instrumental",
+   "No lyrics",
+   "international",
+   0
+  ]
+ ],
+ "categories": [
+  [
+   "sad",
+   "Sad Songs",
+   "#5b7cfa",
+   1
+  ],
+  [
+   "love",
+   "Love Songs",
+   "#ff4f8b",
+   1
+  ],
+  [
+   "heartbreak",
+   "Heartbreak",
+   "#c2415d",
+   1
+  ],
+  [
+   "romantic",
+   "Romantic",
+   "#ff7a7a",
+   1
+  ],
+  [
+   "feelings",
+   "Feelings",
+   "#a46bff",
+   1
+  ],
+  [
+   "emotional",
+   "Emotional",
+   "#7a8cff",
+   0
+  ],
+  [
+   "motivational",
+   "Motivational",
+   "#ffb020",
+   1
+  ],
+  [
+   "devotional",
+   "Devotional",
+   "#ff9f43",
+   1
+  ],
+  [
+   "dj",
+   "DJ Songs",
+   "#00e0c6",
+   1
+  ],
+  [
+   "party",
+   "Party",
+   "#ff5ad1",
+   0
+  ],
+  [
+   "dance",
+   "Dance",
+   "#3ad29f",
+   0
+  ],
+  [
+   "friendship",
+   "Friendship",
+   "#44c2ff",
+   0
+  ],
+  [
+   "melody",
+   "Melody",
+   "#8be38b",
+   1
+  ],
+  [
+   "old-classic",
+   "Old Classics",
+   "#d4a373",
+   0
+  ],
+  [
+   "new-generation",
+   "New Generation",
+   "#00c2ff",
+   0
+  ],
+  [
+   "instrumental",
+   "Instrumental",
+   "#9aa5b1",
+   0
+  ],
+  [
+   "background",
+   "Background Music",
+   "#6c8ea0",
+   0
+  ],
+  [
+   "independent",
+   "Independent Artists",
+   "#f97316",
+   0
+  ],
+  [
+   "international",
+   "International",
+   "#22d3ee",
+   0
+  ]
+ ],
+ "songs": [
+  {
+   "slug": "vennela-daari",
+   "title": "Vennela Daari",
+   "artist": "aarav-kiran",
+   "album": "Moonlit Path",
+   "lang": "te",
+   "genre": "Film Pop",
+   "cats": [
+    "love",
+    "romantic",
+    "melody",
+    "new-generation"
+   ],
+   "year": 2025,
+   "style": "love",
+   "bpm": 92,
+   "root": 62,
+   "featured": true,
+   "plays": 982000,
+   "album_slug": "moonlit-path-aarav-kiran",
+   "duration": 114.17,
+   "highlight_start": 75.65,
+   "highlight_end": 101.74,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 10.43
+    },
+    {
+     "name": "verse",
+     "start": 10.43,
+     "end": 36.52
+    },
+    {
+     "name": "chorus",
+     "start": 36.52,
+     "end": 62.61
+    },
+    {
+     "name": "verse2",
+     "start": 62.61,
+     "end": 75.65
+    },
+    {
+     "name": "chorus2",
+     "start": 75.65,
+     "end": 101.74
+    },
+    {
+     "name": "outro",
+     "start": 101.74,
+     "end": 112.17
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 10.43,
+     "text": "వెన్నెల దారిలో నీతో నడిచాను",
+     "tr": "I walked the moonlit path with you"
+    },
+    {
+     "t": 15.65,
+     "text": "నీ నవ్వే నా పాటగా మారింది",
+     "tr": "Your smile became my song"
+    },
+    {
+     "t": 20.87,
+     "text": "ప్రతి రాత్రి నీ కోసమే",
+     "tr": "Every night is only for you"
+    },
+    {
+     "t": 26.09,
+     "text": "నా గుండె నీ పేరే పాడింది",
+     "tr": "My heart sang only your name"
+    },
+    {
+     "t": 31.3,
+     "text": "వెన్నెల దారిలో నీతో నడిచాను",
+     "tr": "I walked the moonlit path with you"
+    },
+    {
+     "t": 36.52,
+     "text": "వెన్నెల దారి, నువ్వే నా తోడు",
+     "tr": "Moonlit path, you are my companion"
+    },
+    {
+     "t": 41.74,
+     "text": "ఈ రాత్రి మనదే, ఈ పాట మనదే",
+     "tr": "This night is ours, this song is ours"
+    },
+    {
+     "t": 46.96,
+     "text": "వెన్నెల దారి, నువ్వే నా తోడు",
+     "tr": "Moonlit path, you are my companion"
+    },
+    {
+     "t": 52.17,
+     "text": "కలలన్నీ నీతోనే",
+     "tr": "All my dreams are with you"
+    },
+    {
+     "t": 57.39,
+     "text": "వెన్నెల దారి, నువ్వే నా తోడు",
+     "tr": "Moonlit path, you are my companion"
+    },
+    {
+     "t": 62.61,
+     "text": "ప్రతి రాత్రి నీ కోసమే",
+     "tr": "Every night is only for you"
+    },
+    {
+     "t": 67.83,
+     "text": "నా గుండె నీ పేరే పాడింది",
+     "tr": "My heart sang only your name"
+    },
+    {
+     "t": 75.65,
+     "text": "వెన్నెల దారి, నువ్వే నా తోడు",
+     "tr": "Moonlit path, you are my companion"
+    },
+    {
+     "t": 80.87,
+     "text": "ఈ రాత్రి మనదే, ఈ పాట మనదే",
+     "tr": "This night is ours, this song is ours"
+    },
+    {
+     "t": 86.09,
+     "text": "వెన్నెల దారి, నువ్వే నా తోడు",
+     "tr": "Moonlit path, you are my companion"
+    },
+    {
+     "t": 91.3,
+     "text": "కలలన్నీ నీతోనే",
+     "tr": "All my dreams are with you"
+    },
+    {
+     "t": 96.52,
+     "text": "వెన్నెల దారి, నువ్వే నా తోడు",
+     "tr": "Moonlit path, you are my companion"
+    }
+   ],
+   "audio_full": "audio/full/vennela-daari.mp3",
+   "audio_preview": "audio/preview/vennela-daari.mp3",
+   "cover": "covers/moonlit-path-aarav-kiran.svg"
+  },
+  {
+   "slug": "mazhai-kaalam",
+   "title": "Mazhai Kaalam",
+   "artist": "meera-sundar",
+   "album": "Monsoon Letters",
+   "lang": "ta",
+   "genre": "Indie",
+   "cats": [
+    "sad",
+    "feelings",
+    "emotional",
+    "melody"
+   ],
+   "year": 2024,
+   "style": "sad",
+   "bpm": 76,
+   "root": 57,
+   "plays": 645000,
+   "album_slug": "monsoon-letters-meera-sundar",
+   "duration": 103.05,
+   "highlight_start": 69.47,
+   "highlight_end": 94.73,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.32
+    },
+    {
+     "name": "verse",
+     "start": 6.32,
+     "end": 31.58
+    },
+    {
+     "name": "chorus",
+     "start": 31.58,
+     "end": 56.84
+    },
+    {
+     "name": "verse2",
+     "start": 56.84,
+     "end": 69.47
+    },
+    {
+     "name": "chorus2",
+     "start": 69.47,
+     "end": 94.74
+    },
+    {
+     "name": "outro",
+     "start": 94.74,
+     "end": 101.05
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 6.32,
+     "text": "மழைக்காலம் மீண்டும் வந்தது",
+     "tr": "The rainy season has come again"
+    },
+    {
+     "t": 12.63,
+     "text": "உன் நினைவுகள் பொழிகின்றன",
+     "tr": "Your memories pour down"
+    },
+    {
+     "t": 18.95,
+     "text": "ஜன்னல் ஓரம் நான் காத்திருக்கிறேன்",
+     "tr": "I wait by the window"
+    },
+    {
+     "t": 25.26,
+     "text": "நீ வராத இந்த மாலை",
+     "tr": "This evening you did not come"
+    },
+    {
+     "t": 31.58,
+     "text": "மழையில் என் கண்ணீர் மறைகிறது",
+     "tr": "My tears hide in the rain"
+    },
+    {
+     "t": 37.89,
+     "text": "யாருக்கும் தெரியாது என் வலி",
+     "tr": "No one knows my pain"
+    },
+    {
+     "t": 44.21,
+     "text": "மழையில் என் கண்ணீர் மறைகிறது",
+     "tr": "My tears hide in the rain"
+    },
+    {
+     "t": 50.53,
+     "text": "தனியாக நான் நனைகிறேன்",
+     "tr": "Alone, I get soaked"
+    },
+    {
+     "t": 56.84,
+     "text": "ஜன்னல் ஓரம் நான் காத்திருக்கிறேன்",
+     "tr": "I wait by the window"
+    },
+    {
+     "t": 63.16,
+     "text": "நீ வராத இந்த மாலை",
+     "tr": "This evening you did not come"
+    },
+    {
+     "t": 69.47,
+     "text": "மழையில் என் கண்ணீர் மறைகிறது",
+     "tr": "My tears hide in the rain"
+    },
+    {
+     "t": 75.79,
+     "text": "யாருக்கும் தெரியாது என் வலி",
+     "tr": "No one knows my pain"
+    },
+    {
+     "t": 82.11,
+     "text": "மழையில் என் கண்ணீர் மறைகிறது",
+     "tr": "My tears hide in the rain"
+    },
+    {
+     "t": 88.42,
+     "text": "தனியாக நான் நனைகிறேன்",
+     "tr": "Alone, I get soaked"
+    }
+   ],
+   "audio_full": "audio/full/mazhai-kaalam.mp3",
+   "audio_preview": "audio/preview/mazhai-kaalam.mp3",
+   "cover": "covers/monsoon-letters-meera-sundar.svg"
+  },
+  {
+   "slug": "dil-ki-raah",
+   "title": "Dil Ki Raah",
+   "artist": "kabir-lights",
+   "album": "Raat Ke Raaste",
+   "lang": "hi",
+   "genre": "Bollywood Pop",
+   "cats": [
+    "romantic",
+    "love",
+    "melody"
+   ],
+   "year": 2025,
+   "style": "romantic",
+   "bpm": 88,
+   "root": 60,
+   "featured": true,
+   "plays": 1540000,
+   "album_slug": "raat-ke-raaste-kabir-lights",
+   "duration": 119.27,
+   "highlight_start": 79.09,
+   "highlight_end": 106.36,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 10.91
+    },
+    {
+     "name": "verse",
+     "start": 10.91,
+     "end": 38.18
+    },
+    {
+     "name": "chorus",
+     "start": 38.18,
+     "end": 65.45
+    },
+    {
+     "name": "verse2",
+     "start": 65.45,
+     "end": 79.09
+    },
+    {
+     "name": "chorus2",
+     "start": 79.09,
+     "end": 106.36
+    },
+    {
+     "name": "outro",
+     "start": 106.36,
+     "end": 117.27
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 10.91,
+     "text": "दिल की राह पे चलते चलते",
+     "tr": "Walking along the heart's road"
+    },
+    {
+     "t": 16.36,
+     "text": "तुझसे मिलती है मेरी हर सुबह",
+     "tr": "Every morning of mine meets you"
+    },
+    {
+     "t": 21.82,
+     "text": "ख़्वाबों में भी तेरा चेहरा",
+     "tr": "Even in dreams, your face"
+    },
+    {
+     "t": 27.27,
+     "text": "धड़कन कहती है तेरा नाम",
+     "tr": "My heartbeat says your name"
+    },
+    {
+     "t": 32.73,
+     "text": "दिल की राह पे चलते चलते",
+     "tr": "Walking along the heart's road"
+    },
+    {
+     "t": 38.18,
+     "text": "तू है तो सब कुछ है",
+     "tr": "If you are here, I have everything"
+    },
+    {
+     "t": 43.64,
+     "text": "दिल की राह, बस तेरी ओर",
+     "tr": "The heart's road leads only to you"
+    },
+    {
+     "t": 49.09,
+     "text": "तू है तो सब कुछ है",
+     "tr": "If you are here, I have everything"
+    },
+    {
+     "t": 54.55,
+     "text": "ना कोई और, ना कोई छोर",
+     "tr": "No one else, no other shore"
+    },
+    {
+     "t": 60.0,
+     "text": "तू है तो सब कुछ है",
+     "tr": "If you are here, I have everything"
+    },
+    {
+     "t": 65.45,
+     "text": "ख़्वाबों में भी तेरा चेहरा",
+     "tr": "Even in dreams, your face"
+    },
+    {
+     "t": 70.91,
+     "text": "धड़कन कहती है तेरा नाम",
+     "tr": "My heartbeat says your name"
+    },
+    {
+     "t": 79.09,
+     "text": "तू है तो सब कुछ है",
+     "tr": "If you are here, I have everything"
+    },
+    {
+     "t": 84.55,
+     "text": "दिल की राह, बस तेरी ओर",
+     "tr": "The heart's road leads only to you"
+    },
+    {
+     "t": 90.0,
+     "text": "तू है तो सब कुछ है",
+     "tr": "If you are here, I have everything"
+    },
+    {
+     "t": 95.45,
+     "text": "ना कोई और, ना कोई छोर",
+     "tr": "No one else, no other shore"
+    },
+    {
+     "t": 100.91,
+     "text": "तू है तो सब कुछ है",
+     "tr": "If you are here, I have everything"
+    }
+   ],
+   "audio_full": "audio/full/dil-ki-raah.mp3",
+   "audio_preview": "audio/preview/dil-ki-raah.mp3",
+   "cover": "covers/raat-ke-raaste-kabir-lights.svg"
+  },
+  {
+   "slug": "toota-sitara",
+   "title": "Toota Sitara",
+   "artist": "kabir-lights",
+   "album": "Raat Ke Raaste",
+   "lang": "hi",
+   "genre": "Bollywood Ballad",
+   "cats": [
+    "heartbreak",
+    "sad",
+    "emotional",
+    "feelings"
+   ],
+   "year": 2025,
+   "style": "heartbreak",
+   "bpm": 72,
+   "root": 55,
+   "plays": 1210000,
+   "album_slug": "raat-ke-raaste-kabir-lights",
+   "duration": 108.67,
+   "highlight_start": 73.33,
+   "highlight_end": 100.0,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.67
+    },
+    {
+     "name": "verse",
+     "start": 6.67,
+     "end": 33.33
+    },
+    {
+     "name": "chorus",
+     "start": 33.33,
+     "end": 60.0
+    },
+    {
+     "name": "verse2",
+     "start": 60.0,
+     "end": 73.33
+    },
+    {
+     "name": "chorus2",
+     "start": 73.33,
+     "end": 100.0
+    },
+    {
+     "name": "outro",
+     "start": 100.0,
+     "end": 106.67
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 6.67,
+     "text": "टूटा सितारा हूँ मैं",
+     "tr": "I am a broken star"
+    },
+    {
+     "t": 13.33,
+     "text": "आसमान से गिरता हुआ",
+     "tr": "Falling from the sky"
+    },
+    {
+     "t": 20.0,
+     "text": "तेरे बिना ये रात लंबी है",
+     "tr": "Without you this night is long"
+    },
+    {
+     "t": 26.67,
+     "text": "हर लम्हा ठहरा हुआ",
+     "tr": "Every moment stands still"
+    },
+    {
+     "t": 33.33,
+     "text": "वादे सारे बिखर गए",
+     "tr": "All the promises scattered"
+    },
+    {
+     "t": 40.0,
+     "text": "फिर भी तेरा नाम लेता हूँ",
+     "tr": "Still I say your name"
+    },
+    {
+     "t": 46.67,
+     "text": "वादे सारे बिखर गए",
+     "tr": "All the promises scattered"
+    },
+    {
+     "t": 53.33,
+     "text": "टूट के भी तुझे चाहता हूँ",
+     "tr": "Even broken, I still love you"
+    },
+    {
+     "t": 60.0,
+     "text": "तेरे बिना ये रात लंबी है",
+     "tr": "Without you this night is long"
+    },
+    {
+     "t": 66.67,
+     "text": "हर लम्हा ठहरा हुआ",
+     "tr": "Every moment stands still"
+    },
+    {
+     "t": 73.33,
+     "text": "वादे सारे बिखर गए",
+     "tr": "All the promises scattered"
+    },
+    {
+     "t": 80.0,
+     "text": "फिर भी तेरा नाम लेता हूँ",
+     "tr": "Still I say your name"
+    },
+    {
+     "t": 86.67,
+     "text": "वादे सारे बिखर गए",
+     "tr": "All the promises scattered"
+    },
+    {
+     "t": 93.33,
+     "text": "टूट के भी तुझे चाहता हूँ",
+     "tr": "Even broken, I still love you"
+    }
+   ],
+   "audio_full": "audio/full/toota-sitara.mp3",
+   "audio_preview": "audio/preview/toota-sitara.mp3",
+   "cover": "covers/raat-ke-raaste-kabir-lights.svg"
+  },
+  {
+   "slug": "udaan",
+   "title": "Udaan",
+   "artist": "rohan-vyas",
+   "album": "Udaan",
+   "lang": "hi",
+   "genre": "Hip-Hop",
+   "cats": [
+    "motivational",
+    "new-generation",
+    "independent"
+   ],
+   "year": 2026,
+   "style": "motivational",
+   "bpm": 96,
+   "root": 57,
+   "plays": 430000,
+   "album_slug": "udaan-rohan-vyas",
+   "duration": 109.5,
+   "highlight_start": 72.5,
+   "highlight_end": 97.5,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 10.0
+    },
+    {
+     "name": "verse",
+     "start": 10.0,
+     "end": 35.0
+    },
+    {
+     "name": "chorus",
+     "start": 35.0,
+     "end": 60.0
+    },
+    {
+     "name": "verse2",
+     "start": 60.0,
+     "end": 72.5
+    },
+    {
+     "name": "chorus2",
+     "start": 72.5,
+     "end": 97.5
+    },
+    {
+     "name": "outro",
+     "start": 97.5,
+     "end": 107.5
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 10.0,
+     "text": "गिर के फिर से चलना है",
+     "tr": "Fall, then walk again"
+    },
+    {
+     "t": 15.0,
+     "text": "हर मुश्किल एक सीढ़ी है",
+     "tr": "Every hardship is a step"
+    },
+    {
+     "t": 20.0,
+     "text": "लोग कहेंगे, कहने दो",
+     "tr": "People will talk, let them"
+    },
+    {
+     "t": 25.0,
+     "text": "मंज़िल मेरी अपनी है",
+     "tr": "The destination is my own"
+    },
+    {
+     "t": 30.0,
+     "text": "गिर के फिर से चलना है",
+     "tr": "Fall, then walk again"
+    },
+    {
+     "t": 35.0,
+     "text": "उठ जा, आसमान तेरा है",
+     "tr": "Rise, the sky is yours"
+    },
+    {
+     "t": 40.0,
+     "text": "उड़ान भर, रुकना नहीं",
+     "tr": "Take flight, don't stop"
+    },
+    {
+     "t": 45.0,
+     "text": "उठ जा, आसमान तेरा है",
+     "tr": "Rise, the sky is yours"
+    },
+    {
+     "t": 50.0,
+     "text": "डर को पीछे छोड़ दे",
+     "tr": "Leave the fear behind"
+    },
+    {
+     "t": 55.0,
+     "text": "उठ जा, आसमान तेरा है",
+     "tr": "Rise, the sky is yours"
+    },
+    {
+     "t": 60.0,
+     "text": "लोग कहेंगे, कहने दो",
+     "tr": "People will talk, let them"
+    },
+    {
+     "t": 65.0,
+     "text": "मंज़िल मेरी अपनी है",
+     "tr": "The destination is my own"
+    },
+    {
+     "t": 72.5,
+     "text": "उठ जा, आसमान तेरा है",
+     "tr": "Rise, the sky is yours"
+    },
+    {
+     "t": 77.5,
+     "text": "उड़ान भर, रुकना नहीं",
+     "tr": "Take flight, don't stop"
+    },
+    {
+     "t": 82.5,
+     "text": "उठ जा, आसमान तेरा है",
+     "tr": "Rise, the sky is yours"
+    },
+    {
+     "t": 87.5,
+     "text": "डर को पीछे छोड़ दे",
+     "tr": "Leave the fear behind"
+    },
+    {
+     "t": 92.5,
+     "text": "उठ जा, आसमान तेरा है",
+     "tr": "Rise, the sky is yours"
+    }
+   ],
+   "audio_full": "audio/full/udaan.mp3",
+   "audio_preview": "audio/preview/udaan.mp3",
+   "cover": "covers/udaan-rohan-vyas.svg"
+  },
+  {
+   "slug": "rise-again",
+   "title": "Rise Again",
+   "artist": "northbound",
+   "album": "Higher Ground",
+   "lang": "en",
+   "genre": "Rock",
+   "cats": [
+    "motivational",
+    "international",
+    "independent"
+   ],
+   "year": 2024,
+   "style": "motivational",
+   "bpm": 110,
+   "root": 52,
+   "featured": true,
+   "plays": 2210000,
+   "album_slug": "higher-ground-northbound",
+   "duration": 111.09,
+   "highlight_start": 74.18,
+   "highlight_end": 100.36,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 8.73
+    },
+    {
+     "name": "verse",
+     "start": 8.73,
+     "end": 34.91
+    },
+    {
+     "name": "chorus",
+     "start": 34.91,
+     "end": 61.09
+    },
+    {
+     "name": "verse2",
+     "start": 61.09,
+     "end": 74.18
+    },
+    {
+     "name": "chorus2",
+     "start": 74.18,
+     "end": 100.36
+    },
+    {
+     "name": "outro",
+     "start": 100.36,
+     "end": 109.09
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 8.73,
+     "text": "Knocked down on a Monday",
+     "tr": null
+    },
+    {
+     "t": 13.09,
+     "text": "Counting all the doors that closed",
+     "tr": null
+    },
+    {
+     "t": 17.45,
+     "text": "Every scar's a map now",
+     "tr": null
+    },
+    {
+     "t": 21.82,
+     "text": "Of every road I chose",
+     "tr": null
+    },
+    {
+     "t": 26.18,
+     "text": "Knocked down on a Monday",
+     "tr": null
+    },
+    {
+     "t": 30.55,
+     "text": "Counting all the doors that closed",
+     "tr": null
+    },
+    {
+     "t": 34.91,
+     "text": "We rise again, we rise again",
+     "tr": null
+    },
+    {
+     "t": 39.27,
+     "text": "Louder than the fall",
+     "tr": null
+    },
+    {
+     "t": 43.64,
+     "text": "We rise again, we rise again",
+     "tr": null
+    },
+    {
+     "t": 48.0,
+     "text": "Standing ten feet tall",
+     "tr": null
+    },
+    {
+     "t": 52.36,
+     "text": "We rise again, we rise again",
+     "tr": null
+    },
+    {
+     "t": 56.73,
+     "text": "Louder than the fall",
+     "tr": null
+    },
+    {
+     "t": 61.09,
+     "text": "Counting all the doors that closed",
+     "tr": null
+    },
+    {
+     "t": 65.45,
+     "text": "Every scar's a map now",
+     "tr": null
+    },
+    {
+     "t": 69.82,
+     "text": "Of every road I chose",
+     "tr": null
+    },
+    {
+     "t": 74.18,
+     "text": "We rise again, we rise again",
+     "tr": null
+    },
+    {
+     "t": 78.55,
+     "text": "Louder than the fall",
+     "tr": null
+    },
+    {
+     "t": 82.91,
+     "text": "We rise again, we rise again",
+     "tr": null
+    },
+    {
+     "t": 87.27,
+     "text": "Standing ten feet tall",
+     "tr": null
+    },
+    {
+     "t": 91.64,
+     "text": "We rise again, we rise again",
+     "tr": null
+    },
+    {
+     "t": 96.0,
+     "text": "Louder than the fall",
+     "tr": null
+    }
+   ],
+   "audio_full": "audio/full/rise-again.mp3",
+   "audio_preview": "audio/preview/rise-again.mp3",
+   "cover": "covers/higher-ground-northbound.svg"
+  },
+  {
+   "slug": "paper-hearts",
+   "title": "Paper Hearts",
+   "artist": "lena-hart",
+   "album": "Small Hours",
+   "lang": "en",
+   "genre": "Indie Pop",
+   "cats": [
+    "heartbreak",
+    "sad",
+    "emotional",
+    "international",
+    "independent"
+   ],
+   "year": 2023,
+   "style": "heartbreak",
+   "bpm": 78,
+   "root": 59,
+   "plays": 1730000,
+   "album_slug": "small-hours-lena-hart",
+   "duration": 100.46,
+   "highlight_start": 67.69,
+   "highlight_end": 92.31,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.15
+    },
+    {
+     "name": "verse",
+     "start": 6.15,
+     "end": 30.77
+    },
+    {
+     "name": "chorus",
+     "start": 30.77,
+     "end": 55.38
+    },
+    {
+     "name": "verse2",
+     "start": 55.38,
+     "end": 67.69
+    },
+    {
+     "name": "chorus2",
+     "start": 67.69,
+     "end": 92.31
+    },
+    {
+     "name": "outro",
+     "start": 92.31,
+     "end": 98.46
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 6.15,
+     "text": "You folded me in pages",
+     "tr": null
+    },
+    {
+     "t": 12.31,
+     "text": "Kept me in a drawer",
+     "tr": null
+    },
+    {
+     "t": 18.46,
+     "text": "I was only someone",
+     "tr": null
+    },
+    {
+     "t": 24.62,
+     "text": "You were waiting for",
+     "tr": null
+    },
+    {
+     "t": 30.77,
+     "text": "Paper hearts don't break, they tear",
+     "tr": null
+    },
+    {
+     "t": 36.92,
+     "text": "Slowly, then they're gone",
+     "tr": null
+    },
+    {
+     "t": 43.08,
+     "text": "Paper hearts don't break, they tear",
+     "tr": null
+    },
+    {
+     "t": 49.23,
+     "text": "I'm still holding on",
+     "tr": null
+    },
+    {
+     "t": 55.38,
+     "text": "I was only someone",
+     "tr": null
+    },
+    {
+     "t": 61.54,
+     "text": "You were waiting for",
+     "tr": null
+    },
+    {
+     "t": 67.69,
+     "text": "Paper hearts don't break, they tear",
+     "tr": null
+    },
+    {
+     "t": 73.85,
+     "text": "Slowly, then they're gone",
+     "tr": null
+    },
+    {
+     "t": 80.0,
+     "text": "Paper hearts don't break, they tear",
+     "tr": null
+    },
+    {
+     "t": 86.15,
+     "text": "I'm still holding on",
+     "tr": null
+    }
+   ],
+   "audio_full": "audio/full/paper-hearts.mp3",
+   "audio_preview": "audio/preview/paper-hearts.mp3",
+   "cover": "covers/small-hours-lena-hart.svg"
+  },
+  {
+   "slug": "golden-hour-drive",
+   "title": "Golden Hour Drive",
+   "artist": "lena-hart",
+   "album": "Small Hours",
+   "lang": "en",
+   "genre": "Pop",
+   "cats": [
+    "love",
+    "romantic",
+    "new-generation",
+    "international",
+    "independent"
+   ],
+   "year": 2026,
+   "style": "love",
+   "bpm": 104,
+   "root": 64,
+   "plays": 890000,
+   "album_slug": "small-hours-lena-hart",
+   "duration": 117.38,
+   "highlight_start": 78.46,
+   "highlight_end": 106.15,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 9.23
+    },
+    {
+     "name": "verse",
+     "start": 9.23,
+     "end": 36.92
+    },
+    {
+     "name": "chorus",
+     "start": 36.92,
+     "end": 64.62
+    },
+    {
+     "name": "verse2",
+     "start": 64.62,
+     "end": 78.46
+    },
+    {
+     "name": "chorus2",
+     "start": 78.46,
+     "end": 106.15
+    },
+    {
+     "name": "outro",
+     "start": 106.15,
+     "end": 115.38
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 9.23,
+     "text": "Windows down on the coast road",
+     "tr": null
+    },
+    {
+     "t": 13.85,
+     "text": "Your hand out catching the light",
+     "tr": null
+    },
+    {
+     "t": 18.46,
+     "text": "Radio playing our summer",
+     "tr": null
+    },
+    {
+     "t": 23.08,
+     "text": "Everything's feeling right",
+     "tr": null
+    },
+    {
+     "t": 27.69,
+     "text": "Windows down on the coast road",
+     "tr": null
+    },
+    {
+     "t": 32.31,
+     "text": "Your hand out catching the light",
+     "tr": null
+    },
+    {
+     "t": 36.92,
+     "text": "Golden hour, drive with me",
+     "tr": null
+    },
+    {
+     "t": 41.54,
+     "text": "Nowhere we need to be",
+     "tr": null
+    },
+    {
+     "t": 46.15,
+     "text": "Golden hour, you and me",
+     "tr": null
+    },
+    {
+     "t": 50.77,
+     "text": "Chasing the sun to the sea",
+     "tr": null
+    },
+    {
+     "t": 55.38,
+     "text": "Golden hour, drive with me",
+     "tr": null
+    },
+    {
+     "t": 60.0,
+     "text": "Nowhere we need to be",
+     "tr": null
+    },
+    {
+     "t": 64.62,
+     "text": "Your hand out catching the light",
+     "tr": null
+    },
+    {
+     "t": 69.23,
+     "text": "Radio playing our summer",
+     "tr": null
+    },
+    {
+     "t": 73.85,
+     "text": "Everything's feeling right",
+     "tr": null
+    },
+    {
+     "t": 78.46,
+     "text": "Golden hour, drive with me",
+     "tr": null
+    },
+    {
+     "t": 83.08,
+     "text": "Nowhere we need to be",
+     "tr": null
+    },
+    {
+     "t": 87.69,
+     "text": "Golden hour, you and me",
+     "tr": null
+    },
+    {
+     "t": 92.31,
+     "text": "Chasing the sun to the sea",
+     "tr": null
+    },
+    {
+     "t": 96.92,
+     "text": "Golden hour, drive with me",
+     "tr": null
+    },
+    {
+     "t": 101.54,
+     "text": "Nowhere we need to be",
+     "tr": null
+    }
+   ],
+   "audio_full": "audio/full/golden-hour-drive.mp3",
+   "audio_preview": "audio/preview/golden-hour-drive.mp3",
+   "cover": "covers/small-hours-lena-hart.svg"
+  },
+  {
+   "slug": "neon-pulse",
+   "title": "Neon Pulse",
+   "artist": "velvet-static",
+   "album": "After Dark",
+   "lang": "en",
+   "genre": "EDM",
+   "cats": [
+    "dj",
+    "party",
+    "dance",
+    "international"
+   ],
+   "year": 2026,
+   "style": "dj",
+   "bpm": 126,
+   "root": 53,
+   "featured": true,
+   "plays": 3050000,
+   "album_slug": "after-dark-velvet-static",
+   "duration": 110.57,
+   "highlight_start": 74.29,
+   "highlight_end": 100.96,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 7.62
+    },
+    {
+     "name": "verse",
+     "start": 7.62,
+     "end": 34.29
+    },
+    {
+     "name": "chorus",
+     "start": 34.29,
+     "end": 60.95
+    },
+    {
+     "name": "verse2",
+     "start": 60.95,
+     "end": 74.29
+    },
+    {
+     "name": "chorus2",
+     "start": 74.29,
+     "end": 100.95
+    },
+    {
+     "name": "outro",
+     "start": 100.95,
+     "end": 108.57
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 7.62,
+     "text": "Lights down",
+     "tr": null
+    },
+    {
+     "t": 11.43,
+     "text": "Bass up",
+     "tr": null
+    },
+    {
+     "t": 15.24,
+     "text": "Feel it in the floor",
+     "tr": null
+    },
+    {
+     "t": 19.05,
+     "text": "Everybody move",
+     "tr": null
+    },
+    {
+     "t": 22.86,
+     "text": "Lights down",
+     "tr": null
+    },
+    {
+     "t": 26.67,
+     "text": "Bass up",
+     "tr": null
+    },
+    {
+     "t": 30.48,
+     "text": "Feel it in the floor",
+     "tr": null
+    },
+    {
+     "t": 34.29,
+     "text": "Neon pulse, neon pulse",
+     "tr": null
+    },
+    {
+     "t": 38.1,
+     "text": "Hands up to the sky",
+     "tr": null
+    },
+    {
+     "t": 41.9,
+     "text": "Neon pulse, neon pulse",
+     "tr": null
+    },
+    {
+     "t": 45.71,
+     "text": "We don't sleep tonight",
+     "tr": null
+    },
+    {
+     "t": 49.52,
+     "text": "Neon pulse, neon pulse",
+     "tr": null
+    },
+    {
+     "t": 53.33,
+     "text": "Hands up to the sky",
+     "tr": null
+    },
+    {
+     "t": 57.14,
+     "text": "Neon pulse, neon pulse",
+     "tr": null
+    },
+    {
+     "t": 60.95,
+     "text": "Bass up",
+     "tr": null
+    },
+    {
+     "t": 64.76,
+     "text": "Feel it in the floor",
+     "tr": null
+    },
+    {
+     "t": 68.57,
+     "text": "Everybody move",
+     "tr": null
+    },
+    {
+     "t": 74.29,
+     "text": "Neon pulse, neon pulse",
+     "tr": null
+    },
+    {
+     "t": 78.1,
+     "text": "Hands up to the sky",
+     "tr": null
+    },
+    {
+     "t": 81.9,
+     "text": "Neon pulse, neon pulse",
+     "tr": null
+    },
+    {
+     "t": 85.71,
+     "text": "We don't sleep tonight",
+     "tr": null
+    },
+    {
+     "t": 89.52,
+     "text": "Neon pulse, neon pulse",
+     "tr": null
+    },
+    {
+     "t": 93.33,
+     "text": "Hands up to the sky",
+     "tr": null
+    },
+    {
+     "t": 97.14,
+     "text": "Neon pulse, neon pulse",
+     "tr": null
+    }
+   ],
+   "audio_full": "audio/full/neon-pulse.mp3",
+   "audio_preview": "audio/preview/neon-pulse.mp3",
+   "cover": "covers/after-dark-velvet-static.svg"
+  },
+  {
+   "slug": "midnight-rangoli",
+   "title": "Midnight Rangoli",
+   "artist": "rangoli-beats",
+   "album": "Namma Nights",
+   "lang": "kn",
+   "genre": "EDM Folk",
+   "cats": [
+    "dj",
+    "party",
+    "dance",
+    "independent"
+   ],
+   "year": 2025,
+   "style": "dj",
+   "bpm": 124,
+   "root": 55,
+   "plays": 760000,
+   "album_slug": "namma-nights-rangoli-beats",
+   "duration": 112.32,
+   "highlight_start": 75.48,
+   "highlight_end": 102.58,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 7.74
+    },
+    {
+     "name": "verse",
+     "start": 7.74,
+     "end": 34.84
+    },
+    {
+     "name": "chorus",
+     "start": 34.84,
+     "end": 61.94
+    },
+    {
+     "name": "verse2",
+     "start": 61.94,
+     "end": 75.48
+    },
+    {
+     "name": "chorus2",
+     "start": 75.48,
+     "end": 102.58
+    },
+    {
+     "name": "outro",
+     "start": 102.58,
+     "end": 110.32
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 7.74,
+     "text": "ಇಂದು ರಾತ್ರಿ ನಮ್ಮದು",
+     "tr": "Tonight is ours"
+    },
+    {
+     "t": 11.61,
+     "text": "ದೀಪಗಳು ಬೆಳಗಲಿ",
+     "tr": "Let the lights shine"
+    },
+    {
+     "t": 15.48,
+     "text": "ಇಂದು ರಾತ್ರಿ ನಮ್ಮದು",
+     "tr": "Tonight is ours"
+    },
+    {
+     "t": 19.35,
+     "text": "ದೀಪಗಳು ಬೆಳಗಲಿ",
+     "tr": "Let the lights shine"
+    },
+    {
+     "t": 23.23,
+     "text": "ಇಂದು ರಾತ್ರಿ ನಮ್ಮದು",
+     "tr": "Tonight is ours"
+    },
+    {
+     "t": 27.1,
+     "text": "ದೀಪಗಳು ಬೆಳಗಲಿ",
+     "tr": "Let the lights shine"
+    },
+    {
+     "t": 30.97,
+     "text": "ಇಂದು ರಾತ್ರಿ ನಮ್ಮದು",
+     "tr": "Tonight is ours"
+    },
+    {
+     "t": 34.84,
+     "text": "ಕುಣಿಯೋಣ ಬಾ",
+     "tr": "Come, let's dance"
+    },
+    {
+     "t": 38.71,
+     "text": "ಎಲ್ಲರೂ ಕೂಡಿ ಕುಣಿಯೋಣ",
+     "tr": "Let's all dance together"
+    },
+    {
+     "t": 42.58,
+     "text": "ಕುಣಿಯೋಣ ಬಾ",
+     "tr": "Come, let's dance"
+    },
+    {
+     "t": 46.45,
+     "text": "ಬೆಳಗಿನವರೆಗೂ",
+     "tr": "Until the morning"
+    },
+    {
+     "t": 50.32,
+     "text": "ಕುಣಿಯೋಣ ಬಾ",
+     "tr": "Come, let's dance"
+    },
+    {
+     "t": 54.19,
+     "text": "ಎಲ್ಲರೂ ಕೂಡಿ ಕುಣಿಯೋಣ",
+     "tr": "Let's all dance together"
+    },
+    {
+     "t": 58.06,
+     "text": "ಕುಣಿಯೋಣ ಬಾ",
+     "tr": "Come, let's dance"
+    },
+    {
+     "t": 61.94,
+     "text": "ಇಂದು ರಾತ್ರಿ ನಮ್ಮದು",
+     "tr": "Tonight is ours"
+    },
+    {
+     "t": 65.81,
+     "text": "ದೀಪಗಳು ಬೆಳಗಲಿ",
+     "tr": "Let the lights shine"
+    },
+    {
+     "t": 69.68,
+     "text": "ಇಂದು ರಾತ್ರಿ ನಮ್ಮದು",
+     "tr": "Tonight is ours"
+    },
+    {
+     "t": 75.48,
+     "text": "ಕುಣಿಯೋಣ ಬಾ",
+     "tr": "Come, let's dance"
+    },
+    {
+     "t": 79.35,
+     "text": "ಎಲ್ಲರೂ ಕೂಡಿ ಕುಣಿಯೋಣ",
+     "tr": "Let's all dance together"
+    },
+    {
+     "t": 83.23,
+     "text": "ಕುಣಿಯೋಣ ಬಾ",
+     "tr": "Come, let's dance"
+    },
+    {
+     "t": 87.1,
+     "text": "ಬೆಳಗಿನವರೆಗೂ",
+     "tr": "Until the morning"
+    },
+    {
+     "t": 90.97,
+     "text": "ಕುಣಿಯೋಣ ಬಾ",
+     "tr": "Come, let's dance"
+    },
+    {
+     "t": 94.84,
+     "text": "ಎಲ್ಲರೂ ಕೂಡಿ ಕುಣಿಯೋಣ",
+     "tr": "Let's all dance together"
+    },
+    {
+     "t": 98.71,
+     "text": "ಕುಣಿಯೋಣ ಬಾ",
+     "tr": "Come, let's dance"
+    }
+   ],
+   "audio_full": "audio/full/midnight-rangoli.mp3",
+   "audio_preview": "audio/preview/midnight-rangoli.mp3",
+   "cover": "covers/namma-nights-rangoli-beats.svg"
+  },
+  {
+   "slug": "balle-balle-nights",
+   "title": "Balle Balle Nights",
+   "artist": "harleen-gill",
+   "album": "Dhol Diaries",
+   "lang": "pa",
+   "genre": "Bhangra",
+   "cats": [
+    "party",
+    "dance",
+    "dj"
+   ],
+   "year": 2025,
+   "style": "party",
+   "bpm": 100,
+   "root": 57,
+   "featured": true,
+   "plays": 2480000,
+   "album_slug": "dhol-diaries-harleen-gill",
+   "duration": 105.2,
+   "highlight_start": 69.6,
+   "highlight_end": 93.6,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 9.6
+    },
+    {
+     "name": "verse",
+     "start": 9.6,
+     "end": 33.6
+    },
+    {
+     "name": "chorus",
+     "start": 33.6,
+     "end": 57.6
+    },
+    {
+     "name": "verse2",
+     "start": 57.6,
+     "end": 69.6
+    },
+    {
+     "name": "chorus2",
+     "start": 69.6,
+     "end": 93.6
+    },
+    {
+     "name": "outro",
+     "start": 93.6,
+     "end": 103.2
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 9.6,
+     "text": "ਢੋਲ ਵੱਜੇ, ਦਿਲ ਨੱਚੇ",
+     "tr": "The dhol plays, the heart dances"
+    },
+    {
+     "t": 14.4,
+     "text": "ਅੱਜ ਦੀ ਰਾਤ ਸਾਡੀ ਹੈ",
+     "tr": "Tonight is ours"
+    },
+    {
+     "t": 19.2,
+     "text": "ਯਾਰ ਸਾਰੇ ਆ ਗਏ",
+     "tr": "All the friends have come"
+    },
+    {
+     "t": 24.0,
+     "text": "ਰੌਣਕ ਲੱਗੀ ਭਾਰੀ ਹੈ",
+     "tr": "The party is in full swing"
+    },
+    {
+     "t": 28.8,
+     "text": "ਢੋਲ ਵੱਜੇ, ਦਿਲ ਨੱਚੇ",
+     "tr": "The dhol plays, the heart dances"
+    },
+    {
+     "t": 33.6,
+     "text": "ਬੱਲੇ ਬੱਲੇ, ਨੱਚੋ ਸਾਰੇ",
+     "tr": "Balle balle, everyone dance"
+    },
+    {
+     "t": 38.4,
+     "text": "ਰਲ ਮਿਲ ਕੇ ਅੱਜ ਗਾਓ",
+     "tr": "Sing together today"
+    },
+    {
+     "t": 43.2,
+     "text": "ਬੱਲੇ ਬੱਲੇ, ਨੱਚੋ ਸਾਰੇ",
+     "tr": "Balle balle, everyone dance"
+    },
+    {
+     "t": 48.0,
+     "text": "ਪੈਰਾਂ ਨੂੰ ਨਾ ਰੋਕੋ",
+     "tr": "Don't stop your feet"
+    },
+    {
+     "t": 52.8,
+     "text": "ਬੱਲੇ ਬੱਲੇ, ਨੱਚੋ ਸਾਰੇ",
+     "tr": "Balle balle, everyone dance"
+    },
+    {
+     "t": 57.6,
+     "text": "ਯਾਰ ਸਾਰੇ ਆ ਗਏ",
+     "tr": "All the friends have come"
+    },
+    {
+     "t": 62.4,
+     "text": "ਰੌਣਕ ਲੱਗੀ ਭਾਰੀ ਹੈ",
+     "tr": "The party is in full swing"
+    },
+    {
+     "t": 69.6,
+     "text": "ਬੱਲੇ ਬੱਲੇ, ਨੱਚੋ ਸਾਰੇ",
+     "tr": "Balle balle, everyone dance"
+    },
+    {
+     "t": 74.4,
+     "text": "ਰਲ ਮਿਲ ਕੇ ਅੱਜ ਗਾਓ",
+     "tr": "Sing together today"
+    },
+    {
+     "t": 79.2,
+     "text": "ਬੱਲੇ ਬੱਲੇ, ਨੱਚੋ ਸਾਰੇ",
+     "tr": "Balle balle, everyone dance"
+    },
+    {
+     "t": 84.0,
+     "text": "ਪੈਰਾਂ ਨੂੰ ਨਾ ਰੋਕੋ",
+     "tr": "Don't stop your feet"
+    },
+    {
+     "t": 88.8,
+     "text": "ਬੱਲੇ ਬੱਲੇ, ਨੱਚੋ ਸਾਰੇ",
+     "tr": "Balle balle, everyone dance"
+    }
+   ],
+   "audio_full": "audio/full/balle-balle-nights.mp3",
+   "audio_preview": "audio/preview/balle-balle-nights.mp3",
+   "cover": "covers/dhol-diaries-harleen-gill.svg"
+  },
+  {
+   "slug": "om-shanti-dhara",
+   "title": "Om Shanti Dhara",
+   "artist": "saffron-choir",
+   "album": "Morning Prayers",
+   "lang": "hi",
+   "genre": "Bhajan",
+   "cats": [
+    "devotional"
+   ],
+   "year": 2022,
+   "style": "devotional",
+   "bpm": 68,
+   "root": 50,
+   "plays": 1120000,
+   "album_slug": "morning-prayers-saffron-choir",
+   "duration": 114.94,
+   "highlight_start": 77.65,
+   "highlight_end": 105.89,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 7.06
+    },
+    {
+     "name": "verse",
+     "start": 7.06,
+     "end": 35.29
+    },
+    {
+     "name": "chorus",
+     "start": 35.29,
+     "end": 63.53
+    },
+    {
+     "name": "verse2",
+     "start": 63.53,
+     "end": 77.65
+    },
+    {
+     "name": "chorus2",
+     "start": 77.65,
+     "end": 105.88
+    },
+    {
+     "name": "outro",
+     "start": 105.88,
+     "end": 112.94
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 7.06,
+     "text": "मन में दीप जले",
+     "tr": "A lamp is lit in the mind"
+    },
+    {
+     "t": 14.12,
+     "text": "हर साँस में तेरा नाम",
+     "tr": "Your name in every breath"
+    },
+    {
+     "t": 21.18,
+     "text": "सुबह की पहली किरण",
+     "tr": "The first ray of morning"
+    },
+    {
+     "t": 28.24,
+     "text": "तेरे चरणों में प्रणाम",
+     "tr": "I bow at your feet"
+    },
+    {
+     "t": 35.29,
+     "text": "ॐ शान्तिः शान्तिः शान्तिः",
+     "tr": "Om, peace, peace, peace"
+    },
+    {
+     "t": 42.35,
+     "text": "शान्ति की धारा बहे",
+     "tr": "May the stream of peace flow"
+    },
+    {
+     "t": 49.41,
+     "text": "ॐ शान्तिः शान्तिः शान्तिः",
+     "tr": "Om, peace, peace, peace"
+    },
+    {
+     "t": 56.47,
+     "text": "मन निर्मल रहे",
+     "tr": "May the mind stay pure"
+    },
+    {
+     "t": 63.53,
+     "text": "सुबह की पहली किरण",
+     "tr": "The first ray of morning"
+    },
+    {
+     "t": 70.59,
+     "text": "तेरे चरणों में प्रणाम",
+     "tr": "I bow at your feet"
+    },
+    {
+     "t": 77.65,
+     "text": "ॐ शान्तिः शान्तिः शान्तिः",
+     "tr": "Om, peace, peace, peace"
+    },
+    {
+     "t": 84.71,
+     "text": "शान्ति की धारा बहे",
+     "tr": "May the stream of peace flow"
+    },
+    {
+     "t": 91.76,
+     "text": "ॐ शान्तिः शान्तिः शान्तिः",
+     "tr": "Om, peace, peace, peace"
+    },
+    {
+     "t": 98.82,
+     "text": "मन निर्मल रहे",
+     "tr": "May the mind stay pure"
+    }
+   ],
+   "audio_full": "audio/full/om-shanti-dhara.mp3",
+   "audio_preview": "audio/preview/om-shanti-dhara.mp3",
+   "cover": "covers/morning-prayers-saffron-choir.svg"
+  },
+  {
+   "slug": "govinda-deepam",
+   "title": "Govinda Deepam",
+   "artist": "saffron-choir",
+   "album": "Morning Prayers",
+   "lang": "te",
+   "genre": "Bhakti",
+   "cats": [
+    "devotional"
+   ],
+   "year": 2023,
+   "style": "devotional",
+   "bpm": 74,
+   "root": 52,
+   "featured": true,
+   "plays": 870000,
+   "album_slug": "morning-prayers-saffron-choir",
+   "duration": 105.78,
+   "highlight_start": 71.35,
+   "highlight_end": 97.3,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.49
+    },
+    {
+     "name": "verse",
+     "start": 6.49,
+     "end": 32.43
+    },
+    {
+     "name": "chorus",
+     "start": 32.43,
+     "end": 58.38
+    },
+    {
+     "name": "verse2",
+     "start": 58.38,
+     "end": 71.35
+    },
+    {
+     "name": "chorus2",
+     "start": 71.35,
+     "end": 97.3
+    },
+    {
+     "name": "outro",
+     "start": 97.3,
+     "end": 103.78
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 6.49,
+     "text": "దీపం వెలిగిద్దాం",
+     "tr": "Let us light the lamp"
+    },
+    {
+     "t": 12.97,
+     "text": "మనసు నిండా భక్తితో",
+     "tr": "With hearts full of devotion"
+    },
+    {
+     "t": 19.46,
+     "text": "గుడి గంటలు మోగగా",
+     "tr": "As the temple bells ring"
+    },
+    {
+     "t": 25.95,
+     "text": "నీ పేరే పలుకుతాం",
+     "tr": "We speak only your name"
+    },
+    {
+     "t": 32.43,
+     "text": "హరి హరి గోవిందా",
+     "tr": "Hari Hari Govinda"
+    },
+    {
+     "t": 38.92,
+     "text": "నీ నామమే మా బలం",
+     "tr": "Your name is our strength"
+    },
+    {
+     "t": 45.41,
+     "text": "హరి హరి గోవిందా",
+     "tr": "Hari Hari Govinda"
+    },
+    {
+     "t": 51.89,
+     "text": "నీవే మా ఆధారం",
+     "tr": "You are our support"
+    },
+    {
+     "t": 58.38,
+     "text": "గుడి గంటలు మోగగా",
+     "tr": "As the temple bells ring"
+    },
+    {
+     "t": 64.86,
+     "text": "నీ పేరే పలుకుతాం",
+     "tr": "We speak only your name"
+    },
+    {
+     "t": 71.35,
+     "text": "హరి హరి గోవిందా",
+     "tr": "Hari Hari Govinda"
+    },
+    {
+     "t": 77.84,
+     "text": "నీ నామమే మా బలం",
+     "tr": "Your name is our strength"
+    },
+    {
+     "t": 84.32,
+     "text": "హరి హరి గోవిందా",
+     "tr": "Hari Hari Govinda"
+    },
+    {
+     "t": 90.81,
+     "text": "నీవే మా ఆధారం",
+     "tr": "You are our support"
+    }
+   ],
+   "audio_full": "audio/full/govinda-deepam.mp3",
+   "audio_preview": "audio/preview/govinda-deepam.mp3",
+   "cover": "covers/morning-prayers-saffron-choir.svg"
+  },
+  {
+   "slug": "kovil-mani",
+   "title": "Kovil Mani",
+   "artist": "meera-sundar",
+   "album": "Monsoon Letters",
+   "lang": "ta",
+   "genre": "Devotional",
+   "cats": [
+    "devotional",
+    "melody"
+   ],
+   "year": 2021,
+   "style": "devotional",
+   "bpm": 70,
+   "root": 55,
+   "plays": 410000,
+   "album_slug": "monsoon-letters-meera-sundar",
+   "duration": 111.71,
+   "highlight_start": 75.43,
+   "highlight_end": 102.86,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.86
+    },
+    {
+     "name": "verse",
+     "start": 6.86,
+     "end": 34.29
+    },
+    {
+     "name": "chorus",
+     "start": 34.29,
+     "end": 61.71
+    },
+    {
+     "name": "verse2",
+     "start": 61.71,
+     "end": 75.43
+    },
+    {
+     "name": "chorus2",
+     "start": 75.43,
+     "end": 102.86
+    },
+    {
+     "name": "outro",
+     "start": 102.86,
+     "end": 109.71
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 6.86,
+     "text": "கோவில் மணி ஒலிக்குது",
+     "tr": "The temple bell rings"
+    },
+    {
+     "t": 13.71,
+     "text": "காலை வெயில் விழுகுது",
+     "tr": "Morning sunlight falls"
+    },
+    {
+     "t": 20.57,
+     "text": "கோவில் மணி ஒலிக்குது",
+     "tr": "The temple bell rings"
+    },
+    {
+     "t": 27.43,
+     "text": "காலை வெயில் விழுகுது",
+     "tr": "Morning sunlight falls"
+    },
+    {
+     "t": 34.29,
+     "text": "அம்மா உன் அருள் வேண்டும்",
+     "tr": "Mother, I need your grace"
+    },
+    {
+     "t": 41.14,
+     "text": "என் வழியில் ஒளி வேண்டும்",
+     "tr": "I need light on my path"
+    },
+    {
+     "t": 48.0,
+     "text": "அம்மா உன் அருள் வேண்டும்",
+     "tr": "Mother, I need your grace"
+    },
+    {
+     "t": 54.86,
+     "text": "எப்போதும் துணை வேண்டும்",
+     "tr": "I need you with me always"
+    },
+    {
+     "t": 61.71,
+     "text": "கோவில் மணி ஒலிக்குது",
+     "tr": "The temple bell rings"
+    },
+    {
+     "t": 68.57,
+     "text": "காலை வெயில் விழுகுது",
+     "tr": "Morning sunlight falls"
+    },
+    {
+     "t": 75.43,
+     "text": "அம்மா உன் அருள் வேண்டும்",
+     "tr": "Mother, I need your grace"
+    },
+    {
+     "t": 82.29,
+     "text": "என் வழியில் ஒளி வேண்டும்",
+     "tr": "I need light on my path"
+    },
+    {
+     "t": 89.14,
+     "text": "அம்மா உன் அருள் வேண்டும்",
+     "tr": "Mother, I need your grace"
+    },
+    {
+     "t": 96.0,
+     "text": "எப்போதும் துணை வேண்டும்",
+     "tr": "I need you with me always"
+    }
+   ],
+   "audio_full": "audio/full/kovil-mani.mp3",
+   "audio_preview": "audio/preview/kovil-mani.mp3",
+   "cover": "covers/monsoon-letters-meera-sundar.svg"
+  },
+  {
+   "slug": "nanpa",
+   "title": "Nanpa",
+   "artist": "meera-sundar",
+   "album": "Monsoon Letters",
+   "lang": "ta",
+   "genre": "Pop",
+   "cats": [
+    "friendship",
+    "new-generation"
+   ],
+   "year": 2024,
+   "style": "friendship",
+   "bpm": 108,
+   "root": 60,
+   "plays": 530000,
+   "album_slug": "monsoon-letters-meera-sundar",
+   "duration": 113.11,
+   "highlight_start": 75.56,
+   "highlight_end": 102.23,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 8.89
+    },
+    {
+     "name": "verse",
+     "start": 8.89,
+     "end": 35.56
+    },
+    {
+     "name": "chorus",
+     "start": 35.56,
+     "end": 62.22
+    },
+    {
+     "name": "verse2",
+     "start": 62.22,
+     "end": 75.56
+    },
+    {
+     "name": "chorus2",
+     "start": 75.56,
+     "end": 102.22
+    },
+    {
+     "name": "outro",
+     "start": 102.22,
+     "end": 111.11
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 8.89,
+     "text": "பள்ளி நாட்கள் நினைவில்",
+     "tr": "School days in memory"
+    },
+    {
+     "t": 13.33,
+     "text": "சிரித்த நாட்கள் கனவில்",
+     "tr": "Days of laughter in dreams"
+    },
+    {
+     "t": 17.78,
+     "text": "பள்ளி நாட்கள் நினைவில்",
+     "tr": "School days in memory"
+    },
+    {
+     "t": 22.22,
+     "text": "சிரித்த நாட்கள் கனவில்",
+     "tr": "Days of laughter in dreams"
+    },
+    {
+     "t": 26.67,
+     "text": "பள்ளி நாட்கள் நினைவில்",
+     "tr": "School days in memory"
+    },
+    {
+     "t": 31.11,
+     "text": "சிரித்த நாட்கள் கனவில்",
+     "tr": "Days of laughter in dreams"
+    },
+    {
+     "t": 35.56,
+     "text": "நண்பா நீ இருந்தால் போதும்",
+     "tr": "Friend, it's enough if you're here"
+    },
+    {
+     "t": 40.0,
+     "text": "நம் கதை முடியாது",
+     "tr": "Our story won't end"
+    },
+    {
+     "t": 44.44,
+     "text": "நண்பா நீ இருந்தால் போதும்",
+     "tr": "Friend, it's enough if you're here"
+    },
+    {
+     "t": 48.89,
+     "text": "எந்நாளும் நாம் ஒன்று",
+     "tr": "We are one, always"
+    },
+    {
+     "t": 53.33,
+     "text": "நண்பா நீ இருந்தால் போதும்",
+     "tr": "Friend, it's enough if you're here"
+    },
+    {
+     "t": 57.78,
+     "text": "நம் கதை முடியாது",
+     "tr": "Our story won't end"
+    },
+    {
+     "t": 62.22,
+     "text": "பள்ளி நாட்கள் நினைவில்",
+     "tr": "School days in memory"
+    },
+    {
+     "t": 66.67,
+     "text": "சிரித்த நாட்கள் கனவில்",
+     "tr": "Days of laughter in dreams"
+    },
+    {
+     "t": 71.11,
+     "text": "பள்ளி நாட்கள் நினைவில்",
+     "tr": "School days in memory"
+    },
+    {
+     "t": 75.56,
+     "text": "நண்பா நீ இருந்தால் போதும்",
+     "tr": "Friend, it's enough if you're here"
+    },
+    {
+     "t": 80.0,
+     "text": "நம் கதை முடியாது",
+     "tr": "Our story won't end"
+    },
+    {
+     "t": 84.44,
+     "text": "நண்பா நீ இருந்தால் போதும்",
+     "tr": "Friend, it's enough if you're here"
+    },
+    {
+     "t": 88.89,
+     "text": "எந்நாளும் நாம் ஒன்று",
+     "tr": "We are one, always"
+    },
+    {
+     "t": 93.33,
+     "text": "நண்பா நீ இருந்தால் போதும்",
+     "tr": "Friend, it's enough if you're here"
+    },
+    {
+     "t": 97.78,
+     "text": "நம் கதை முடியாது",
+     "tr": "Our story won't end"
+    }
+   ],
+   "audio_full": "audio/full/nanpa.mp3",
+   "audio_preview": "audio/preview/nanpa.mp3",
+   "cover": "covers/monsoon-letters-meera-sundar.svg"
+  },
+  {
+   "slug": "dosti-express",
+   "title": "Dosti Express",
+   "artist": "rohan-vyas",
+   "album": "Udaan",
+   "lang": "hi",
+   "genre": "Pop",
+   "cats": [
+    "friendship",
+    "party",
+    "independent"
+   ],
+   "year": 2026,
+   "style": "friendship",
+   "bpm": 112,
+   "root": 62,
+   "plays": 365000,
+   "album_slug": "udaan-rohan-vyas",
+   "duration": 109.14,
+   "highlight_start": 72.86,
+   "highlight_end": 98.57,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 8.57
+    },
+    {
+     "name": "verse",
+     "start": 8.57,
+     "end": 34.29
+    },
+    {
+     "name": "chorus",
+     "start": 34.29,
+     "end": 60.0
+    },
+    {
+     "name": "verse2",
+     "start": 60.0,
+     "end": 72.86
+    },
+    {
+     "name": "chorus2",
+     "start": 72.86,
+     "end": 98.57
+    },
+    {
+     "name": "outro",
+     "start": 98.57,
+     "end": 107.14
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 8.57,
+     "text": "कॉलेज की कैंटीन से",
+     "tr": "From the college canteen"
+    },
+    {
+     "t": 12.86,
+     "text": "रातों की बातें तक",
+     "tr": "To late-night talks"
+    },
+    {
+     "t": 17.14,
+     "text": "कॉलेज की कैंटीन से",
+     "tr": "From the college canteen"
+    },
+    {
+     "t": 21.43,
+     "text": "रातों की बातें तक",
+     "tr": "To late-night talks"
+    },
+    {
+     "t": 25.71,
+     "text": "कॉलेज की कैंटीन से",
+     "tr": "From the college canteen"
+    },
+    {
+     "t": 30.0,
+     "text": "रातों की बातें तक",
+     "tr": "To late-night talks"
+    },
+    {
+     "t": 34.29,
+     "text": "दोस्ती की गाड़ी चली",
+     "tr": "The friendship train is rolling"
+    },
+    {
+     "t": 38.57,
+     "text": "यारों के संग हर रास्ता आसान",
+     "tr": "Every road is easy with friends"
+    },
+    {
+     "t": 42.86,
+     "text": "दोस्ती की गाड़ी चली",
+     "tr": "The friendship train is rolling"
+    },
+    {
+     "t": 47.14,
+     "text": "हम साथ हैं, तो क्या परेशान",
+     "tr": "We're together, why worry"
+    },
+    {
+     "t": 51.43,
+     "text": "दोस्ती की गाड़ी चली",
+     "tr": "The friendship train is rolling"
+    },
+    {
+     "t": 55.71,
+     "text": "यारों के संग हर रास्ता आसान",
+     "tr": "Every road is easy with friends"
+    },
+    {
+     "t": 60.0,
+     "text": "कॉलेज की कैंटीन से",
+     "tr": "From the college canteen"
+    },
+    {
+     "t": 64.29,
+     "text": "रातों की बातें तक",
+     "tr": "To late-night talks"
+    },
+    {
+     "t": 68.57,
+     "text": "कॉलेज की कैंटीन से",
+     "tr": "From the college canteen"
+    },
+    {
+     "t": 72.86,
+     "text": "दोस्ती की गाड़ी चली",
+     "tr": "The friendship train is rolling"
+    },
+    {
+     "t": 77.14,
+     "text": "यारों के संग हर रास्ता आसान",
+     "tr": "Every road is easy with friends"
+    },
+    {
+     "t": 81.43,
+     "text": "दोस्ती की गाड़ी चली",
+     "tr": "The friendship train is rolling"
+    },
+    {
+     "t": 85.71,
+     "text": "हम साथ हैं, तो क्या परेशान",
+     "tr": "We're together, why worry"
+    },
+    {
+     "t": 90.0,
+     "text": "दोस्ती की गाड़ी चली",
+     "tr": "The friendship train is rolling"
+    },
+    {
+     "t": 94.29,
+     "text": "यारों के संग हर रास्ता आसान",
+     "tr": "Every road is easy with friends"
+    }
+   ],
+   "audio_full": "audio/full/dosti-express.mp3",
+   "audio_preview": "audio/preview/dosti-express.mp3",
+   "cover": "covers/udaan-rohan-vyas.svg"
+  },
+  {
+   "slug": "kaayal-kaattu",
+   "title": "Kaayal Kaattu",
+   "artist": "nila-monsoon",
+   "album": "Backwater Tapes",
+   "lang": "ml",
+   "genre": "Indie Folk",
+   "cats": [
+    "melody",
+    "feelings",
+    "independent"
+   ],
+   "year": 2024,
+   "style": "melody",
+   "bpm": 84,
+   "root": 57,
+   "plays": 298000,
+   "album_slug": "backwater-tapes-nila-monsoon",
+   "duration": 124.86,
+   "highlight_start": 82.86,
+   "highlight_end": 111.43,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 11.43
+    },
+    {
+     "name": "verse",
+     "start": 11.43,
+     "end": 40.0
+    },
+    {
+     "name": "chorus",
+     "start": 40.0,
+     "end": 68.57
+    },
+    {
+     "name": "verse2",
+     "start": 68.57,
+     "end": 82.86
+    },
+    {
+     "name": "chorus2",
+     "start": 82.86,
+     "end": 111.43
+    },
+    {
+     "name": "outro",
+     "start": 111.43,
+     "end": 122.86
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 11.43,
+     "text": "കായൽ കാറ്റ് വീശുന്നു",
+     "tr": "The backwater breeze blows"
+    },
+    {
+     "t": 17.14,
+     "text": "തോണി മെല്ലെ നീങ്ങുന്നു",
+     "tr": "The boat moves slowly"
+    },
+    {
+     "t": 22.86,
+     "text": "കായൽ കാറ്റ് വീശുന്നു",
+     "tr": "The backwater breeze blows"
+    },
+    {
+     "t": 28.57,
+     "text": "തോണി മെല്ലെ നീങ്ങുന്നു",
+     "tr": "The boat moves slowly"
+    },
+    {
+     "t": 34.29,
+     "text": "കായൽ കാറ്റ് വീശുന്നു",
+     "tr": "The backwater breeze blows"
+    },
+    {
+     "t": 40.0,
+     "text": "നിന്റെ ഓർമ്മകൾ എന്നിൽ",
+     "tr": "Your memories in me"
+    },
+    {
+     "t": 45.71,
+     "text": "ഒരു പാട്ടായി നിറയുന്നു",
+     "tr": "Fill me like a song"
+    },
+    {
+     "t": 51.43,
+     "text": "നിന്റെ ഓർമ്മകൾ എന്നിൽ",
+     "tr": "Your memories in me"
+    },
+    {
+     "t": 57.14,
+     "text": "ഈ സന്ധ്യയിൽ പൂക്കുന്നു",
+     "tr": "Bloom in this dusk"
+    },
+    {
+     "t": 62.86,
+     "text": "നിന്റെ ഓർമ്മകൾ എന്നിൽ",
+     "tr": "Your memories in me"
+    },
+    {
+     "t": 68.57,
+     "text": "കായൽ കാറ്റ് വീശുന്നു",
+     "tr": "The backwater breeze blows"
+    },
+    {
+     "t": 74.29,
+     "text": "തോണി മെല്ലെ നീങ്ങുന്നു",
+     "tr": "The boat moves slowly"
+    },
+    {
+     "t": 82.86,
+     "text": "നിന്റെ ഓർമ്മകൾ എന്നിൽ",
+     "tr": "Your memories in me"
+    },
+    {
+     "t": 88.57,
+     "text": "ഒരു പാട്ടായി നിറയുന്നു",
+     "tr": "Fill me like a song"
+    },
+    {
+     "t": 94.29,
+     "text": "നിന്റെ ഓർമ്മകൾ എന്നിൽ",
+     "tr": "Your memories in me"
+    },
+    {
+     "t": 100.0,
+     "text": "ഈ സന്ധ്യയിൽ പൂക്കുന്നു",
+     "tr": "Bloom in this dusk"
+    },
+    {
+     "t": 105.71,
+     "text": "നിന്റെ ഓർമ്മകൾ എന്നിൽ",
+     "tr": "Your memories in me"
+    }
+   ],
+   "audio_full": "audio/full/kaayal-kaattu.mp3",
+   "audio_preview": "audio/preview/kaayal-kaattu.mp3",
+   "cover": "covers/backwater-tapes-nila-monsoon.svg"
+  },
+  {
+   "slug": "bhalobashar-brishti",
+   "title": "Bhalobashar Brishti",
+   "artist": "ishaan-roy",
+   "album": "Kolkata Kotha",
+   "lang": "bn",
+   "genre": "Bengali Pop",
+   "cats": [
+    "love",
+    "romantic",
+    "melody"
+   ],
+   "year": 2023,
+   "style": "romantic",
+   "bpm": 86,
+   "root": 59,
+   "plays": 455000,
+   "album_slug": "kolkata-kotha-ishaan-roy",
+   "duration": 122.0,
+   "highlight_start": 80.93,
+   "highlight_end": 108.84,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 11.16
+    },
+    {
+     "name": "verse",
+     "start": 11.16,
+     "end": 39.07
+    },
+    {
+     "name": "chorus",
+     "start": 39.07,
+     "end": 66.98
+    },
+    {
+     "name": "verse2",
+     "start": 66.98,
+     "end": 80.93
+    },
+    {
+     "name": "chorus2",
+     "start": 80.93,
+     "end": 108.84
+    },
+    {
+     "name": "outro",
+     "start": 108.84,
+     "end": 120.0
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 11.16,
+     "text": "আকাশ জুড়ে মেঘ",
+     "tr": "Clouds across the sky"
+    },
+    {
+     "t": 16.74,
+     "text": "তোমার কথা মনে পড়ে",
+     "tr": "I think of you"
+    },
+    {
+     "t": 22.33,
+     "text": "আকাশ জুড়ে মেঘ",
+     "tr": "Clouds across the sky"
+    },
+    {
+     "t": 27.91,
+     "text": "তোমার কথা মনে পড়ে",
+     "tr": "I think of you"
+    },
+    {
+     "t": 33.49,
+     "text": "আকাশ জুড়ে মেঘ",
+     "tr": "Clouds across the sky"
+    },
+    {
+     "t": 39.07,
+     "text": "ভালোবাসার বৃষ্টি নামে",
+     "tr": "The rain of love falls"
+    },
+    {
+     "t": 44.65,
+     "text": "তোমার হাতে আমার হাত",
+     "tr": "My hand in your hand"
+    },
+    {
+     "t": 50.23,
+     "text": "ভালোবাসার বৃষ্টি নামে",
+     "tr": "The rain of love falls"
+    },
+    {
+     "t": 55.81,
+     "text": "এই রাত শুধু আমাদের",
+     "tr": "This night is only ours"
+    },
+    {
+     "t": 61.4,
+     "text": "ভালোবাসার বৃষ্টি নামে",
+     "tr": "The rain of love falls"
+    },
+    {
+     "t": 66.98,
+     "text": "আকাশ জুড়ে মেঘ",
+     "tr": "Clouds across the sky"
+    },
+    {
+     "t": 72.56,
+     "text": "তোমার কথা মনে পড়ে",
+     "tr": "I think of you"
+    },
+    {
+     "t": 80.93,
+     "text": "ভালোবাসার বৃষ্টি নামে",
+     "tr": "The rain of love falls"
+    },
+    {
+     "t": 86.51,
+     "text": "তোমার হাতে আমার হাত",
+     "tr": "My hand in your hand"
+    },
+    {
+     "t": 92.09,
+     "text": "ভালোবাসার বৃষ্টি নামে",
+     "tr": "The rain of love falls"
+    },
+    {
+     "t": 97.67,
+     "text": "এই রাত শুধু আমাদের",
+     "tr": "This night is only ours"
+    },
+    {
+     "t": 103.26,
+     "text": "ভালোবাসার বৃষ্টি নামে",
+     "tr": "The rain of love falls"
+    }
+   ],
+   "audio_full": "audio/full/bhalobashar-brishti.mp3",
+   "audio_preview": "audio/preview/bhalobashar-brishti.mp3",
+   "cover": "covers/kolkata-kotha-ishaan-roy.svg"
+  },
+  {
+   "slug": "saanj",
+   "title": "Saanj",
+   "artist": "sai-deshmukh",
+   "album": "Saanj",
+   "lang": "mr",
+   "genre": "Bhavgeet",
+   "cats": [
+    "feelings",
+    "emotional",
+    "sad",
+    "independent"
+   ],
+   "year": 2022,
+   "style": "sad",
+   "bpm": 70,
+   "root": 53,
+   "plays": 188000,
+   "album_slug": "saanj-sai-deshmukh",
+   "duration": 111.71,
+   "highlight_start": 75.43,
+   "highlight_end": 102.86,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.86
+    },
+    {
+     "name": "verse",
+     "start": 6.86,
+     "end": 34.29
+    },
+    {
+     "name": "chorus",
+     "start": 34.29,
+     "end": 61.71
+    },
+    {
+     "name": "verse2",
+     "start": 61.71,
+     "end": 75.43
+    },
+    {
+     "name": "chorus2",
+     "start": 75.43,
+     "end": 102.86
+    },
+    {
+     "name": "outro",
+     "start": 102.86,
+     "end": 109.71
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 6.86,
+     "text": "सांज झाली, मन हळवे",
+     "tr": "Evening fell, the heart is tender"
+    },
+    {
+     "t": 13.71,
+     "text": "पाखरे परतली घरी",
+     "tr": "The birds have returned home"
+    },
+    {
+     "t": 20.57,
+     "text": "सांज झाली, मन हळवे",
+     "tr": "Evening fell, the heart is tender"
+    },
+    {
+     "t": 27.43,
+     "text": "पाखरे परतली घरी",
+     "tr": "The birds have returned home"
+    },
+    {
+     "t": 34.29,
+     "text": "तुझी आठवण येते",
+     "tr": "I remember you"
+    },
+    {
+     "t": 41.14,
+     "text": "प्रत्येक सांजवेळी",
+     "tr": "Every evening"
+    },
+    {
+     "t": 48.0,
+     "text": "तुझी आठवण येते",
+     "tr": "I remember you"
+    },
+    {
+     "t": 54.86,
+     "text": "डोळ्यांत पाणी येते",
+     "tr": "Tears come to my eyes"
+    },
+    {
+     "t": 61.71,
+     "text": "सांज झाली, मन हळवे",
+     "tr": "Evening fell, the heart is tender"
+    },
+    {
+     "t": 68.57,
+     "text": "पाखरे परतली घरी",
+     "tr": "The birds have returned home"
+    },
+    {
+     "t": 75.43,
+     "text": "तुझी आठवण येते",
+     "tr": "I remember you"
+    },
+    {
+     "t": 82.29,
+     "text": "प्रत्येक सांजवेळी",
+     "tr": "Every evening"
+    },
+    {
+     "t": 89.14,
+     "text": "तुझी आठवण येते",
+     "tr": "I remember you"
+    },
+    {
+     "t": 96.0,
+     "text": "डोळ्यांत पाणी येते",
+     "tr": "Tears come to my eyes"
+    }
+   ],
+   "audio_full": "audio/full/saanj.mp3",
+   "audio_preview": "audio/preview/saanj.mp3",
+   "cover": "covers/saanj-sai-deshmukh.svg"
+  },
+  {
+   "slug": "garba-raat",
+   "title": "Garba Raat",
+   "artist": "dhwani-patel",
+   "album": "Navratri Nights",
+   "lang": "gu",
+   "genre": "Garba",
+   "cats": [
+    "dance",
+    "party",
+    "devotional"
+   ],
+   "year": 2025,
+   "style": "party",
+   "bpm": 116,
+   "root": 60,
+   "plays": 670000,
+   "album_slug": "navratri-nights-dhwani-patel",
+   "duration": 105.45,
+   "highlight_start": 70.34,
+   "highlight_end": 95.17,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 8.28
+    },
+    {
+     "name": "verse",
+     "start": 8.28,
+     "end": 33.1
+    },
+    {
+     "name": "chorus",
+     "start": 33.1,
+     "end": 57.93
+    },
+    {
+     "name": "verse2",
+     "start": 57.93,
+     "end": 70.34
+    },
+    {
+     "name": "chorus2",
+     "start": 70.34,
+     "end": 95.17
+    },
+    {
+     "name": "outro",
+     "start": 95.17,
+     "end": 103.45
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 8.28,
+     "text": "ચણિયાચોળી પહેરીને",
+     "tr": "Wearing chaniya choli"
+    },
+    {
+     "t": 12.41,
+     "text": "આવી છે સખીઓ",
+     "tr": "The friends have arrived"
+    },
+    {
+     "t": 16.55,
+     "text": "ચણિયાચોળી પહેરીને",
+     "tr": "Wearing chaniya choli"
+    },
+    {
+     "t": 20.69,
+     "text": "આવી છે સખીઓ",
+     "tr": "The friends have arrived"
+    },
+    {
+     "t": 24.83,
+     "text": "ચણિયાચોળી પહેરીને",
+     "tr": "Wearing chaniya choli"
+    },
+    {
+     "t": 28.97,
+     "text": "આવી છે સખીઓ",
+     "tr": "The friends have arrived"
+    },
+    {
+     "t": 33.1,
+     "text": "ગરબે ઘૂમીએ આજે",
+     "tr": "Let's whirl in garba today"
+    },
+    {
+     "t": 37.24,
+     "text": "ઢોલ વાગે, રાત જાગે",
+     "tr": "The dhol plays, the night wakes"
+    },
+    {
+     "t": 41.38,
+     "text": "ગરબે ઘૂમીએ આજે",
+     "tr": "Let's whirl in garba today"
+    },
+    {
+     "t": 45.52,
+     "text": "માડી તારો ગરબો",
+     "tr": "Mother, your garba"
+    },
+    {
+     "t": 49.66,
+     "text": "ગરબે ઘૂમીએ આજે",
+     "tr": "Let's whirl in garba today"
+    },
+    {
+     "t": 53.79,
+     "text": "ઢોલ વાગે, રાત જાગે",
+     "tr": "The dhol plays, the night wakes"
+    },
+    {
+     "t": 57.93,
+     "text": "ચણિયાચોળી પહેરીને",
+     "tr": "Wearing chaniya choli"
+    },
+    {
+     "t": 62.07,
+     "text": "આવી છે સખીઓ",
+     "tr": "The friends have arrived"
+    },
+    {
+     "t": 66.21,
+     "text": "ચણિયાચોળી પહેરીને",
+     "tr": "Wearing chaniya choli"
+    },
+    {
+     "t": 70.34,
+     "text": "ગરબે ઘૂમીએ આજે",
+     "tr": "Let's whirl in garba today"
+    },
+    {
+     "t": 74.48,
+     "text": "ઢોલ વાગે, રાત જાગે",
+     "tr": "The dhol plays, the night wakes"
+    },
+    {
+     "t": 78.62,
+     "text": "ગરબે ઘૂમીએ આજે",
+     "tr": "Let's whirl in garba today"
+    },
+    {
+     "t": 82.76,
+     "text": "માડી તારો ગરબો",
+     "tr": "Mother, your garba"
+    },
+    {
+     "t": 86.9,
+     "text": "ગરબે ઘૂમીએ આજે",
+     "tr": "Let's whirl in garba today"
+    },
+    {
+     "t": 91.03,
+     "text": "ઢોલ વાગે, રાત જાગે",
+     "tr": "The dhol plays, the night wakes"
+    }
+   ],
+   "audio_full": "audio/full/garba-raat.mp3",
+   "audio_preview": "audio/preview/garba-raat.mp3",
+   "cover": "covers/navratri-nights-dhwani-patel.svg"
+  },
+  {
+   "slug": "nadi-kule",
+   "title": "Nadi Kule",
+   "artist": "subhashree-das",
+   "album": "River Songs",
+   "lang": "or",
+   "genre": "Odissi Fusion",
+   "cats": [
+    "melody",
+    "old-classic",
+    "independent"
+   ],
+   "year": 2019,
+   "style": "classic",
+   "bpm": 80,
+   "root": 55,
+   "plays": 96000,
+   "album_slug": "river-songs-subhashree-das",
+   "duration": 110.0,
+   "highlight_start": 72.0,
+   "highlight_end": 96.0,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 12.0
+    },
+    {
+     "name": "verse",
+     "start": 12.0,
+     "end": 36.0
+    },
+    {
+     "name": "chorus",
+     "start": 36.0,
+     "end": 60.0
+    },
+    {
+     "name": "verse2",
+     "start": 60.0,
+     "end": 72.0
+    },
+    {
+     "name": "chorus2",
+     "start": 72.0,
+     "end": 96.0
+    },
+    {
+     "name": "outro",
+     "start": 96.0,
+     "end": 108.0
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 12.0,
+     "text": "ନଦୀ କୂଳେ ବସି",
+     "tr": "Sitting at the riverbank"
+    },
+    {
+     "t": 18.0,
+     "text": "ଚାହିଁଛି ତୋ ବାଟ",
+     "tr": "I watch your path"
+    },
+    {
+     "t": 24.0,
+     "text": "ନଦୀ କୂଳେ ବସି",
+     "tr": "Sitting at the riverbank"
+    },
+    {
+     "t": 30.0,
+     "text": "ଚାହିଁଛି ତୋ ବାଟ",
+     "tr": "I watch your path"
+    },
+    {
+     "t": 36.0,
+     "text": "ଆସିବୁ କି ତୁ",
+     "tr": "Will you come"
+    },
+    {
+     "t": 42.0,
+     "text": "ଏଇ ସଞ୍ଜ ବେଳେ",
+     "tr": "In this evening hour"
+    },
+    {
+     "t": 48.0,
+     "text": "ଆସିବୁ କି ତୁ",
+     "tr": "Will you come"
+    },
+    {
+     "t": 54.0,
+     "text": "ମୋ ମନ ଡାକେ",
+     "tr": "My heart calls"
+    },
+    {
+     "t": 60.0,
+     "text": "ନଦୀ କୂଳେ ବସି",
+     "tr": "Sitting at the riverbank"
+    },
+    {
+     "t": 66.0,
+     "text": "ଚାହିଁଛି ତୋ ବାଟ",
+     "tr": "I watch your path"
+    },
+    {
+     "t": 72.0,
+     "text": "ଆସିବୁ କି ତୁ",
+     "tr": "Will you come"
+    },
+    {
+     "t": 78.0,
+     "text": "ଏଇ ସଞ୍ଜ ବେଳେ",
+     "tr": "In this evening hour"
+    },
+    {
+     "t": 84.0,
+     "text": "ଆସିବୁ କି ତୁ",
+     "tr": "Will you come"
+    },
+    {
+     "t": 90.0,
+     "text": "ମୋ ମନ ଡାକେ",
+     "tr": "My heart calls"
+    }
+   ],
+   "audio_full": "audio/full/nadi-kule.mp3",
+   "audio_preview": "audio/preview/nadi-kule.mp3",
+   "cover": "covers/river-songs-subhashree-das.svg"
+  },
+  {
+   "slug": "bihu-bator",
+   "title": "Bihu Bator",
+   "artist": "brahmaputra-collective",
+   "album": "River Songs",
+   "lang": "as",
+   "genre": "Folk Instrumental",
+   "cats": [
+    "dance",
+    "instrumental",
+    "independent"
+   ],
+   "year": 2020,
+   "style": "party",
+   "bpm": 118,
+   "root": 62,
+   "plays": 142000,
+   "album_slug": "river-songs-brahmaputra-collective",
+   "duration": 103.69,
+   "highlight_start": 69.15,
+   "highlight_end": 93.56,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 8.14
+    },
+    {
+     "name": "verse",
+     "start": 8.14,
+     "end": 32.54
+    },
+    {
+     "name": "chorus",
+     "start": 32.54,
+     "end": 56.95
+    },
+    {
+     "name": "verse2",
+     "start": 56.95,
+     "end": 69.15
+    },
+    {
+     "name": "chorus2",
+     "start": 69.15,
+     "end": 93.56
+    },
+    {
+     "name": "outro",
+     "start": 93.56,
+     "end": 101.69
+    }
+   ],
+   "lyrics": [],
+   "audio_full": "audio/full/bihu-bator.mp3",
+   "audio_preview": "audio/preview/bihu-bator.mp3",
+   "cover": "covers/river-songs-brahmaputra-collective.svg"
+  },
+  {
+   "slug": "chand-raat",
+   "title": "Chand Raat",
+   "artist": "zoya-mirza",
+   "album": "Ghazal Nights",
+   "lang": "ur",
+   "genre": "Ghazal Pop",
+   "cats": [
+    "romantic",
+    "love",
+    "international"
+   ],
+   "year": 2024,
+   "style": "romantic",
+   "bpm": 74,
+   "root": 56,
+   "plays": 512000,
+   "album_slug": "ghazal-nights-zoya-mirza",
+   "duration": 105.78,
+   "highlight_start": 71.35,
+   "highlight_end": 97.3,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.49
+    },
+    {
+     "name": "verse",
+     "start": 6.49,
+     "end": 32.43
+    },
+    {
+     "name": "chorus",
+     "start": 32.43,
+     "end": 58.38
+    },
+    {
+     "name": "verse2",
+     "start": 58.38,
+     "end": 71.35
+    },
+    {
+     "name": "chorus2",
+     "start": 71.35,
+     "end": 97.3
+    },
+    {
+     "name": "outro",
+     "start": 97.3,
+     "end": 103.78
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 6.49,
+     "text": "چاند رات ہے، تم پاس ہو",
+     "tr": "It's a moonlit night, you are near"
+    },
+    {
+     "t": 12.97,
+     "text": "ہوا میں خوشبو ہے",
+     "tr": "There is fragrance in the air"
+    },
+    {
+     "t": 19.46,
+     "text": "چاند رات ہے، تم پاس ہو",
+     "tr": "It's a moonlit night, you are near"
+    },
+    {
+     "t": 25.95,
+     "text": "ہوا میں خوشبو ہے",
+     "tr": "There is fragrance in the air"
+    },
+    {
+     "t": 32.43,
+     "text": "دل کی بات کہہ دو",
+     "tr": "Speak your heart"
+    },
+    {
+     "t": 38.92,
+     "text": "آج کوئی ڈر نہیں",
+     "tr": "Today there is no fear"
+    },
+    {
+     "t": 45.41,
+     "text": "دل کی بات کہہ دو",
+     "tr": "Speak your heart"
+    },
+    {
+     "t": 51.89,
+     "text": "یہ رات پھر نہیں",
+     "tr": "This night won't come again"
+    },
+    {
+     "t": 58.38,
+     "text": "چاند رات ہے، تم پاس ہو",
+     "tr": "It's a moonlit night, you are near"
+    },
+    {
+     "t": 64.86,
+     "text": "ہوا میں خوشبو ہے",
+     "tr": "There is fragrance in the air"
+    },
+    {
+     "t": 71.35,
+     "text": "دل کی بات کہہ دو",
+     "tr": "Speak your heart"
+    },
+    {
+     "t": 77.84,
+     "text": "آج کوئی ڈر نہیں",
+     "tr": "Today there is no fear"
+    },
+    {
+     "t": 84.32,
+     "text": "دل کی بات کہہ دو",
+     "tr": "Speak your heart"
+    },
+    {
+     "t": 90.81,
+     "text": "یہ رات پھر نہیں",
+     "tr": "This night won't come again"
+    }
+   ],
+   "audio_full": "audio/full/chand-raat.mp3",
+   "audio_preview": "audio/preview/chand-raat.mp3",
+   "cover": "covers/ghazal-nights-zoya-mirza.svg"
+  },
+  {
+   "slug": "corazon-de-papel",
+   "title": "Corazón de Papel",
+   "artist": "sol-de-mayo",
+   "album": "Lluvia",
+   "lang": "es",
+   "genre": "Latin Pop",
+   "cats": [
+    "heartbreak",
+    "sad",
+    "international"
+   ],
+   "year": 2024,
+   "style": "heartbreak",
+   "bpm": 82,
+   "root": 57,
+   "plays": 1340000,
+   "album_slug": "lluvia-sol-de-mayo",
+   "duration": 127.85,
+   "highlight_start": 84.88,
+   "highlight_end": 114.15,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 11.71
+    },
+    {
+     "name": "verse",
+     "start": 11.71,
+     "end": 40.98
+    },
+    {
+     "name": "chorus",
+     "start": 40.98,
+     "end": 70.24
+    },
+    {
+     "name": "verse2",
+     "start": 70.24,
+     "end": 84.88
+    },
+    {
+     "name": "chorus2",
+     "start": 84.88,
+     "end": 114.15
+    },
+    {
+     "name": "outro",
+     "start": 114.15,
+     "end": 125.85
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 11.71,
+     "text": "Bajo la lluvia te esperé",
+     "tr": "I waited for you in the rain"
+    },
+    {
+     "t": 17.56,
+     "text": "Con flores en la mano",
+     "tr": "With flowers in my hand"
+    },
+    {
+     "t": 23.41,
+     "text": "La noche se hizo larga",
+     "tr": "The night grew long"
+    },
+    {
+     "t": 29.27,
+     "text": "Y tu silencio, amargo",
+     "tr": "And your silence, bitter"
+    },
+    {
+     "t": 35.12,
+     "text": "Bajo la lluvia te esperé",
+     "tr": "I waited for you in the rain"
+    },
+    {
+     "t": 40.98,
+     "text": "Mi corazón de papel se rompió",
+     "tr": "My paper heart tore apart"
+    },
+    {
+     "t": 46.83,
+     "text": "Ya no vuelves, ya no estás",
+     "tr": "You don't come back, you're gone"
+    },
+    {
+     "t": 52.68,
+     "text": "Mi corazón de papel se rompió",
+     "tr": "My paper heart tore apart"
+    },
+    {
+     "t": 58.54,
+     "text": "Y el viento se lo llevó",
+     "tr": "And the wind carried it away"
+    },
+    {
+     "t": 64.39,
+     "text": "Mi corazón de papel se rompió",
+     "tr": "My paper heart tore apart"
+    },
+    {
+     "t": 70.24,
+     "text": "La noche se hizo larga",
+     "tr": "The night grew long"
+    },
+    {
+     "t": 76.1,
+     "text": "Y tu silencio, amargo",
+     "tr": "And your silence, bitter"
+    },
+    {
+     "t": 84.88,
+     "text": "Mi corazón de papel se rompió",
+     "tr": "My paper heart tore apart"
+    },
+    {
+     "t": 90.73,
+     "text": "Ya no vuelves, ya no estás",
+     "tr": "You don't come back, you're gone"
+    },
+    {
+     "t": 96.59,
+     "text": "Mi corazón de papel se rompió",
+     "tr": "My paper heart tore apart"
+    },
+    {
+     "t": 102.44,
+     "text": "Y el viento se lo llevó",
+     "tr": "And the wind carried it away"
+    },
+    {
+     "t": 108.29,
+     "text": "Mi corazón de papel se rompió",
+     "tr": "My paper heart tore apart"
+    }
+   ],
+   "audio_full": "audio/full/corazon-de-papel.mp3",
+   "audio_preview": "audio/preview/corazon-de-papel.mp3",
+   "cover": "covers/lluvia-sol-de-mayo.svg"
+  },
+  {
+   "slug": "fiesta-en-la-azotea",
+   "title": "Fiesta en la Azotea",
+   "artist": "sol-de-mayo",
+   "album": "Lluvia",
+   "lang": "es",
+   "genre": "Reggaeton",
+   "cats": [
+    "party",
+    "dance",
+    "dj",
+    "international"
+   ],
+   "year": 2026,
+   "style": "dj",
+   "bpm": 96,
+   "root": 58,
+   "plays": 1890000,
+   "album_slug": "lluvia-sol-de-mayo",
+   "duration": 109.5,
+   "highlight_start": 72.5,
+   "highlight_end": 97.5,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 10.0
+    },
+    {
+     "name": "verse",
+     "start": 10.0,
+     "end": 35.0
+    },
+    {
+     "name": "chorus",
+     "start": 35.0,
+     "end": 60.0
+    },
+    {
+     "name": "verse2",
+     "start": 60.0,
+     "end": 72.5
+    },
+    {
+     "name": "chorus2",
+     "start": 72.5,
+     "end": 97.5
+    },
+    {
+     "name": "outro",
+     "start": 97.5,
+     "end": 107.5
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 10.0,
+     "text": "Sube la música",
+     "tr": "Turn up the music"
+    },
+    {
+     "t": 15.0,
+     "text": "Que nadie se siente",
+     "tr": "Nobody sit down"
+    },
+    {
+     "t": 20.0,
+     "text": "Sube la música",
+     "tr": "Turn up the music"
+    },
+    {
+     "t": 25.0,
+     "text": "Que nadie se siente",
+     "tr": "Nobody sit down"
+    },
+    {
+     "t": 30.0,
+     "text": "Sube la música",
+     "tr": "Turn up the music"
+    },
+    {
+     "t": 35.0,
+     "text": "Fiesta en la azotea",
+     "tr": "Rooftop party"
+    },
+    {
+     "t": 40.0,
+     "text": "Esta noche no se duerme",
+     "tr": "Tonight nobody sleeps"
+    },
+    {
+     "t": 45.0,
+     "text": "Fiesta en la azotea",
+     "tr": "Rooftop party"
+    },
+    {
+     "t": 50.0,
+     "text": "Baila hasta que amanezca",
+     "tr": "Dance until sunrise"
+    },
+    {
+     "t": 55.0,
+     "text": "Fiesta en la azotea",
+     "tr": "Rooftop party"
+    },
+    {
+     "t": 60.0,
+     "text": "Sube la música",
+     "tr": "Turn up the music"
+    },
+    {
+     "t": 65.0,
+     "text": "Que nadie se siente",
+     "tr": "Nobody sit down"
+    },
+    {
+     "t": 72.5,
+     "text": "Fiesta en la azotea",
+     "tr": "Rooftop party"
+    },
+    {
+     "t": 77.5,
+     "text": "Esta noche no se duerme",
+     "tr": "Tonight nobody sleeps"
+    },
+    {
+     "t": 82.5,
+     "text": "Fiesta en la azotea",
+     "tr": "Rooftop party"
+    },
+    {
+     "t": 87.5,
+     "text": "Baila hasta que amanezca",
+     "tr": "Dance until sunrise"
+    },
+    {
+     "t": 92.5,
+     "text": "Fiesta en la azotea",
+     "tr": "Rooftop party"
+    }
+   ],
+   "audio_full": "audio/full/fiesta-en-la-azotea.mp3",
+   "audio_preview": "audio/preview/fiesta-en-la-azotea.mp3",
+   "cover": "covers/lluvia-sol-de-mayo.svg"
+  },
+  {
+   "slug": "les-lumieres-de-lyon",
+   "title": "Les Lumières de Lyon",
+   "artist": "maison-bleue",
+   "album": "Rive Gauche",
+   "lang": "fr",
+   "genre": "Chanson",
+   "cats": [
+    "romantic",
+    "love",
+    "melody",
+    "international",
+    "independent"
+   ],
+   "year": 2023,
+   "style": "romantic",
+   "bpm": 84,
+   "root": 60,
+   "plays": 402000,
+   "album_slug": "rive-gauche-maison-bleue",
+   "duration": 124.86,
+   "highlight_start": 82.86,
+   "highlight_end": 111.43,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 11.43
+    },
+    {
+     "name": "verse",
+     "start": 11.43,
+     "end": 40.0
+    },
+    {
+     "name": "chorus",
+     "start": 40.0,
+     "end": 68.57
+    },
+    {
+     "name": "verse2",
+     "start": 68.57,
+     "end": 82.86
+    },
+    {
+     "name": "chorus2",
+     "start": 82.86,
+     "end": 111.43
+    },
+    {
+     "name": "outro",
+     "start": 111.43,
+     "end": 122.86
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 11.43,
+     "text": "Sur les quais, la nuit descend",
+     "tr": "On the quays, night falls"
+    },
+    {
+     "t": 17.14,
+     "text": "Le Rhône garde nos secrets",
+     "tr": "The Rhône keeps our secrets"
+    },
+    {
+     "t": 22.86,
+     "text": "Sur les quais, la nuit descend",
+     "tr": "On the quays, night falls"
+    },
+    {
+     "t": 28.57,
+     "text": "Le Rhône garde nos secrets",
+     "tr": "The Rhône keeps our secrets"
+    },
+    {
+     "t": 34.29,
+     "text": "Sur les quais, la nuit descend",
+     "tr": "On the quays, night falls"
+    },
+    {
+     "t": 40.0,
+     "text": "Sous les lumières de Lyon",
+     "tr": "Under the lights of Lyon"
+    },
+    {
+     "t": 45.71,
+     "text": "Ta main dans la mienne",
+     "tr": "Your hand in mine"
+    },
+    {
+     "t": 51.43,
+     "text": "Sous les lumières de Lyon",
+     "tr": "Under the lights of Lyon"
+    },
+    {
+     "t": 57.14,
+     "text": "Je t'attendrai ce soir",
+     "tr": "I'll wait for you tonight"
+    },
+    {
+     "t": 62.86,
+     "text": "Sous les lumières de Lyon",
+     "tr": "Under the lights of Lyon"
+    },
+    {
+     "t": 68.57,
+     "text": "Sur les quais, la nuit descend",
+     "tr": "On the quays, night falls"
+    },
+    {
+     "t": 74.29,
+     "text": "Le Rhône garde nos secrets",
+     "tr": "The Rhône keeps our secrets"
+    },
+    {
+     "t": 82.86,
+     "text": "Sous les lumières de Lyon",
+     "tr": "Under the lights of Lyon"
+    },
+    {
+     "t": 88.57,
+     "text": "Ta main dans la mienne",
+     "tr": "Your hand in mine"
+    },
+    {
+     "t": 94.29,
+     "text": "Sous les lumières de Lyon",
+     "tr": "Under the lights of Lyon"
+    },
+    {
+     "t": 100.0,
+     "text": "Je t'attendrai ce soir",
+     "tr": "I'll wait for you tonight"
+    },
+    {
+     "t": 105.71,
+     "text": "Sous les lumières de Lyon",
+     "tr": "Under the lights of Lyon"
+    }
+   ],
+   "audio_full": "audio/full/les-lumieres-de-lyon.mp3",
+   "audio_preview": "audio/preview/les-lumieres-de-lyon.mp3",
+   "cover": "covers/rive-gauche-maison-bleue.svg"
+  },
+  {
+   "slug": "haneul-pyeonji",
+   "title": "하늘 편지 (Sky Letter)",
+   "artist": "haneul",
+   "album": "Blue Season",
+   "lang": "ko",
+   "genre": "K-Ballad",
+   "cats": [
+    "emotional",
+    "feelings",
+    "sad",
+    "international"
+   ],
+   "year": 2025,
+   "style": "sad",
+   "bpm": 74,
+   "root": 56,
+   "featured": true,
+   "plays": 2650000,
+   "album_slug": "blue-season-haneul",
+   "duration": 105.78,
+   "highlight_start": 71.35,
+   "highlight_end": 97.3,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.49
+    },
+    {
+     "name": "verse",
+     "start": 6.49,
+     "end": 32.43
+    },
+    {
+     "name": "chorus",
+     "start": 32.43,
+     "end": 58.38
+    },
+    {
+     "name": "verse2",
+     "start": 58.38,
+     "end": 71.35
+    },
+    {
+     "name": "chorus2",
+     "start": 71.35,
+     "end": 97.3
+    },
+    {
+     "name": "outro",
+     "start": 97.3,
+     "end": 103.78
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 6.49,
+     "text": "오늘도 창가에 앉아",
+     "tr": "Today again I sit by the window"
+    },
+    {
+     "t": 12.97,
+     "text": "너의 이름을 불러",
+     "tr": "And call your name"
+    },
+    {
+     "t": 19.46,
+     "text": "오늘도 창가에 앉아",
+     "tr": "Today again I sit by the window"
+    },
+    {
+     "t": 25.95,
+     "text": "너의 이름을 불러",
+     "tr": "And call your name"
+    },
+    {
+     "t": 32.43,
+     "text": "하늘에 편지를 써요",
+     "tr": "I write a letter to the sky"
+    },
+    {
+     "t": 38.92,
+     "text": "보고 싶어요",
+     "tr": "I miss you"
+    },
+    {
+     "t": 45.41,
+     "text": "하늘에 편지를 써요",
+     "tr": "I write a letter to the sky"
+    },
+    {
+     "t": 51.89,
+     "text": "다시 만날 그날까지",
+     "tr": "Until the day we meet again"
+    },
+    {
+     "t": 58.38,
+     "text": "오늘도 창가에 앉아",
+     "tr": "Today again I sit by the window"
+    },
+    {
+     "t": 64.86,
+     "text": "너의 이름을 불러",
+     "tr": "And call your name"
+    },
+    {
+     "t": 71.35,
+     "text": "하늘에 편지를 써요",
+     "tr": "I write a letter to the sky"
+    },
+    {
+     "t": 77.84,
+     "text": "보고 싶어요",
+     "tr": "I miss you"
+    },
+    {
+     "t": 84.32,
+     "text": "하늘에 편지를 써요",
+     "tr": "I write a letter to the sky"
+    },
+    {
+     "t": 90.81,
+     "text": "다시 만날 그날까지",
+     "tr": "Until the day we meet again"
+    }
+   ],
+   "audio_full": "audio/full/haneul-pyeonji.mp3",
+   "audio_preview": "audio/preview/haneul-pyeonji.mp3",
+   "cover": "covers/blue-season-haneul.svg"
+  },
+  {
+   "slug": "natsu-no-hikari",
+   "title": "夏の光 (Summer Light)",
+   "artist": "sora-kites",
+   "album": "City Breeze",
+   "lang": "ja",
+   "genre": "City Pop",
+   "cats": [
+    "friendship",
+    "new-generation",
+    "international",
+    "independent"
+   ],
+   "year": 2025,
+   "style": "friendship",
+   "bpm": 114,
+   "root": 62,
+   "plays": 780000,
+   "album_slug": "city-breeze-sora-kites",
+   "duration": 107.26,
+   "highlight_start": 71.58,
+   "highlight_end": 96.84,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 8.42
+    },
+    {
+     "name": "verse",
+     "start": 8.42,
+     "end": 33.68
+    },
+    {
+     "name": "chorus",
+     "start": 33.68,
+     "end": 58.95
+    },
+    {
+     "name": "verse2",
+     "start": 58.95,
+     "end": 71.58
+    },
+    {
+     "name": "chorus2",
+     "start": 71.58,
+     "end": 96.84
+    },
+    {
+     "name": "outro",
+     "start": 96.84,
+     "end": 105.26
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 8.42,
+     "text": "自転車で坂を下る",
+     "tr": "Riding bikes down the hill"
+    },
+    {
+     "t": 12.63,
+     "text": "笑い声が空に響く",
+     "tr": "Laughter echoes in the sky"
+    },
+    {
+     "t": 16.84,
+     "text": "自転車で坂を下る",
+     "tr": "Riding bikes down the hill"
+    },
+    {
+     "t": 21.05,
+     "text": "笑い声が空に響く",
+     "tr": "Laughter echoes in the sky"
+    },
+    {
+     "t": 25.26,
+     "text": "自転車で坂を下る",
+     "tr": "Riding bikes down the hill"
+    },
+    {
+     "t": 29.47,
+     "text": "笑い声が空に響く",
+     "tr": "Laughter echoes in the sky"
+    },
+    {
+     "t": 33.68,
+     "text": "夏の光の中で",
+     "tr": "In the summer light"
+    },
+    {
+     "t": 37.89,
+     "text": "君と走った道",
+     "tr": "The road I ran with you"
+    },
+    {
+     "t": 42.11,
+     "text": "夏の光の中で",
+     "tr": "In the summer light"
+    },
+    {
+     "t": 46.32,
+     "text": "ずっと忘れない",
+     "tr": "I'll never forget"
+    },
+    {
+     "t": 50.53,
+     "text": "夏の光の中で",
+     "tr": "In the summer light"
+    },
+    {
+     "t": 54.74,
+     "text": "君と走った道",
+     "tr": "The road I ran with you"
+    },
+    {
+     "t": 58.95,
+     "text": "自転車で坂を下る",
+     "tr": "Riding bikes down the hill"
+    },
+    {
+     "t": 63.16,
+     "text": "笑い声が空に響く",
+     "tr": "Laughter echoes in the sky"
+    },
+    {
+     "t": 67.37,
+     "text": "自転車で坂を下る",
+     "tr": "Riding bikes down the hill"
+    },
+    {
+     "t": 71.58,
+     "text": "夏の光の中で",
+     "tr": "In the summer light"
+    },
+    {
+     "t": 75.79,
+     "text": "君と走った道",
+     "tr": "The road I ran with you"
+    },
+    {
+     "t": 80.0,
+     "text": "夏の光の中で",
+     "tr": "In the summer light"
+    },
+    {
+     "t": 84.21,
+     "text": "ずっと忘れない",
+     "tr": "I'll never forget"
+    },
+    {
+     "t": 88.42,
+     "text": "夏の光の中で",
+     "tr": "In the summer light"
+    },
+    {
+     "t": 92.63,
+     "text": "君と走った道",
+     "tr": "The road I ran with you"
+    }
+   ],
+   "audio_full": "audio/full/natsu-no-hikari.mp3",
+   "audio_preview": "audio/preview/natsu-no-hikari.mp3",
+   "cover": "covers/city-breeze-sora-kites.svg"
+  },
+  {
+   "slug": "ya-qamar",
+   "title": "يا قمر (Ya Qamar)",
+   "artist": "layla-noor",
+   "album": "Nile Nights",
+   "lang": "ar",
+   "genre": "Arabic Pop",
+   "cats": [
+    "romantic",
+    "love",
+    "international"
+   ],
+   "year": 2024,
+   "style": "romantic",
+   "bpm": 90,
+   "root": 57,
+   "plays": 920000,
+   "album_slug": "nile-nights-layla-noor",
+   "duration": 116.67,
+   "highlight_start": 77.33,
+   "highlight_end": 104.0,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 10.67
+    },
+    {
+     "name": "verse",
+     "start": 10.67,
+     "end": 37.33
+    },
+    {
+     "name": "chorus",
+     "start": 37.33,
+     "end": 64.0
+    },
+    {
+     "name": "verse2",
+     "start": 64.0,
+     "end": 77.33
+    },
+    {
+     "name": "chorus2",
+     "start": 77.33,
+     "end": 104.0
+    },
+    {
+     "name": "outro",
+     "start": 104.0,
+     "end": 114.67
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 10.67,
+     "text": "الليل طويل وأنا أنتظر",
+     "tr": "The night is long and I wait"
+    },
+    {
+     "t": 16.0,
+     "text": "والنجوم تحكي عنك",
+     "tr": "And the stars speak of you"
+    },
+    {
+     "t": 21.33,
+     "text": "الليل طويل وأنا أنتظر",
+     "tr": "The night is long and I wait"
+    },
+    {
+     "t": 26.67,
+     "text": "والنجوم تحكي عنك",
+     "tr": "And the stars speak of you"
+    },
+    {
+     "t": 32.0,
+     "text": "الليل طويل وأنا أنتظر",
+     "tr": "The night is long and I wait"
+    },
+    {
+     "t": 37.33,
+     "text": "يا قمر الليل",
+     "tr": "O moon of the night"
+    },
+    {
+     "t": 42.67,
+     "text": "قلبي معك",
+     "tr": "My heart is with you"
+    },
+    {
+     "t": 48.0,
+     "text": "يا قمر الليل",
+     "tr": "O moon of the night"
+    },
+    {
+     "t": 53.33,
+     "text": "خذني إليك",
+     "tr": "Take me to you"
+    },
+    {
+     "t": 58.67,
+     "text": "يا قمر الليل",
+     "tr": "O moon of the night"
+    },
+    {
+     "t": 64.0,
+     "text": "الليل طويل وأنا أنتظر",
+     "tr": "The night is long and I wait"
+    },
+    {
+     "t": 69.33,
+     "text": "والنجوم تحكي عنك",
+     "tr": "And the stars speak of you"
+    },
+    {
+     "t": 77.33,
+     "text": "يا قمر الليل",
+     "tr": "O moon of the night"
+    },
+    {
+     "t": 82.67,
+     "text": "قلبي معك",
+     "tr": "My heart is with you"
+    },
+    {
+     "t": 88.0,
+     "text": "يا قمر الليل",
+     "tr": "O moon of the night"
+    },
+    {
+     "t": 93.33,
+     "text": "خذني إليك",
+     "tr": "Take me to you"
+    },
+    {
+     "t": 98.67,
+     "text": "يا قمر الليل",
+     "tr": "O moon of the night"
+    }
+   ],
+   "audio_full": "audio/full/ya-qamar.mp3",
+   "audio_preview": "audio/preview/ya-qamar.mp3",
+   "cover": "covers/nile-nights-layla-noor.svg"
+  },
+  {
+   "slug": "saudade-do-mar",
+   "title": "Saudade do Mar",
+   "artist": "brisa-azul",
+   "album": "Maré",
+   "lang": "pt",
+   "genre": "Bossa Nova",
+   "cats": [
+    "sad",
+    "melody",
+    "feelings",
+    "international",
+    "independent"
+   ],
+   "year": 2022,
+   "style": "melody",
+   "bpm": 88,
+   "root": 55,
+   "plays": 350000,
+   "album_slug": "mar-brisa-azul",
+   "duration": 119.27,
+   "highlight_start": 79.09,
+   "highlight_end": 106.36,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 10.91
+    },
+    {
+     "name": "verse",
+     "start": 10.91,
+     "end": 38.18
+    },
+    {
+     "name": "chorus",
+     "start": 38.18,
+     "end": 65.45
+    },
+    {
+     "name": "verse2",
+     "start": 65.45,
+     "end": 79.09
+    },
+    {
+     "name": "chorus2",
+     "start": 79.09,
+     "end": 106.36
+    },
+    {
+     "name": "outro",
+     "start": 106.36,
+     "end": 117.27
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 10.91,
+     "text": "A areia guarda os passos",
+     "tr": "The sand keeps the footsteps"
+    },
+    {
+     "t": 16.36,
+     "text": "Que demos juntos ali",
+     "tr": "We took together there"
+    },
+    {
+     "t": 21.82,
+     "text": "A areia guarda os passos",
+     "tr": "The sand keeps the footsteps"
+    },
+    {
+     "t": 27.27,
+     "text": "Que demos juntos ali",
+     "tr": "We took together there"
+    },
+    {
+     "t": 32.73,
+     "text": "A areia guarda os passos",
+     "tr": "The sand keeps the footsteps"
+    },
+    {
+     "t": 38.18,
+     "text": "Saudade do mar",
+     "tr": "Longing for the sea"
+    },
+    {
+     "t": 43.64,
+     "text": "Onde você está?",
+     "tr": "Where are you?"
+    },
+    {
+     "t": 49.09,
+     "text": "Saudade do mar",
+     "tr": "Longing for the sea"
+    },
+    {
+     "t": 54.55,
+     "text": "O vento traz seu nome",
+     "tr": "The wind brings your name"
+    },
+    {
+     "t": 60.0,
+     "text": "Saudade do mar",
+     "tr": "Longing for the sea"
+    },
+    {
+     "t": 65.45,
+     "text": "A areia guarda os passos",
+     "tr": "The sand keeps the footsteps"
+    },
+    {
+     "t": 70.91,
+     "text": "Que demos juntos ali",
+     "tr": "We took together there"
+    },
+    {
+     "t": 79.09,
+     "text": "Saudade do mar",
+     "tr": "Longing for the sea"
+    },
+    {
+     "t": 84.55,
+     "text": "Onde você está?",
+     "tr": "Where are you?"
+    },
+    {
+     "t": 90.0,
+     "text": "Saudade do mar",
+     "tr": "Longing for the sea"
+    },
+    {
+     "t": 95.45,
+     "text": "O vento traz seu nome",
+     "tr": "The wind brings your name"
+    },
+    {
+     "t": 100.91,
+     "text": "Saudade do mar",
+     "tr": "Longing for the sea"
+    }
+   ],
+   "audio_full": "audio/full/saudade-do-mar.mp3",
+   "audio_preview": "audio/preview/saudade-do-mar.mp3",
+   "cover": "covers/mar-brisa-azul.svg"
+  },
+  {
+   "slug": "raga-at-dawn",
+   "title": "Raga at Dawn",
+   "artist": "kavya-strings",
+   "album": "Quiet Hours",
+   "lang": "zxx",
+   "genre": "Indian Classical Fusion",
+   "cats": [
+    "instrumental",
+    "background",
+    "old-classic",
+    "melody",
+    "independent"
+   ],
+   "year": 2021,
+   "style": "classic",
+   "bpm": 72,
+   "root": 50,
+   "plays": 640000,
+   "album_slug": "quiet-hours-kavya-strings",
+   "duration": 108.67,
+   "highlight_start": 73.33,
+   "highlight_end": 100.0,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.67
+    },
+    {
+     "name": "verse",
+     "start": 6.67,
+     "end": 33.33
+    },
+    {
+     "name": "chorus",
+     "start": 33.33,
+     "end": 60.0
+    },
+    {
+     "name": "verse2",
+     "start": 60.0,
+     "end": 73.33
+    },
+    {
+     "name": "chorus2",
+     "start": 73.33,
+     "end": 100.0
+    },
+    {
+     "name": "outro",
+     "start": 100.0,
+     "end": 106.67
+    }
+   ],
+   "lyrics": [],
+   "audio_full": "audio/full/raga-at-dawn.mp3",
+   "audio_preview": "audio/preview/raga-at-dawn.mp3",
+   "cover": "covers/quiet-hours-kavya-strings.svg"
+  },
+  {
+   "slug": "paper-lanterns",
+   "title": "Paper Lanterns",
+   "artist": "kavya-strings",
+   "album": "Quiet Hours",
+   "lang": "zxx",
+   "genre": "Lo-fi",
+   "cats": [
+    "instrumental",
+    "background",
+    "independent"
+   ],
+   "year": 2024,
+   "style": "ambient",
+   "bpm": 80,
+   "root": 57,
+   "plays": 1430000,
+   "album_slug": "quiet-hours-kavya-strings",
+   "duration": 110.0,
+   "highlight_start": 72.0,
+   "highlight_end": 96.0,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 12.0
+    },
+    {
+     "name": "verse",
+     "start": 12.0,
+     "end": 36.0
+    },
+    {
+     "name": "chorus",
+     "start": 36.0,
+     "end": 60.0
+    },
+    {
+     "name": "verse2",
+     "start": 60.0,
+     "end": 72.0
+    },
+    {
+     "name": "chorus2",
+     "start": 72.0,
+     "end": 96.0
+    },
+    {
+     "name": "outro",
+     "start": 96.0,
+     "end": 108.0
+    }
+   ],
+   "lyrics": [],
+   "audio_full": "audio/full/paper-lanterns.mp3",
+   "audio_preview": "audio/preview/paper-lanterns.mp3",
+   "cover": "covers/quiet-hours-kavya-strings.svg"
+  },
+  {
+   "slug": "focus-tide",
+   "title": "Focus Tide",
+   "artist": "kavya-strings",
+   "album": "Quiet Hours",
+   "lang": "zxx",
+   "genre": "Ambient",
+   "cats": [
+    "instrumental",
+    "background",
+    "independent"
+   ],
+   "year": 2025,
+   "style": "ambient",
+   "bpm": 70,
+   "root": 52,
+   "plays": 820000,
+   "premium_only": true,
+   "album_slug": "quiet-hours-kavya-strings",
+   "duration": 111.71,
+   "highlight_start": 75.43,
+   "highlight_end": 102.86,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.86
+    },
+    {
+     "name": "verse",
+     "start": 6.86,
+     "end": 34.29
+    },
+    {
+     "name": "chorus",
+     "start": 34.29,
+     "end": 61.71
+    },
+    {
+     "name": "verse2",
+     "start": 61.71,
+     "end": 75.43
+    },
+    {
+     "name": "chorus2",
+     "start": 75.43,
+     "end": 102.86
+    },
+    {
+     "name": "outro",
+     "start": 102.86,
+     "end": 109.71
+    }
+   ],
+   "lyrics": [],
+   "audio_full": "audio/full/focus-tide.mp3",
+   "audio_preview": "audio/preview/focus-tide.mp3",
+   "cover": "covers/quiet-hours-kavya-strings.svg"
+  },
+  {
+   "slug": "purani-yaadein",
+   "title": "Purani Yaadein",
+   "artist": "raga-retro",
+   "album": "Golden Reels",
+   "lang": "hi",
+   "genre": "Retro Film",
+   "cats": [
+    "old-classic",
+    "melody",
+    "romantic"
+   ],
+   "year": 1979,
+   "style": "classic",
+   "bpm": 84,
+   "root": 58,
+   "plays": 760000,
+   "album_slug": "golden-reels-raga-retro",
+   "duration": 124.86,
+   "highlight_start": 82.86,
+   "highlight_end": 111.43,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 11.43
+    },
+    {
+     "name": "verse",
+     "start": 11.43,
+     "end": 40.0
+    },
+    {
+     "name": "chorus",
+     "start": 40.0,
+     "end": 68.57
+    },
+    {
+     "name": "verse2",
+     "start": 68.57,
+     "end": 82.86
+    },
+    {
+     "name": "chorus2",
+     "start": 82.86,
+     "end": 111.43
+    },
+    {
+     "name": "outro",
+     "start": 111.43,
+     "end": 122.86
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 11.43,
+     "text": "वो गलियाँ, वो शामें",
+     "tr": "Those lanes, those evenings"
+    },
+    {
+     "t": 17.14,
+     "text": "वो रेडियो के गीत",
+     "tr": "Those songs on the radio"
+    },
+    {
+     "t": 22.86,
+     "text": "वो गलियाँ, वो शामें",
+     "tr": "Those lanes, those evenings"
+    },
+    {
+     "t": 28.57,
+     "text": "वो रेडियो के गीत",
+     "tr": "Those songs on the radio"
+    },
+    {
+     "t": 34.29,
+     "text": "वो गलियाँ, वो शामें",
+     "tr": "Those lanes, those evenings"
+    },
+    {
+     "t": 40.0,
+     "text": "पुरानी यादें, मीठी बातें",
+     "tr": "Old memories, sweet words"
+    },
+    {
+     "t": 45.71,
+     "text": "दिल में आज भी ज़िंदा",
+     "tr": "Still alive in my heart"
+    },
+    {
+     "t": 51.43,
+     "text": "पुरानी यादें, मीठी बातें",
+     "tr": "Old memories, sweet words"
+    },
+    {
+     "t": 57.14,
+     "text": "हर धुन में तेरा चेहरा",
+     "tr": "Your face in every tune"
+    },
+    {
+     "t": 62.86,
+     "text": "पुरानी यादें, मीठी बातें",
+     "tr": "Old memories, sweet words"
+    },
+    {
+     "t": 68.57,
+     "text": "वो गलियाँ, वो शामें",
+     "tr": "Those lanes, those evenings"
+    },
+    {
+     "t": 74.29,
+     "text": "वो रेडियो के गीत",
+     "tr": "Those songs on the radio"
+    },
+    {
+     "t": 82.86,
+     "text": "पुरानी यादें, मीठी बातें",
+     "tr": "Old memories, sweet words"
+    },
+    {
+     "t": 88.57,
+     "text": "दिल में आज भी ज़िंदा",
+     "tr": "Still alive in my heart"
+    },
+    {
+     "t": 94.29,
+     "text": "पुरानी यादें, मीठी बातें",
+     "tr": "Old memories, sweet words"
+    },
+    {
+     "t": 100.0,
+     "text": "हर धुन में तेरा चेहरा",
+     "tr": "Your face in every tune"
+    },
+    {
+     "t": 105.71,
+     "text": "पुरानी यादें, मीठी बातें",
+     "tr": "Old memories, sweet words"
+    }
+   ],
+   "audio_full": "audio/full/purani-yaadein.mp3",
+   "audio_preview": "audio/preview/purani-yaadein.mp3",
+   "cover": "covers/golden-reels-raga-retro.svg"
+  },
+  {
+   "slug": "stella-cadente",
+   "title": "Stella Cadente",
+   "artist": "luca-ferri",
+   "album": "Notti d'Estate",
+   "lang": "it",
+   "genre": "Cantautorato",
+   "cats": [
+    "melody",
+    "romantic",
+    "international",
+    "independent"
+   ],
+   "year": 2023,
+   "style": "melody",
+   "bpm": 86,
+   "root": 60,
+   "plays": 210000,
+   "album_slug": "notti-d-estate-luca-ferri",
+   "duration": 122.0,
+   "highlight_start": 80.93,
+   "highlight_end": 108.84,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 11.16
+    },
+    {
+     "name": "verse",
+     "start": 11.16,
+     "end": 39.07
+    },
+    {
+     "name": "chorus",
+     "start": 39.07,
+     "end": 66.98
+    },
+    {
+     "name": "verse2",
+     "start": 66.98,
+     "end": 80.93
+    },
+    {
+     "name": "chorus2",
+     "start": 80.93,
+     "end": 108.84
+    },
+    {
+     "name": "outro",
+     "start": 108.84,
+     "end": 120.0
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 11.16,
+     "text": "Sul tetto guardiamo il cielo",
+     "tr": "On the roof we watch the sky"
+    },
+    {
+     "t": 16.74,
+     "text": "Agosto ci tiene svegli",
+     "tr": "August keeps us awake"
+    },
+    {
+     "t": 22.33,
+     "text": "Sul tetto guardiamo il cielo",
+     "tr": "On the roof we watch the sky"
+    },
+    {
+     "t": 27.91,
+     "text": "Agosto ci tiene svegli",
+     "tr": "August keeps us awake"
+    },
+    {
+     "t": 33.49,
+     "text": "Sul tetto guardiamo il cielo",
+     "tr": "On the roof we watch the sky"
+    },
+    {
+     "t": 39.07,
+     "text": "Stella cadente",
+     "tr": "Falling star"
+    },
+    {
+     "t": 44.65,
+     "text": "Esprimi un desiderio",
+     "tr": "Make a wish"
+    },
+    {
+     "t": 50.23,
+     "text": "Stella cadente",
+     "tr": "Falling star"
+    },
+    {
+     "t": 55.81,
+     "text": "Che resti qui con me",
+     "tr": "That you stay here with me"
+    },
+    {
+     "t": 61.4,
+     "text": "Stella cadente",
+     "tr": "Falling star"
+    },
+    {
+     "t": 66.98,
+     "text": "Sul tetto guardiamo il cielo",
+     "tr": "On the roof we watch the sky"
+    },
+    {
+     "t": 72.56,
+     "text": "Agosto ci tiene svegli",
+     "tr": "August keeps us awake"
+    },
+    {
+     "t": 80.93,
+     "text": "Stella cadente",
+     "tr": "Falling star"
+    },
+    {
+     "t": 86.51,
+     "text": "Esprimi un desiderio",
+     "tr": "Make a wish"
+    },
+    {
+     "t": 92.09,
+     "text": "Stella cadente",
+     "tr": "Falling star"
+    },
+    {
+     "t": 97.67,
+     "text": "Che resti qui con me",
+     "tr": "That you stay here with me"
+    },
+    {
+     "t": 103.26,
+     "text": "Stella cadente",
+     "tr": "Falling star"
+    }
+   ],
+   "audio_full": "audio/full/stella-cadente.mp3",
+   "audio_preview": "audio/preview/stella-cadente.mp3",
+   "cover": "covers/notti-d-estate-luca-ferri.svg"
+  },
+  {
+   "slug": "weiter-gehen",
+   "title": "Weiter Gehen",
+   "artist": "nordlicht",
+   "album": "Morgenrot",
+   "lang": "de",
+   "genre": "Pop Rock",
+   "cats": [
+    "motivational",
+    "international"
+   ],
+   "year": 2024,
+   "style": "motivational",
+   "bpm": 118,
+   "root": 57,
+   "plays": 330000,
+   "album_slug": "morgenrot-nordlicht",
+   "duration": 103.69,
+   "highlight_start": 69.15,
+   "highlight_end": 93.56,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 8.14
+    },
+    {
+     "name": "verse",
+     "start": 8.14,
+     "end": 32.54
+    },
+    {
+     "name": "chorus",
+     "start": 32.54,
+     "end": 56.95
+    },
+    {
+     "name": "verse2",
+     "start": 56.95,
+     "end": 69.15
+    },
+    {
+     "name": "chorus2",
+     "start": 69.15,
+     "end": 93.56
+    },
+    {
+     "name": "outro",
+     "start": 93.56,
+     "end": 101.69
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 8.14,
+     "text": "Der Weg ist lang und steinig",
+     "tr": "The road is long and rocky"
+    },
+    {
+     "t": 12.2,
+     "text": "Doch wir sind nicht allein",
+     "tr": "But we are not alone"
+    },
+    {
+     "t": 16.27,
+     "text": "Der Weg ist lang und steinig",
+     "tr": "The road is long and rocky"
+    },
+    {
+     "t": 20.34,
+     "text": "Doch wir sind nicht allein",
+     "tr": "But we are not alone"
+    },
+    {
+     "t": 24.41,
+     "text": "Der Weg ist lang und steinig",
+     "tr": "The road is long and rocky"
+    },
+    {
+     "t": 28.47,
+     "text": "Doch wir sind nicht allein",
+     "tr": "But we are not alone"
+    },
+    {
+     "t": 32.54,
+     "text": "Wir gehen weiter",
+     "tr": "We keep going"
+    },
+    {
+     "t": 36.61,
+     "text": "Schritt für Schritt",
+     "tr": "Step by step"
+    },
+    {
+     "t": 40.68,
+     "text": "Wir gehen weiter",
+     "tr": "We keep going"
+    },
+    {
+     "t": 44.75,
+     "text": "Niemand hält uns auf",
+     "tr": "Nobody stops us"
+    },
+    {
+     "t": 48.81,
+     "text": "Wir gehen weiter",
+     "tr": "We keep going"
+    },
+    {
+     "t": 52.88,
+     "text": "Schritt für Schritt",
+     "tr": "Step by step"
+    },
+    {
+     "t": 56.95,
+     "text": "Der Weg ist lang und steinig",
+     "tr": "The road is long and rocky"
+    },
+    {
+     "t": 61.02,
+     "text": "Doch wir sind nicht allein",
+     "tr": "But we are not alone"
+    },
+    {
+     "t": 65.08,
+     "text": "Der Weg ist lang und steinig",
+     "tr": "The road is long and rocky"
+    },
+    {
+     "t": 69.15,
+     "text": "Wir gehen weiter",
+     "tr": "We keep going"
+    },
+    {
+     "t": 73.22,
+     "text": "Schritt für Schritt",
+     "tr": "Step by step"
+    },
+    {
+     "t": 77.29,
+     "text": "Wir gehen weiter",
+     "tr": "We keep going"
+    },
+    {
+     "t": 81.36,
+     "text": "Niemand hält uns auf",
+     "tr": "Nobody stops us"
+    },
+    {
+     "t": 85.42,
+     "text": "Wir gehen weiter",
+     "tr": "We keep going"
+    },
+    {
+     "t": 89.49,
+     "text": "Schritt für Schritt",
+     "tr": "Step by step"
+    }
+   ],
+   "audio_full": "audio/full/weiter-gehen.mp3",
+   "audio_preview": "audio/preview/weiter-gehen.mp3",
+   "cover": "covers/morgenrot-nordlicht.svg"
+  },
+  {
+   "slug": "yagmur-sonrasi",
+   "title": "Yağmur Sonrası",
+   "artist": "deniz-aksoy",
+   "album": "İstanbul Akşamı",
+   "lang": "tr",
+   "genre": "Turkish Pop",
+   "cats": [
+    "sad",
+    "heartbreak",
+    "international",
+    "independent"
+   ],
+   "year": 2023,
+   "style": "sad",
+   "bpm": 76,
+   "root": 54,
+   "plays": 275000,
+   "album_slug": "i-stanbul-ak-am-deniz-aksoy",
+   "duration": 103.05,
+   "highlight_start": 69.47,
+   "highlight_end": 94.73,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 6.32
+    },
+    {
+     "name": "verse",
+     "start": 6.32,
+     "end": 31.58
+    },
+    {
+     "name": "chorus",
+     "start": 31.58,
+     "end": 56.84
+    },
+    {
+     "name": "verse2",
+     "start": 56.84,
+     "end": 69.47
+    },
+    {
+     "name": "chorus2",
+     "start": 69.47,
+     "end": 94.74
+    },
+    {
+     "name": "outro",
+     "start": 94.74,
+     "end": 101.05
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 6.32,
+     "text": "Sokaklar ıslak, sessiz",
+     "tr": "The streets are wet, silent"
+    },
+    {
+     "t": 12.63,
+     "text": "Adımların yok artık",
+     "tr": "Your footsteps are gone now"
+    },
+    {
+     "t": 18.95,
+     "text": "Sokaklar ıslak, sessiz",
+     "tr": "The streets are wet, silent"
+    },
+    {
+     "t": 25.26,
+     "text": "Adımların yok artık",
+     "tr": "Your footsteps are gone now"
+    },
+    {
+     "t": 31.58,
+     "text": "Yağmurdan sonra seni düşündüm",
+     "tr": "After the rain I thought of you"
+    },
+    {
+     "t": 37.89,
+     "text": "Gökyüzü bile ağladı",
+     "tr": "Even the sky cried"
+    },
+    {
+     "t": 44.21,
+     "text": "Yağmurdan sonra seni düşündüm",
+     "tr": "After the rain I thought of you"
+    },
+    {
+     "t": 50.53,
+     "text": "Kalbim hâlâ seninle",
+     "tr": "My heart is still with you"
+    },
+    {
+     "t": 56.84,
+     "text": "Sokaklar ıslak, sessiz",
+     "tr": "The streets are wet, silent"
+    },
+    {
+     "t": 63.16,
+     "text": "Adımların yok artık",
+     "tr": "Your footsteps are gone now"
+    },
+    {
+     "t": 69.47,
+     "text": "Yağmurdan sonra seni düşündüm",
+     "tr": "After the rain I thought of you"
+    },
+    {
+     "t": 75.79,
+     "text": "Gökyüzü bile ağladı",
+     "tr": "Even the sky cried"
+    },
+    {
+     "t": 82.11,
+     "text": "Yağmurdan sonra seni düşündüm",
+     "tr": "After the rain I thought of you"
+    },
+    {
+     "t": 88.42,
+     "text": "Kalbim hâlâ seninle",
+     "tr": "My heart is still with you"
+    }
+   ],
+   "audio_full": "audio/full/yagmur-sonrasi.mp3",
+   "audio_preview": "audio/preview/yagmur-sonrasi.mp3",
+   "cover": "covers/i-stanbul-ak-am-deniz-aksoy.svg"
+  },
+  {
+   "slug": "yueguang",
+   "title": "月光 (Moonlight)",
+   "artist": "lin-yue",
+   "album": "夜色",
+   "lang": "zh",
+   "genre": "Mandopop",
+   "cats": [
+    "love",
+    "melody",
+    "international"
+   ],
+   "year": 2025,
+   "style": "love",
+   "bpm": 80,
+   "root": 58,
+   "plays": 1150000,
+   "album_slug": "lin-yue",
+   "duration": 110.0,
+   "highlight_start": 72.0,
+   "highlight_end": 96.0,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 12.0
+    },
+    {
+     "name": "verse",
+     "start": 12.0,
+     "end": 36.0
+    },
+    {
+     "name": "chorus",
+     "start": 36.0,
+     "end": 60.0
+    },
+    {
+     "name": "verse2",
+     "start": 60.0,
+     "end": 72.0
+    },
+    {
+     "name": "chorus2",
+     "start": 72.0,
+     "end": 96.0
+    },
+    {
+     "name": "outro",
+     "start": 96.0,
+     "end": 108.0
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 12.0,
+     "text": "夜色温柔地落下",
+     "tr": "Night gently falls"
+    },
+    {
+     "t": 18.0,
+     "text": "城市慢慢安静",
+     "tr": "The city slowly quiets"
+    },
+    {
+     "t": 24.0,
+     "text": "夜色温柔地落下",
+     "tr": "Night gently falls"
+    },
+    {
+     "t": 30.0,
+     "text": "城市慢慢安静",
+     "tr": "The city slowly quiets"
+    },
+    {
+     "t": 36.0,
+     "text": "月光照在我的心上",
+     "tr": "Moonlight shines on my heart"
+    },
+    {
+     "t": 42.0,
+     "text": "想你的每一个晚上",
+     "tr": "Every night I miss you"
+    },
+    {
+     "t": 48.0,
+     "text": "月光照在我的心上",
+     "tr": "Moonlight shines on my heart"
+    },
+    {
+     "t": 54.0,
+     "text": "你是我的方向",
+     "tr": "You are my direction"
+    },
+    {
+     "t": 60.0,
+     "text": "夜色温柔地落下",
+     "tr": "Night gently falls"
+    },
+    {
+     "t": 66.0,
+     "text": "城市慢慢安静",
+     "tr": "The city slowly quiets"
+    },
+    {
+     "t": 72.0,
+     "text": "月光照在我的心上",
+     "tr": "Moonlight shines on my heart"
+    },
+    {
+     "t": 78.0,
+     "text": "想你的每一个晚上",
+     "tr": "Every night I miss you"
+    },
+    {
+     "t": 84.0,
+     "text": "月光照在我的心上",
+     "tr": "Moonlight shines on my heart"
+    },
+    {
+     "t": 90.0,
+     "text": "你是我的方向",
+     "tr": "You are my direction"
+    }
+   ],
+   "audio_full": "audio/full/yueguang.mp3",
+   "audio_preview": "audio/preview/yueguang.mp3",
+   "cover": "covers/lin-yue.svg"
+  },
+  {
+   "slug": "hosa-belaku",
+   "title": "Hosa Belaku",
+   "artist": "ananya-iyer",
+   "album": "Hosa Belaku",
+   "lang": "kn",
+   "genre": "Indie Pop",
+   "cats": [
+    "motivational",
+    "new-generation",
+    "independent",
+    "feelings"
+   ],
+   "year": 2026,
+   "style": "motivational",
+   "bpm": 100,
+   "root": 59,
+   "plays": 158000,
+   "premium_only": true,
+   "album_slug": "hosa-belaku-ananya-iyer",
+   "duration": 105.2,
+   "highlight_start": 69.6,
+   "highlight_end": 93.6,
+   "sections": [
+    {
+     "name": "intro",
+     "start": 0.0,
+     "end": 9.6
+    },
+    {
+     "name": "verse",
+     "start": 9.6,
+     "end": 33.6
+    },
+    {
+     "name": "chorus",
+     "start": 33.6,
+     "end": 57.6
+    },
+    {
+     "name": "verse2",
+     "start": 57.6,
+     "end": 69.6
+    },
+    {
+     "name": "chorus2",
+     "start": 69.6,
+     "end": 93.6
+    },
+    {
+     "name": "outro",
+     "start": 93.6,
+     "end": 103.2
+    }
+   ],
+   "lyrics": [
+    {
+     "t": 9.6,
+     "text": "ಕತ್ತಲ ದಾರಿ ಮುಗಿಯಿತು",
+     "tr": "The dark road has ended"
+    },
+    {
+     "t": 14.4,
+     "text": "ಹೊಸ ದಿನ ಬಂದಿದೆ",
+     "tr": "A new day has come"
+    },
+    {
+     "t": 19.2,
+     "text": "ಕತ್ತಲ ದಾರಿ ಮುಗಿಯಿತು",
+     "tr": "The dark road has ended"
+    },
+    {
+     "t": 24.0,
+     "text": "ಹೊಸ ದಿನ ಬಂದಿದೆ",
+     "tr": "A new day has come"
+    },
+    {
+     "t": 28.8,
+     "text": "ಕತ್ತಲ ದಾರಿ ಮುಗಿಯಿತು",
+     "tr": "The dark road has ended"
+    },
+    {
+     "t": 33.6,
+     "text": "ಹೊಸ ಬೆಳಕು, ಹೊಸ ಕನಸು",
+     "tr": "New light, new dream"
+    },
+    {
+     "t": 38.4,
+     "text": "ನಡೆ ಮುಂದೆ ನಿಲ್ಲದೆ",
+     "tr": "Walk ahead without stopping"
+    },
+    {
+     "t": 43.2,
+     "text": "ಹೊಸ ಬೆಳಕು, ಹೊಸ ಕನಸು",
+     "tr": "New light, new dream"
+    },
+    {
+     "t": 48.0,
+     "text": "ಆಕಾಶ ನಿನ್ನದೇ",
+     "tr": "The sky is yours"
+    },
+    {
+     "t": 52.8,
+     "text": "ಹೊಸ ಬೆಳಕು, ಹೊಸ ಕನಸು",
+     "tr": "New light, new dream"
+    },
+    {
+     "t": 57.6,
+     "text": "ಕತ್ತಲ ದಾರಿ ಮುಗಿಯಿತು",
+     "tr": "The dark road has ended"
+    },
+    {
+     "t": 62.4,
+     "text": "ಹೊಸ ದಿನ ಬಂದಿದೆ",
+     "tr": "A new day has come"
+    },
+    {
+     "t": 69.6,
+     "text": "ಹೊಸ ಬೆಳಕು, ಹೊಸ ಕನಸು",
+     "tr": "New light, new dream"
+    },
+    {
+     "t": 74.4,
+     "text": "ನಡೆ ಮುಂದೆ ನಿಲ್ಲದೆ",
+     "tr": "Walk ahead without stopping"
+    },
+    {
+     "t": 79.2,
+     "text": "ಹೊಸ ಬೆಳಕು, ಹೊಸ ಕನಸು",
+     "tr": "New light, new dream"
+    },
+    {
+     "t": 84.0,
+     "text": "ಆಕಾಶ ನಿನ್ನದೇ",
+     "tr": "The sky is yours"
+    },
+    {
+     "t": 88.8,
+     "text": "ಹೊಸ ಬೆಳಕು, ಹೊಸ ಕನಸು",
+     "tr": "New light, new dream"
+    }
+   ],
+   "audio_full": "audio/full/hosa-belaku.mp3",
+   "audio_preview": "audio/preview/hosa-belaku.mp3",
+   "cover": "covers/hosa-belaku-ananya-iyer.svg"
+  }
+ ]
+}
