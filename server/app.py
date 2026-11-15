@@ -1937,20 +1937,6 @@ def admin_youtube(req):
     return {**youtube_catalog.stats(), "jobs": youtube_catalog.jobs(150), "rounds": sorted(youtube_catalog.ROUNDS)}
 
 
-@route("POST", r"/api/admin/youtube/import", auth="content")
-def admin_youtube_import(req):
-    require(config.YOUTUBE_API_KEY, 400, "Add YOUTUBE_API_KEY to your .env file and restart PENDEL first")
-    b = req.json
-    source = s_(b.get("source"), "Channel, playlist or search", 300)
-    lang = s_(b.get("lang"), "Language", 10)
-    require(db.one("SELECT 1 FROM languages WHERE code=?", (lang,)), 400, "Unknown language")
-    mood = b.get("mood") or None
-    require(mood is None or db.one("SELECT 1 FROM categories WHERE slug=?", (mood,)), 400, "Unknown mood")
-    jid = youtube_catalog.enqueue(source, lang, mood, int_(b.get("max"), "Max songs", 50, 20000) or 1000)
-    audit(req, "youtube_import", "catalog", jid, {"source": source, "lang": lang})
-    return {"ok": True, "job_id": jid}
-
-
 @route("POST", r"/api/admin/youtube/starter", auth="content")
 def admin_youtube_starter(req):
     require(config.YOUTUBE_API_KEY, 400, "Add YOUTUBE_API_KEY to your .env file and restart PENDEL first")
@@ -1978,11 +1964,13 @@ def admin_youtube_refresh(req):
 
 @route("GET", r"/api/admin/youtube/snapshot/raw", auth=None)
 def admin_youtube_snapshot_raw(req):
-    import base64
-    with open("catalog/youtube_snapshot.json.gz", "rb") as f:
+    import base64, os
+    path = "catalog/youtube_snapshot.json.gz" if os.path.exists("catalog/youtube_snapshot.json.gz") else "../catalog/youtube_snapshot.json.gz"
+    if not os.path.exists(path):
+        return {"error": "not exported yet"}
+    with open(path, "rb") as f:
         return {"b64": base64.b64encode(f.read()).decode("ascii")}
-
-
+    
 # --------------------------------------------------------------------------- HTTP plumbing
 
 class Request:
