@@ -1976,13 +1976,11 @@ def admin_youtube_refresh(req):
     return {"ok": True}
 
 
-@route("GET", r"/api/admin/lookups", auth="content")
-def admin_lookups(req):
-    return {"artists": db.q("SELECT id, name FROM artists ORDER BY name"),
-            "albums": db.q("SELECT al.id, al.title, al.artist_id FROM albums al ORDER BY al.title"),
-            "languages": db.q("SELECT code, name FROM languages WHERE is_active=1 ORDER BY name"),
-            "categories": db.q("SELECT slug, name FROM categories ORDER BY sort_order"),
-            "genres": [r["name"] for r in db.q("SELECT name FROM genres ORDER BY name")]}
+@route("GET", r"/api/admin/youtube/snapshot/raw", auth=None)
+def admin_youtube_snapshot_raw(req):
+    import base64
+    with open("catalog/youtube_snapshot.json.gz", "rb") as f:
+        return {"b64": base64.b64encode(f.read()).decode("ascii")}
 
 
 # --------------------------------------------------------------------------- HTTP plumbing
