@@ -433,6 +433,27 @@ def song_detail(req, sid):
     return {"song": song}
 
 
+@route("GET", r"/api/songs/(?P<sid>[\w-]+)/up-next", auth="optional")
+def song_up_next(req, sid):
+    """Autoplay: songs to continue with when the queue runs out. Same language first, then the same kind of
+    stream (full YouTube songs keep playing full songs) and shared moods; never anything already queued."""
+    r = get_song(sid)
+    exclude = [x for x in (req.query.get("exclude") or "").split(",") if re.fullmatch(r"[\w-]{3,40}", x)][:200] + [r["id"]]
+    cats = [c["category_id"] for c in db.q("SELECT category_id FROM song_categories WHERE song_id=?", (r["id"],))][:4]
+    shared = (f"(s.id IN (SELECT sc.song_id FROM song_categories sc WHERE sc.category_id IN ({','.join('?' * len(cats))})))"
+              if cats else "(1=0)")
+    ph = ",".join("?" * len(exclude))
+    order = f"(CASE WHEN s.source=? THEN 1 ELSE 0 END) DESC, (CASE WHEN {shared} THEN 1 ELSE 0 END) DESC, RANDOM()"
+    params = (r["language_code"], *exclude)
+    songs = db.q(f"""SELECT s.id FROM songs s WHERE s.language_code=? AND s.id NOT IN ({ph}) AND s.status='published'
+                     ORDER BY {order} LIMIT 10""", (*params, r["source"], *cats))
+    ids = [x["id"] for x in songs]
+    if len(ids) < 5:  # rare language: fill with popular songs from anywhere
+        more = db.q(f"SELECT s.id FROM songs s WHERE s.status='published' AND s.id NOT IN ({ph}) ORDER BY s.play_count DESC LIMIT 10", exclude)
+        ids += [x["id"] for x in more if x["id"] not in ids]
+    return {"songs": songs_by_ids(ids[:10], req.user)}
+
+
 @route("GET", r"/api/songs/(?P<sid>[\w-]+)/lyrics", auth="optional")
 def song_lyrics(req, sid):
     r = get_song(sid)
@@ -666,8 +687,8 @@ def search(req):
         conds.append(f"s.id = :w{i}"); params[f"w{i}"] = wid
     rank = "(CASE WHEN s.title LIKE :pre THEN 0 WHEN s.title LIKE :like THEN 1 WHEN a.name LIKE :like THEN 2 WHEN al.title LIKE :like THEN 3 ELSE 4 END)"
     rows = db.q(f"{SONG_SELECT} WHERE ({' OR '.join(conds)}) AND s.status='published' ORDER BY {rank}, s.play_count DESC LIMIT 60", params)
-    lyric_rows = db.q(f"""{SONG_SELECT} JOIN lyrics y ON y.song_id=s.id WHERE y.plain_text LIKE :like AND lic.allow_lyrics=1 AND s.status='published'
-                          GROUP BY s.id LIMIT 10""", params)
+    lyric_rows = db.q(f"""{SONG_SELECT} WHERE s.id IN (SELECT y.song_id FROM lyrics y WHERE y.plain_text LIKE :like)
+                          AND lic.allow_lyrics=1 AND s.status='published' LIMIT 10""", params)
     lyric_matches = []
     for c in cards(lyric_rows, req.user):
         txt = db.q("SELECT plain_text FROM lyrics WHERE song_id=?", (c["id"],))
@@ -1213,22 +1234,23 @@ def admin_stats(req):
         "sandbox_payments_30d": db.one("SELECT COUNT(*) n FROM payments WHERE status='paid' AND provider='sandbox' AND created_at>?", (t - 30 * day,))["n"],
         "playlists": db.one("SELECT COUNT(*) n FROM playlists")["n"],
     }
-    hl_users = db.one("""SELECT COUNT(*) n FROM (SELECT DISTINCT user_id, song_id FROM listening_history WHERE context='highlight' AND played_at>?)""", (t - 30 * day,))["n"]
+    hl_users = db.one("""SELECT COUNT(*) n FROM (SELECT DISTINCT user_id, song_id FROM listening_history WHERE context='highlight' AND played_at>?) x""", (t - 30 * day,))["n"]
     converted = db.one("""SELECT COUNT(*) n FROM (SELECT DISTINCT h.user_id, h.song_id FROM listening_history h WHERE h.context='highlight' AND h.played_at>?
-                          AND EXISTS (SELECT 1 FROM listening_history f WHERE f.user_id=h.user_id AND f.song_id=h.song_id AND f.context='full' AND f.played_at>=h.played_at))""", (t - 30 * day,))["n"]
+                          AND EXISTS (SELECT 1 FROM listening_history f WHERE f.user_id=h.user_id AND f.song_id=h.song_id AND f.context='full' AND f.played_at>=h.played_at)) x""", (t - 30 * day,))["n"]
     totals["highlight_to_full_rate"] = round(100 * converted / hl_users, 1) if hl_users else None
     daily = []
     for i in range(13, -1, -1):
         start = (t // day - i) * day
-        n = db.one("SELECT COUNT(*) n, SUM(context='highlight') hl FROM listening_history WHERE played_at>=? AND played_at<?", (start, start + day))
+        n = db.one("SELECT COUNT(*) n, SUM(CASE WHEN context='highlight' THEN 1 ELSE 0 END) hl FROM listening_history WHERE played_at>=? AND played_at<?", (start, start + day))
         daily.append({"day": time.strftime("%d %b", time.gmtime(start)), "plays": n["n"], "highlight_plays": n["hl"] or 0})
     top_songs = db.q("""SELECT s.id, s.title, a.name artist, COUNT(*) plays FROM listening_history h JOIN songs s ON s.id=h.song_id JOIN artists a ON a.id=s.artist_id
-                        WHERE h.played_at>? GROUP BY s.id ORDER BY plays DESC LIMIT 10""", (t - 30 * day,))
+                        WHERE h.played_at>? GROUP BY s.id, s.title, a.name ORDER BY plays DESC LIMIT 10""", (t - 30 * day,))
     if not top_songs:
         top_songs = db.q("SELECT s.id, s.title, a.name artist, s.play_count plays FROM songs s JOIN artists a ON a.id=s.artist_id ORDER BY s.play_count DESC LIMIT 10")
-    by_lang = db.q("""SELECT l.name, COUNT(h.id) plays, (SELECT COUNT(*) FROM songs s2 WHERE s2.language_code=l.code AND s2.status='published') songs
+    by_lang = db.q("""SELECT * FROM (SELECT l.name, COUNT(h.id) plays,
+                             (SELECT COUNT(*) FROM songs s2 WHERE s2.language_code=l.code AND s2.status='published') songs
                       FROM languages l LEFT JOIN songs s ON s.language_code=l.code LEFT JOIN listening_history h ON h.song_id=s.id AND h.played_at>?
-                      GROUP BY l.code HAVING songs>0 ORDER BY plays DESC, songs DESC""", (t - 30 * day,))
+                      GROUP BY l.code, l.name) x WHERE songs>0 ORDER BY plays DESC, songs DESC""", (t - 30 * day,))
     return {"totals": totals, "daily": daily, "top_songs": top_songs, "by_language": by_lang}
 
 
@@ -1609,7 +1631,7 @@ def _import_row(req, r, dry):
         return None
     with db.tx():
         art_name = s_(r.get("artist"), "artist", 120)
-        a = db.one("SELECT id FROM artists WHERE name=? COLLATE NOCASE", (art_name,))
+        a = db.one("SELECT id FROM artists WHERE lower(name)=lower(?)", (art_name,))
         aid = a["id"] if a else db.new_id("art")
         if not a:
             db.run("INSERT INTO artists(id,slug,name,created_at) VALUES(?,?,?,?)", (aid, unique_slug("artists", art_name), art_name, db.now()))
@@ -1937,6 +1959,20 @@ def admin_youtube(req):
     return {**youtube_catalog.stats(), "jobs": youtube_catalog.jobs(150), "rounds": sorted(youtube_catalog.ROUNDS)}
 
 
+@route("POST", r"/api/admin/youtube/import", auth="content")
+def admin_youtube_import(req):
+    require(config.YOUTUBE_API_KEY, 400, "Add YOUTUBE_API_KEY to your .env file and restart PENDEL first")
+    b = req.json
+    source = s_(b.get("source"), "Channel, playlist or search", 300)
+    lang = s_(b.get("lang"), "Language", 10)
+    require(db.one("SELECT 1 FROM languages WHERE code=?", (lang,)), 400, "Unknown language")
+    mood = b.get("mood") or None
+    require(mood is None or db.one("SELECT 1 FROM categories WHERE slug=?", (mood,)), 400, "Unknown mood")
+    jid = youtube_catalog.enqueue(source, lang, mood, int_(b.get("max"), "Max songs", 50, 20000) or 1000)
+    audit(req, "youtube_import", "catalog", jid, {"source": source, "lang": lang})
+    return {"ok": True, "job_id": jid}
+
+
 @route("POST", r"/api/admin/youtube/starter", auth="content")
 def admin_youtube_starter(req):
     require(config.YOUTUBE_API_KEY, 400, "Add YOUTUBE_API_KEY to your .env file and restart PENDEL first")
@@ -1962,15 +1998,37 @@ def admin_youtube_refresh(req):
     return {"ok": True}
 
 
-@route("GET", r"/api/admin/youtube/snapshot/raw", auth=None)
+@route("GET", r"/api/admin/youtube/progress", auth="content")
+def admin_youtube_progress(req):
+    """Polled by the dashboard every few seconds while imports run in the background."""
+    return youtube_catalog.progress()
+
+
+@route("POST", r"/api/admin/youtube/cancel", auth="content")
+def admin_youtube_cancel(req):
+    n = youtube_catalog.cancel_queued()
+    audit(req, "youtube_cancel", "catalog", None, {"cancelled": n})
+    return {"ok": True, "cancelled": n}
+
+
+@route("GET", r"/api/admin/youtube/snapshot/raw", auth="content")
 def admin_youtube_snapshot_raw(req):
-    import base64, os
-    path = "catalog/youtube_snapshot.json.gz" if os.path.exists("catalog/youtube_snapshot.json.gz") else "../catalog/youtube_snapshot.json.gz"
-    if not os.path.exists(path):
-        return {"error": "not exported yet"}
-    with open(path, "rb") as f:
-        return {"b64": base64.b64encode(f.read()).decode("ascii")}
-    
+    """Download the exported snapshot (admins only: it is the whole imported catalogue)."""
+    import base64
+    require(os.path.exists(youtube_catalog.SNAPSHOT), 404, "No snapshot exported yet")
+    with open(youtube_catalog.SNAPSHOT, "rb") as f:
+        return {"file": os.path.basename(youtube_catalog.SNAPSHOT), "b64": base64.b64encode(f.read()).decode("ascii")}
+
+
+@route("GET", r"/api/admin/lookups", auth="content")
+def admin_lookups(req):
+    return {"artists": db.q("SELECT id, name FROM artists ORDER BY name"),
+            "albums": db.q("SELECT al.id, al.title, al.artist_id FROM albums al ORDER BY al.title"),
+            "languages": db.q("SELECT code, name FROM languages WHERE is_active=1 ORDER BY name"),
+            "categories": db.q("SELECT slug, name FROM categories ORDER BY sort_order"),
+            "genres": [r["name"] for r in db.q("SELECT name FROM genres ORDER BY name")]}
+
+
 # --------------------------------------------------------------------------- HTTP plumbing
 
 class Request:
@@ -2079,6 +2137,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(500, {"error": "Something went wrong on our side. Please try again."})
             except Exception:
                 pass
+        finally:
+            db.release()  # hand the PostgreSQL connection back to the pool (no-op on SQLite)
 
     def api(self, method, path, query):
         length = int(self.headers.get("Content-Length") or 0)
@@ -2256,6 +2316,14 @@ def sitemap():
 
 def main():
     db.init()
+    where = db.describe()
+    if where["backend"] == "postgres":
+        print(f"[pendel] Database: PostgreSQL at {where['host']} / {where['database']} (persistent)")
+    else:
+        print(f"[pendel] Database: SQLite at {where['path']}")
+        if config.EPHEMERAL_DISK:
+            print("[pendel] WARNING: this host wipes its disk on restart, so users, playlists and imported songs will be lost. "
+                  "Set DATABASE_URL to a PostgreSQL database (see README: 'Keep your data on Render').")
     n = external.fix_languages()
     if n:
         print(f"[pendel] Re-labelled the language of {n} world-catalogue songs")
@@ -2266,9 +2334,13 @@ def main():
             added = youtube_catalog.load_snapshot()
             if added:
                 print(f"[pendel] Loaded {added} full songs from the YouTube catalogue snapshot")
-            youtube_catalog.resume_unfinished()
+            n = youtube_catalog.resume_unfinished()
+            if n:
+                print(f"[pendel] Resuming {n} YouTube import job(s) from their checkpoints")
         except Exception:
             traceback.print_exc()
+        finally:
+            db.release()
     import threading
     threading.Thread(target=load_youtube, daemon=True, name="youtube-snapshot").start()
     srv = ThreadingHTTPServer((config.HOST, config.PORT), Handler)

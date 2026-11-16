@@ -6,7 +6,9 @@ import json, os, re, shutil, subprocess, sys, tempfile, threading, time, unittes
 
 TMP = tempfile.mkdtemp(prefix="pendel-test-")
 os.environ.update({"DATABASE_PATH": os.path.join(TMP, "test.db"), "PORT": "8799", "PENDEL_QUIET": "1", "PAYMENT_PROVIDERS": "sandbox",
-                   "PENDEL_FAKE_WORLD": "1", "WORLD_WARMUP": "0", "YOUTUBE_API_KEY": ""})
+                   "PENDEL_FAKE_WORLD": "1", "WORLD_WARMUP": "0", "YOUTUBE_API_KEY": "",
+                   # never touch a real database from .env: TEST_DATABASE_URL=postgresql://... runs the suite on PostgreSQL
+                   "DATABASE_URL": os.environ.get("TEST_DATABASE_URL", ""), "MONGO_URI": "", "SECRET_KEY": ""})
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from server import app, db, config, security  # noqa: E402
@@ -36,6 +38,9 @@ def call(method, path, body=None, token=None, raw=None, ctype=None):
 class PENDELAPI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        if db.BACKEND == "postgres":
+            db.run("DROP SCHEMA public CASCADE")
+            db.run("CREATE SCHEMA public")
         db.init()
         security.register_limiter.limit = 1000  # many sign-ups from one test IP
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 8799), app.Handler)
@@ -317,6 +322,7 @@ class PENDELAPI(unittest.TestCase):
         from server import config as cfg, youtube_catalog as ytc
         self.assertEqual(call("POST", "/api/admin/youtube/starter", {}, token=self.admin)[0], 400, "needs a key")
         cfg.YOUTUBE_API_KEY = "test-key"
+        units_before = ytc.usage()["units"]
         try:
             st, d = call("POST", "/api/admin/youtube/import", {"source": "kannada sad songs", "lang": "kn", "mood": "sad", "max": 300}, token=self.admin)
             self.assertEqual(st, 200, d)
@@ -325,7 +331,7 @@ class PENDELAPI(unittest.TestCase):
             job = next(j for j in info["jobs"] if j["id"] == d["job_id"])
             self.assertEqual(job["status"], "done", job)
             self.assertGreater(job["added"], 100)
-            self.assertLessEqual(info["usage"]["units"], 20, "playlist imports must use cheap 1-unit calls")
+            self.assertLessEqual(info["usage"]["units"] - units_before, 20, "playlist imports must use cheap 1-unit calls")
             kn = call("GET", "/api/languages/kn")[1]
             full = next(sec for sec in kn["sections"] if sec["key"] == "youtube")["songs"]
             self.assertTrue(full and all(x["source"] == "youtube" and x["language"]["code"] == "kn" for x in full))
@@ -386,6 +392,59 @@ class PENDELAPI(unittest.TestCase):
         finally:
             external.FETCH = real
             external._down_until[0] = 0
+
+    # ------------------------------------------------------------------ v4: persistence, resumable imports, protected admin
+    def test_admin_import_routes_are_protected(self):
+        routes = [("GET", "/api/admin/youtube"), ("GET", "/api/admin/youtube/progress"), ("POST", "/api/admin/youtube/import"),
+                  ("POST", "/api/admin/youtube/starter"), ("POST", "/api/admin/youtube/snapshot"), ("POST", "/api/admin/youtube/refresh"),
+                  ("POST", "/api/admin/youtube/cancel"), ("GET", "/api/admin/youtube/snapshot/raw"), ("GET", "/api/admin/lookups"),
+                  ("DELETE", "/api/admin/songs/sng_nope"), ("GET", "/api/admin/stats")]
+        for m, path in routes:
+            self.assertEqual(call(m, path, {} if m != "GET" else None)[0], 401, f"anonymous {m} {path}")
+            self.assertEqual(call(m, path, {} if m != "GET" else None, token=self.user)[0], 403, f"listener {m} {path}")
+        self.assertEqual(call("GET", "/api/admin/youtube/progress", token=self.admin)[0], 200)
+
+    def test_import_resumes_from_checkpoint_after_restart(self):
+        from server import config as cfg, youtube_catalog as ytc
+        cfg.YOUTUBE_API_KEY = "test-key"
+        real = ytc.import_playlist
+        try:
+            # simulate the server dying after the first page of the first playlist
+            def die_after_one_page(pl, lang, mood, max_videos, job=None, token=None, seen=0):
+                real(pl, lang, mood, 50, job, token, seen)
+                raise SystemError("server restarted")
+            ytc.import_playlist = die_after_one_page
+            st, d = call("POST", "/api/admin/youtube/import", {"source": "telugu love songs", "lang": "te", "max": 300}, token=self.admin)
+            self.assertEqual(st, 200, d)
+            ytc._q.join()
+            row = db.one("SELECT * FROM youtube_imports WHERE id=?", (d["job_id"],))
+            self.assertEqual(row["seen"], 50)
+            self.assertTrue(json.loads(row["checkpoint"])["playlists"])
+            db.run("UPDATE youtube_imports SET status='running', error=NULL WHERE id=?", (d["job_id"],))  # as if killed mid-run
+            searches_before = ytc.usage()["searches"]
+            ytc.import_playlist = real
+            self.assertGreaterEqual(ytc.resume_unfinished(), 1)
+            ytc._q.join()
+            row = db.one("SELECT * FROM youtube_imports WHERE id=?", (d["job_id"],))
+            self.assertEqual(row["status"], "done", row)
+            self.assertGreater(row["seen"], 50)
+            self.assertEqual(ytc.usage()["searches"], searches_before, "resuming must not repeat the 100-unit search")
+            p = call("GET", "/api/admin/youtube/progress", token=self.admin)[1]
+            self.assertIn(d["job_id"], [j["id"] for j in p["jobs"]])
+            self.assertFalse(p["busy"])
+        finally:
+            ytc.import_playlist = real
+            cfg.YOUTUBE_API_KEY = ""
+
+    def test_cancel_queued_imports(self):
+        from server import youtube_catalog as ytc
+        jid = db.new_id("yti")
+        ytc._save_job({"id": jid, "label": "x", "source": "x", "lang": "kn", "mood": None, "max": 50, "status": "queued",
+                       "seen": 0, "added": 0, "created_at": db.now(), "checkpoint": {}})
+        st, r = call("POST", "/api/admin/youtube/cancel", {}, token=self.admin)
+        self.assertEqual(st, 200)
+        self.assertGreaterEqual(r["cancelled"], 1)
+        self.assertEqual(db.one("SELECT status FROM youtube_imports WHERE id=?", (jid,))["status"], "cancelled")
 
 
 if __name__ == "__main__":

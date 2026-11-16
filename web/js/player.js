@@ -6,13 +6,16 @@ const audio = document.getElementById("audio");
 // ------------------------------------------------------------------ playback engines
 // PENDEL songs and Apple previews play in <audio>. Full world-catalogue songs play in a visible
 // YouTube embed (YouTube's terms require the player to be shown). `media` hides the difference.
-const yt = { player: null, ready: null, active: false, state: -1, timer: null };
+const yt = { player: null, ready: null, active: false, state: -1, timer: null, videoId: null, errors: 0 };
+// YT.PlayerState values, usable before the API script has loaded
+const YTS = { UNSTARTED: -1, ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5 };
+const ytState = (name) => window.YT?.PlayerState?.[name] ?? YTS[name];
 export const media = {
   get engine() { return yt.active ? "youtube" : "audio"; },
   get currentTime() { return yt.active ? (yt.player?.getCurrentTime?.() || 0) : audio.currentTime; },
   set currentTime(v) { if (yt.active) yt.player?.seekTo?.(v, true); else audio.currentTime = v; },
-  get paused() { return yt.active ? !(yt.state === 1 || yt.state === 3) : audio.paused; },
-  get ended() { return yt.active ? yt.state === 0 : audio.ended; },
+  get paused() { return yt.active ? !(yt.state === ytState("PLAYING") || yt.state === ytState("BUFFERING")) : audio.paused; },
+  get ended() { return yt.active ? yt.state === ytState("ENDED") : audio.ended; },
   play() { if (yt.active) { yt.player?.playVideo?.(); return Promise.resolve(); } return audio.play(); },
   pause() { if (yt.active) yt.player?.pauseVideo?.(); else audio.pause(); },
 };
@@ -30,7 +33,28 @@ function ensureYT() {
   }
   return yt.ready;
 }
-function showDock(on) { const d = document.getElementById("yt-dock"); if (d) d.hidden = !on; document.body.classList.toggle("has-video", on); }
+// The YouTube player is docked as a compact square above the player bar. YouTube requires an embedded
+// player to stay visible and at least 200x200 px, so "compact" is exactly that minimum; the bar keeps a
+// 64x64 thumbnail like an audio app. The listener can switch sides or make it bigger.
+const dock = document.getElementById("yt-dock");
+const dockPrefs = () => { try { return JSON.parse(localStorage.getItem("rf_dock") || "{}"); } catch { return {}; } };
+function applyDock() {
+  if (!dock) return;
+  const p = dockPrefs();
+  dock.classList.toggle("left", p.side === "left");
+  dock.classList.toggle("wide", p.size === "wide");
+}
+dock?.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-dock]");
+  if (!b) return;
+  const p = dockPrefs();
+  if (b.dataset.dock === "side") p.side = p.side === "left" ? "right" : "left";
+  if (b.dataset.dock === "size") p.size = p.size === "wide" ? "compact" : "wide";
+  try { localStorage.setItem("rf_dock", JSON.stringify(p)); } catch { /* private mode */ }
+  applyDock();
+});
+applyDock();
+function showDock(on) { if (dock) dock.hidden = !on; document.body.classList.toggle("has-video", on); }
 function stopYT() {
   if (!yt.active) return;
   yt.active = false; clearInterval(yt.timer);
@@ -42,6 +66,7 @@ async function ytLoad(stream, autoplay) {
   yt.active = true; yt.state = -1; showDock(true);
   if (!(await ensureYT())) { toast("YouTube couldn't load. Check your connection.", { error: true }); stopYT(); return; }
   const opts = { videoId: stream.video_id, startSeconds: Math.floor(stream.start || 0) };
+  yt.videoId = stream.video_id;
   if (stream.end && stream.end > (stream.start || 0) && player.current?.mode === "highlight") opts.endSeconds = Math.ceil(stream.end);
   const vol = +(localStorage.getItem("rf_vol") ?? 80);
   if (!yt.player) {
@@ -51,14 +76,43 @@ async function ytLoad(stream, autoplay) {
         playerVars: { autoplay: autoplay ? 1 : 0, playsinline: 1, rel: 0, start: opts.startSeconds, ...(opts.endSeconds ? { end: opts.endSeconds } : {}), origin: location.origin },
         events: {
           onReady: () => { yt.player.setVolume(vol); res(); },
-          onStateChange: (e) => { yt.state = e.data; syncUI(); emit("state"); if (e.data === 0) onEnded(); },
-          onError: () => { toast("This video can't be played here. Try “Open on YouTube”.", { error: true }); },
+          onStateChange: onYTState,
+          onError: onYTError,
         },
       });
     });
   } else if (autoplay) yt.player.loadVideoById(opts); else yt.player.cueVideoById(opts);
   clearInterval(yt.timer);
-  yt.timer = setInterval(() => { if (yt.active && yt.state === 1) onTime(media.currentTime); }, 250);
+  yt.timer = setInterval(ytTick, 250);
+}
+function currentVideoId() { try { return yt.player?.getVideoData?.()?.video_id || yt.videoId; } catch { return yt.videoId; } }
+function onYTState(e) {
+  yt.state = e.data;
+  if (e.data === ytState("PLAYING")) yt.errors = 0;
+  syncUI(); emit("state");
+  // auto-advance: the video finished. Ignore a late ENDED from a video we already moved away from.
+  if (e.data === ytState("ENDED") && yt.active && currentVideoId() === player.current?.stream?.video_id) onEnded();
+}
+function onYTError(e) {
+  // 100 = removed, 101/150 = owner disabled embedding, 2/5 = bad id / HTML5 error: skip instead of stopping the music
+  yt.errors += 1;
+  const c = player.current;
+  toast("This video can't be played here. Skipping to the next song…", c?.stream?.links?.youtube
+    ? { error: true, action: { href: c.stream.links.youtube, label: "Open on YouTube", external: true } } : { error: true });
+  if (yt.errors > 5) { yt.errors = 0; return; } // many in a row: probably offline, don't spin through the queue
+  if (c) { c.ended = true; setTimeout(() => { if (player.current === c) player.next(true); }, 1200); }
+  void e;
+}
+function ytTick() {
+  if (!yt.active) return;
+  if (yt.state === ytState("PLAYING")) onTime(media.currentTime);
+  // safety net: some browsers (background tabs, battery saver) drop the ENDED event. If the video sits at its end, advance.
+  const c = player.current;
+  if (c && !c.ended && c.mode === "full" && yt.state !== ytState("PLAYING") && yt.state !== ytState("BUFFERING")) {
+    let dur = 0, t = 0;
+    try { dur = yt.player?.getDuration?.() || 0; t = yt.player?.getCurrentTime?.() || 0; } catch { /* not ready */ }
+    if (dur > 30 && t >= dur - 1.2 && yt.state !== ytState("CUED") && yt.state !== ytState("UNSTARTED")) onEnded();
+  }
 }
 const listeners = {};
 const on = (ev, fn) => ((listeners[ev] ||= new Set()).add(fn), () => listeners[ev].delete(fn));
@@ -77,6 +131,24 @@ export const player = {
   /** position within the original song (used for lyric sync, even when playing a preview cut) */
   get songTime() { return this.current ? media.currentTime + (this.current.stream?.song_offset || 0) : 0; },
   sessionMode: null, // 'full' | 'highlights' while a mood session is playing
+  autoplay: localStorage.getItem("rf_autoplay") !== "0", // keep playing similar songs when the queue ends
+
+  setAutoplay(on) { this.autoplay = on; try { localStorage.setItem("rf_autoplay", on ? "1" : "0"); } catch { /* ignore */ } syncUI(); },
+  async extendQueue() {
+    const seed = this.current?.song;
+    if (!seed) return false;
+    try {
+      const exclude = this.queue.slice(-150).map((s) => s.id).join(",");
+      const d = await get(`/api/songs/${seed.id}/up-next?exclude=${encodeURIComponent(exclude)}`, { quiet: true });
+      const fresh = (d.songs || []).filter((s) => !this.queue.some((q) => q.id === s.id));
+      if (!fresh.length) return false;
+      fresh.forEach((s) => songRegistry?.set?.(s.id, s));
+      this.queue.push(...fresh);
+      if (this.original) this.original.push(...fresh);
+      emit("queue");
+      return true;
+    } catch { return false; }
+  },
 
   async play(song, { queue = null, index = 0, mode = "full", autoplay = true, session = null } = {}) {
     this.sessionMode = session;
@@ -87,6 +159,7 @@ export const player = {
 
   async load(song, mode, autoplay = true) {
     this.flushHistory();
+    const requested = mode;
     const token = ++this.loadToken;
     if (mode === "full" && !session.premium && await maybeShowAd()) { if (token !== this.loadToken) return; }
     let stream;
@@ -104,10 +177,15 @@ export const player = {
       else toast("This full song is for Premium listeners. Playing its highlight.", { action: { href: "/premium", label: "Go Premium" }, ms: 5000 });
       stream = stream.preview; mode = "highlight";
     }
-    this.current = { song, mode, stream, start: stream.start, end: stream.end, ended: false };
+    // `requested` remembers that the listener asked for the full song even if only a preview could play,
+    // so the queue keeps moving when that preview ends
+    this.current = { song, mode, requested, stream, start: stream.start, end: stream.end, ended: false };
     this.listened = 0; this.lastT = null; this.retried = false;
-    if (stream.mode === "youtube") { ytLoad(stream, autoplay); }
-    else {
+    if (stream.mode === "youtube") {
+      // loadVideoById starts playback by itself; calling playVideo() first would briefly restart the previous video
+      await ytLoad(stream, autoplay);
+      if (token !== this.loadToken) return;
+    } else {
       stopYT();
       audio.src = stream.url;
       audio.dataset.seekTo = String(stream.start);
@@ -115,7 +193,7 @@ export const player = {
     if (mode === "full") countTrackForAds();
     updateMediaSession(song);
     emit("change", this.current);
-    if (autoplay) this.resume(); else syncUI();
+    if (autoplay && stream.mode !== "youtube") this.resume(); else syncUI();
   },
 
   resume() {
@@ -139,6 +217,7 @@ export const player = {
     let i = this.index + 1;
     if (i >= this.queue.length) {
       if (this.repeat === "all") i = 0;
+      else if (this.autoplay && !this.sessionMode && this.current?.requested === "full" && await this.extendQueue()) i = this.index + 1;
       else { this.pause(); if (auto) { media.currentTime = this.current.start; emit("ended-queue"); } return; }
     }
     this.index = i;
@@ -241,7 +320,7 @@ function onEnded() {
   if (!c || c.ended) return;
   c.ended = true;
   player.flushHistory();
-  if (c.mode === "highlight") {
+  if (c.mode === "highlight" && c.requested !== "full") {
     media.pause();
     media.currentTime = c.start;
     if (player.sessionMode) { player.next(true); return; }

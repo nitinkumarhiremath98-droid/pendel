@@ -176,9 +176,13 @@
   <div class="toasts" id="toasts" aria-live="assertive"></div>
   <div id="modal-root"></div>
   <!-- Full world-catalogue songs play in this visible YouTube player (required by YouTube's terms) -->
+  <!-- Compact by default: 200x200 px, the smallest size YouTube allows for an embedded player -->
   <aside class="yt-dock" id="yt-dock" hidden aria-label="YouTube player">
     <div class="yt-frame-wrap"><div id="yt-frame"></div></div>
-    <div class="yt-caption">Full song via YouTube</div>
+    <div class="yt-caption"><span>Full song via YouTube</span>
+      <button type="button" class="yt-dock-btn" data-dock="side" aria-label="Move the video to the other side" title="Move to the other side">&#8646;</button>
+      <button type="button" class="yt-dock-btn" data-dock="size" aria-label="Bigger or smaller video" title="Bigger / smaller">&#10530;</button>
+    </div>
   </aside>
   <audio id="audio" preload="auto"></audio>
   <noscript><p style="padding:2rem">PENDEL needs JavaScript to play music.</p></noscript>

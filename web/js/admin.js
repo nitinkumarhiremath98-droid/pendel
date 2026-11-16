@@ -577,19 +577,15 @@ async function audit(el, alive) {
 async function youtubeTab(el, alive) {
   const [d, L] = await Promise.all([get("/api/admin/youtube"), getLookups()]);
   if (!alive()) return;
-  const u = d.usage;
-  const busy = d.jobs.some((j) => ["queued", "running"].includes(j.status));
+  const persistent = d.database?.backend === "postgres";
   render(el, html`
-    ${d.key ? "" : html`<div class="notice"><strong>Add a YouTube API key first.</strong> Put <code>YOUTUBE_API_KEY=…</code> in your <code>.env</code> file and restart PENDEL. The README explains how to get a free key in about 5 minutes.</div>`}
-    <div class="admin-grid">
-      <div class="stat"><div class="k">Full songs from YouTube</div><div class="v">${fmtNum(d.songs)}</div></div>
-      <div class="stat"><div class="k">Quota used today</div><div class="v">${fmtNum(u.units)} / ${fmtNum(u.units_limit)}</div></div>
-      <div class="stat"><div class="k">Searches used today</div><div class="v">${u.searches} / ${u.searches_limit}</div></div>
-      <div class="stat"><div class="k">Snapshot for Render</div><div class="v" style="font-size:18px">${d.snapshot.exists ? `${(d.snapshot.bytes / 1e6).toFixed(1)} MB · ${fmtDate(d.snapshot.modified)}` : "not created"}</div></div>
-    </div>
+    ${d.key ? "" : html`<div class="notice"><strong>Add a YouTube API key first.</strong> Put <code>YOUTUBE_API_KEY=…</code> in your <code>.env</code> file (or in Render's Environment tab) and restart PENDEL. The README explains how to get a free key in about 5 minutes.</div>`}
+    ${persistent ? "" : html`<div class="notice"><strong>Imports are saved on this computer only.</strong> On Render's free plan the disk is wiped on every restart. Set <code>DATABASE_URL</code> to a free PostgreSQL database so imported songs stay (README → “Keep your data on Render”).</div>`}
+    <div class="admin-grid" id="yt-stats"></div>
+    <div class="panel yt-live" id="yt-live" aria-live="polite"></div>
     <div class="split">
       <div class="panel"><h3>1 · Starter pack</h3>
-        <p class="muted small">Imports official full songs for every language and mood (Kannada, Telugu, Tamil, Hindi … Korean, Spanish and more) from YouTube playlists. Round 1 usually brings tens of thousands of songs. YouTube allows about 95 searches a day, so run round 2 and round 3 on later days for more.</p>
+        <p class="muted small">Imports official full songs for every language and mood (Kannada, Telugu, Tamil, Hindi … Korean, Spanish and more) from YouTube playlists. Imports run in the background on the server, so you can leave this page; it shows live progress while it's open. YouTube allows about 95 searches a day, so run round 2 and round 3 on later days. Jobs paused by the daily limit continue by themselves the next day.</p>
         <div class="toolbar">${d.rounds.map((r) => html`<button class="btn ${r === 1 ? "primary" : ""}" data-round="${r}" ${raw(d.key ? "" : "disabled")}>${icon("upload")}Run round ${r}</button>`)}</div>
       </div>
       <div class="panel"><h3>2 · Import a channel or playlist</h3>
@@ -597,32 +593,75 @@ async function youtubeTab(el, alive) {
           <div class="form-grid"><div class="field"><label>Language</label><select class="input" name="lang">${L.languages.map((l) => html`<option value="${l.code}">${l.name}</option>`)}</select></div>
           <div class="field"><label>Mood (optional)</label><select class="input" name="mood"><option value="">Detect from titles</option>${L.categories.map((c) => html`<option value="${c.slug}">${c.name}</option>`)}</select></div>
           <div class="field"><label>Max songs</label><input class="input" type="number" name="max" value="1000" min="50" max="20000"></div></div>
-          <button class="btn primary" ${raw(d.key ? "" : "disabled")}>Import</button></form>
+          <button class="btn primary" ${raw(d.key ? "" : "disabled")}>Import in background</button></form>
       </div>
     </div>
-    <div class="panel"><h3>3 · Publish to your live site</h3>
-      <p class="muted small">Render's free plan forgets its database on every restart. Export a snapshot, then commit and push it. The live site reloads it on start-up without using any quota. YouTube's rules require stored data to be refreshed within 30 days, so export a fresh snapshot at least once a month (PENDEL also refreshes old snapshots automatically when a key is set).</p>
-      <div class="toolbar"><button class="btn primary" id="yt-snap">Export snapshot</button><button class="btn" id="yt-refresh" ${raw(d.key ? "" : "disabled")}>Refresh all songs now</button><span class="dim small" id="yt-msg"></span></div>
-      <pre class="small" style="background:var(--bg-2);padding:10px 14px;border-radius:10px;overflow:auto">git add catalog/youtube_snapshot.json.gz
+    <div class="panel"><h3>3 · Keep the catalogue up to date</h3>
+      ${persistent
+        ? html`<p class="muted small">Your catalogue is stored in PostgreSQL (<code>${d.database.host}</code>), so it survives restarts and redeploys: nothing to commit. YouTube's rules require stored data to be refreshed within 30 days; “Refresh all songs” re-checks every song (about 1 quota unit per 50 songs) and hides videos that were removed.</p>`
+        : html`<p class="muted small">No database is configured, so you can export a snapshot, then commit and push it; the live site reloads it on start-up without using quota. Export a fresh one at least once a month (YouTube's 30-day rule).</p>
+          <pre class="small" style="background:var(--bg-2);padding:10px 14px;border-radius:10px;overflow:auto">git add catalog/youtube_snapshot.json.gz
 git commit -m "Update YouTube catalogue"
-git push</pre>
+git push</pre>`}
+      <div class="toolbar">${persistent ? "" : html`<button class="btn primary" id="yt-snap">Export snapshot</button>`}<button class="btn" id="yt-refresh" ${raw(d.key ? "" : "disabled")}>Refresh all songs now</button><span class="dim small" id="yt-msg"></span></div>
     </div>
     <div class="split">
-      <div class="panel"><h3>Songs by language</h3>${d.by_language.length ? html`<div class="table-wrap"><table class="tbl"><tbody>${d.by_language.map((r) => html`<tr><td>${r.name}</td><td>${fmtNum(r.n)}</td></tr>`)}</tbody></table></div>` : html`<p class="dim small">Nothing imported yet.</p>`}</div>
-      <div class="panel"><h3>Import jobs ${busy ? html`<span class="badge">running</span>` : ""}</h3>${d.jobs.length ? html`<div class="table-wrap" style="max-height:420px"><table class="tbl"><thead><tr><th>Job</th><th>Status</th><th>Checked</th><th>Added</th></tr></thead><tbody>
-        ${d.jobs.map((j) => html`<tr><td class="small">${j.label}<div class="dim">${j.lang}${j.mood ? ` · ${j.mood}` : ""}</div>${j.error ? html`<div style="color:#fb7185">${j.error}</div>` : ""}</td><td><span class="status ${j.status === "done" ? "published" : j.status === "failed" ? "taken_down" : "draft"}">${j.status}</span></td><td>${fmtNum(j.seen)}</td><td>${fmtNum(j.added)}</td></tr>`)}</tbody></table></div>` : html`<p class="dim small">No imports yet.</p>`}</div>
+      <div class="panel"><h3>Songs by language</h3><div id="yt-langs"></div></div>
+      <div class="panel"><h3>Import jobs</h3><div id="yt-jobs"></div></div>
     </div>`);
-  const again = () => alive() && youtubeTab(el, alive);
+
+  const statusClass = (s) => (s === "done" ? "published" : s === "failed" ? "taken_down" : "draft");
+  const paint = (p, langs) => {
+    const u = p.usage;
+    render($("#yt-stats", el), html`
+      <div class="stat"><div class="k">Full songs from YouTube</div><div class="v">${fmtNum(p.songs)}</div></div>
+      <div class="stat"><div class="k">Quota used today</div><div class="v">${fmtNum(u.units)} / ${fmtNum(u.units_limit)}</div></div>
+      <div class="stat"><div class="k">Searches used today</div><div class="v">${u.searches} / ${u.searches_limit}</div></div>
+      <div class="stat"><div class="k">Database</div><div class="v" style="font-size:18px">${persistent ? "PostgreSQL · saved" : "SQLite · this computer"}</div></div>`);
+    const r = p.running, c = p.counts || {};
+    render($("#yt-live", el), p.busy || r ? html`
+      <div class="yt-live-head"><strong>${r ? "Importing now" : "Waiting to start"}</strong>
+        <span class="dim small">${fmtNum(p.pending)} job${p.pending === 1 ? "" : "s"} left · ${fmtNum(c.done || 0)} done${c.quota ? ` · ${c.quota} paused until tomorrow (daily limit)` : ""}</span>
+        <button class="btn sm" id="yt-cancel">Cancel queued jobs</button></div>
+      ${r ? html`<div class="small">${r.label} <span class="dim">· ${r.lang}${r.mood ? ` · ${r.mood}` : ""}</span></div>
+        <div class="yt-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${r.percent}"><span style="width:${r.percent}%"></span></div>
+        <div class="dim small">Checked ${fmtNum(r.seen)} of up to ${fmtNum(r.max_videos)} videos · added ${fmtNum(r.added)} songs${r.stalled ? " · paused (server restarted; it resumes automatically)" : ""}</div>` : ""}
+      ${p.worker_alive ? "" : html`<div class="dim small">The import worker starts when the server wakes up. On Render's free plan the server sleeps after 15 minutes without visitors; keeping this page open keeps it awake.</div>`}`
+      : html`<div class="yt-live-head"><strong>No imports running</strong><span class="dim small">${c.done ? `${fmtNum(c.done)} finished` : "Start one below"}${c.quota ? ` · ${c.quota} paused until tomorrow` : ""}${c.failed ? ` · ${c.failed} failed` : ""}</span></div>`);
+    if (langs) render($("#yt-langs", el), langs.length ? html`<div class="table-wrap"><table class="tbl"><tbody>${langs.map((x) => html`<tr><td>${x.name}</td><td>${fmtNum(x.n)}</td></tr>`)}</tbody></table></div>` : html`<p class="dim small">Nothing imported yet.</p>`);
+    render($("#yt-jobs", el), p.jobs.length ? html`<div class="table-wrap" style="max-height:420px"><table class="tbl"><thead><tr><th>Job</th><th>Status</th><th>Checked</th><th>Added</th></tr></thead><tbody>
+      ${p.jobs.map((j) => html`<tr><td class="small">${j.label}<div class="dim">${j.lang}${j.mood ? ` · ${j.mood}` : ""}</div>${j.error ? html`<div style="color:#fb7185">${j.error}</div>` : ""}</td><td><span class="status ${statusClass(j.status)}">${j.status}</span></td><td>${fmtNum(j.seen)}</td><td>${fmtNum(j.added)}</td></tr>`)}</tbody></table></div>` : html`<p class="dim small">No imports yet.</p>`);
+  };
+  paint({ ...d, counts: {}, pending: 0, busy: false, running: null, worker_alive: true, jobs: d.jobs.slice(0, 40) }, d.by_language);
+
+  // live progress: a small endpoint, polled while this tab is open (fast while busy, slow when idle)
+  let timer = null, busy = false;
+  const poll = async () => {
+    if (!alive() || !document.body.contains(el)) return;
+    try {
+      const p = await get("/api/admin/youtube/progress", { quiet: true });
+      if (!alive()) return;
+      const finished = busy && !p.busy;
+      busy = p.busy; paint(p);
+      if (finished) { toast("All imports finished"); get("/api/admin/youtube").then((x) => alive() && paint(p, x.by_language)).catch(() => {}); }
+    } catch { /* offline for a moment: try again */ }
+    timer = setTimeout(poll, busy ? 3000 : 15000);
+  };
+  poll();
+  const kick = () => { clearTimeout(timer); busy = true; setTimeout(poll, 800); };
+
   el.onclick = async (e) => {
     const b = e.target.closest("[data-round]");
-    if (b) { try { const r = await post("/api/admin/youtube/starter", { round: +b.dataset.round }); toast(`Started ${r.jobs} imports. Leave PENDEL running; this page updates itself.`); again(); } catch (err) { toastError(err); } }
+    if (b) { try { const r = await post("/api/admin/youtube/starter", { round: +b.dataset.round }); toast(`Started ${r.jobs} imports in the background`); kick(); } catch (err) { toastError(err); } }
     if (e.target.closest("#yt-snap")) { try { const r = await post("/api/admin/youtube/snapshot", {}); $("#yt-msg", el).textContent = `Saved ${fmtNum(r.songs)} songs to ${r.file} (${(r.bytes / 1e6).toFixed(1)} MB). Now commit and push it.`; } catch (err) { toastError(err); } }
     if (e.target.closest("#yt-refresh")) { try { await post("/api/admin/youtube/refresh", {}); toast("Refreshing all songs in the background"); } catch (err) { toastError(err); } }
+    if (e.target.closest("#yt-cancel") && await confirmDialog("Cancel queued imports?", "Jobs that haven't started are cancelled. Songs already added stay in the catalogue.", { ok: "Cancel imports", danger: true })) {
+      try { const r = await post("/api/admin/youtube/cancel", {}); toast(`Cancelled ${r.cancelled} queued imports`); kick(); } catch (err) { toastError(err); }
+    }
   };
   $("#ytf", el).addEventListener("submit", async (e) => {
     e.preventDefault();
     const f = e.target;
-    try { await post("/api/admin/youtube/import", { source: f.source.value, lang: f.lang.value, mood: f.mood.value || null, max: +f.max.value }); toast("Import started"); again(); } catch (err) { toastError(err); }
+    try { await post("/api/admin/youtube/import", { source: f.source.value, lang: f.lang.value, mood: f.mood.value || null, max: +f.max.value }); toast("Import started in the background"); f.source.value = ""; kick(); } catch (err) { toastError(err); }
   });
-  if (busy) setTimeout(() => { if (alive() && document.body.contains(el)) again(); }, 4000);
 }

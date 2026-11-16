@@ -69,7 +69,7 @@ def usage():
 
 
 def _bump(key, n):
-    db.run("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=CAST(value AS INTEGER)+?", (key, str(n), n))
+    db.run("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=CAST(CAST(settings.value AS INTEGER)+? AS TEXT)", (key, str(n), n))
 
 
 def call(method, params, cost=1):
@@ -160,20 +160,21 @@ def detect_moods(title):
     return [m for m, rx in MOOD_WORDS if re.search(rx, title, re.I)]
 
 
-def import_playlist(playlist_id, lang, mood=None, max_videos=500, job=None):
-    """Page through a playlist (1 unit / 50 videos), fetch details (1 unit / 50 videos), keep single songs."""
-    token, seen, added = None, 0, 0
+def import_playlist(playlist_id, lang, mood=None, max_videos=500, job=None, token=None, seen=0):
+    """Page through a playlist (1 unit / 50 videos), fetch details (1 unit / 50 videos), keep single songs.
+    ``token``/``seen`` resume from a saved checkpoint; the checkpoint is saved after every page."""
+    added = 0
     while seen < max_videos:
         data = call("playlistItems", {"part": "contentDetails", "playlistId": playlist_id, "maxResults": 50, **({"pageToken": token} if token else {})})
         ids = [i["contentDetails"]["videoId"] for i in data.get("items") or [] if i.get("contentDetails", {}).get("videoId")]
         seen += len(ids)
-        if ids:
-            n = _import_videos(ids, lang, mood)
-            added += n
-            if job:
-                job["seen"] += len(ids); job["added"] += n
-                _save_job(job)
+        n = _import_videos(ids, lang, mood) if ids else 0
+        added += n
         token = data.get("nextPageToken")
+        if job:
+            job["seen"] += len(ids); job["added"] += n
+            job["checkpoint"]["token"], job["checkpoint"]["pl_seen"] = token, seen
+            _save_job(job)
         if not token:
             break
     return added
@@ -239,22 +240,37 @@ def materialise(rows):
 
 _q = queue.Queue()
 _worker = None
+_queued = set()          # job ids currently waiting in _q (avoid queuing a job twice)
+_queued_lock = threading.Lock()
+IDLE_CHECK_SECONDS = 600  # while idle, look for jobs paused by the daily quota that can continue today
 
 
 def _save_job(job):
-    db.run("""INSERT INTO youtube_imports(id,label,source,lang,mood,max_videos,status,seen,added,error,created_at,finished_at)
-              VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status, seen=excluded.seen, added=excluded.added,
-              error=excluded.error, finished_at=excluded.finished_at""",
+    job["updated_at"] = db.now()
+    db.run("""INSERT INTO youtube_imports(id,label,source,lang,mood,max_videos,status,seen,added,error,created_at,finished_at,checkpoint,updated_at)
+              VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET status=excluded.status, seen=excluded.seen, added=excluded.added,
+              error=excluded.error, finished_at=excluded.finished_at, checkpoint=excluded.checkpoint, updated_at=excluded.updated_at""",
            (job["id"], job["label"], job["source"], job["lang"], job.get("mood"), job["max"], job["status"], job["seen"], job["added"],
-            job.get("error"), job["created_at"], job.get("finished_at")))
+            job.get("error"), job["created_at"], job.get("finished_at"), json.dumps(job.get("checkpoint") or {}), job["updated_at"]))
+
+
+def _put(job):
+    with _queued_lock:
+        if job["id"] in _queued:
+            return False
+        _queued.add(job["id"])
+    _q.put(job)
+    _ensure_worker()
+    return True
 
 
 def enqueue(source, lang, mood=None, max_videos=500, label=None):
+    """Queue an import and return immediately: the work runs on the background worker thread,
+    so the HTTP request never waits for YouTube (no 100-second proxy timeouts)."""
     job = {"id": db.new_id("yti"), "label": label or source, "source": source, "lang": lang, "mood": mood, "max": max_videos,
-           "status": "queued", "seen": 0, "added": 0, "created_at": db.now()}
+           "status": "queued", "seen": 0, "added": 0, "created_at": db.now(), "checkpoint": {}}
     _save_job(job)
-    _q.put(job)
-    _ensure_worker()
+    _put(job)
     return job["id"]
 
 
@@ -266,26 +282,68 @@ def _ensure_worker():
     _worker.start()
 
 
+def _job_from_row(j):
+    try:
+        cp = json.loads(j.get("checkpoint") or "{}")
+    except ValueError:
+        cp = {}
+    return {"id": j["id"], "label": j["label"], "source": j["source"], "lang": j["lang"], "mood": j["mood"], "max": j["max_videos"],
+            "status": "queued", "seen": j["seen"], "added": j["added"], "created_at": j["created_at"], "checkpoint": cp}
+
+
 def _run():
     while True:
-        job = _q.get()
         try:
-            job["status"] = "running"; _save_job(job)
-            src = resolve(job["source"])
-            playlists = [src] if src["kind"] == "playlist" else find_playlists(job["source"], 3, job["lang"])
-            if not playlists:
-                raise ValueError("No playlists found for that search")
-            per = max(50, job["max"] // len(playlists))
-            for pl in playlists:
-                import_playlist(pl["id"], job["lang"], job.get("mood"), per, job)
-            job["status"] = "done"
+            job = _q.get(timeout=IDLE_CHECK_SECONDS)
+        except queue.Empty:
+            try:
+                _requeue(include_interrupted=False)
+            except Exception:
+                pass
+            continue
+        with _queued_lock:
+            _queued.discard(job["id"])
+        try:
+            row = db.one("SELECT status FROM youtube_imports WHERE id=?", (job["id"],))
+            if row and row["status"] == "cancelled":
+                job["status"] = "cancelled"
+            else:
+                _process(job)
         except QuotaExceeded as e:
             job["status"], job["error"] = "quota", str(e)
         except Exception as e:
             job["status"], job["error"] = "failed", f"{type(e).__name__}: {e}"[:300]
-        job["finished_at"] = db.now()
-        _save_job(job)
+        finally:
+            db.release()
+        if job["status"] in ("quota", "failed"):
+            job["finished_at"] = db.now()
+            try:
+                _save_job(job)
+            except Exception:
+                pass
+            finally:
+                db.release()
         _q.task_done()
+
+
+def _process(job):
+    job["status"], job["error"] = "running", None
+    cp = job.setdefault("checkpoint", {})
+    _save_job(job)
+    if not cp.get("playlists"):  # first run: resolve the source / search once, then remember the playlists
+        src = resolve(job["source"])
+        playlists = [src] if src["kind"] == "playlist" else find_playlists(job["source"], 3, job["lang"])
+        if not playlists:
+            raise ValueError("No playlists found for that search")
+        cp.update(playlists=[p["id"] for p in playlists], i=0, token=None, pl_seen=0)
+        _save_job(job)
+    per = max(50, job["max"] // len(cp["playlists"]))
+    while cp["i"] < len(cp["playlists"]):
+        import_playlist(cp["playlists"][cp["i"]], job["lang"], job.get("mood"), per, job, cp.get("token"), cp.get("pl_seen", 0))
+        cp.update(i=cp["i"] + 1, token=None, pl_seen=0)
+        _save_job(job)
+    job["status"], job["finished_at"] = "done", db.now()
+    _save_job(job)
 
 
 ROUNDS = {
@@ -316,23 +374,54 @@ def starter_pack(round_no=1):
 
 
 def jobs(limit=200):
-    return db.q("SELECT * FROM youtube_imports ORDER BY created_at DESC LIMIT ?", (limit,))
+    return db.q("""SELECT id, label, source, lang, mood, max_videos, status, seen, added, error, created_at, finished_at, updated_at
+                   FROM youtube_imports ORDER BY created_at DESC LIMIT ?""", (limit,))
+
+
+def _requeue(include_interrupted=True):
+    """Queue jobs that should (still) run: ones interrupted by a restart, and ones paused by the
+    daily quota once the quota has reset (it resets at midnight Pacific time; we wait for the next UTC day)."""
+    if not config.YOUTUBE_API_KEY:
+        return 0
+    today_start = int(datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+    statuses = "('queued','running','quota')" if include_interrupted else "('quota')"
+    n = 0
+    for j in db.q(f"SELECT * FROM youtube_imports WHERE status IN {statuses} ORDER BY created_at"):
+        if j["status"] == "quota" and (j["finished_at"] or 0) >= today_start:
+            continue
+        n += _put(_job_from_row(j))
+    return n
 
 
 def resume_unfinished():
-    """Re-queue jobs that were queued/running when the server stopped."""
-    for j in db.q("SELECT * FROM youtube_imports WHERE status IN ('queued','running') ORDER BY created_at"):
-        job = {"id": j["id"], "label": j["label"], "source": j["source"], "lang": j["lang"], "mood": j["mood"], "max": j["max_videos"],
-               "status": "queued", "seen": j["seen"], "added": j["added"], "created_at": j["created_at"]}
-        _q.put(job)
-    if not _q.empty() and config.YOUTUBE_API_KEY:
-        _ensure_worker()
+    """Called at start-up: continue every unfinished import from its checkpoint."""
+    return _requeue(include_interrupted=True)
+
+
+def cancel_queued():
+    n = db.run("UPDATE youtube_imports SET status='cancelled', finished_at=? WHERE status IN ('queued','quota')", (db.now(),)).rowcount
+    return max(n, 0)
+
+
+def progress():
+    """Small, cheap payload the admin dashboard polls every few seconds."""
+    counts = {r["status"]: r["n"] for r in db.q("SELECT status, COUNT(*) n FROM youtube_imports GROUP BY status")}
+    running = db.one("""SELECT id, label, lang, mood, max_videos, seen, added, updated_at FROM youtube_imports
+                        WHERE status='running' ORDER BY updated_at DESC LIMIT 1""")
+    if running:
+        running["percent"] = min(100, round(100 * running["seen"] / max(1, running["max_videos"])))
+        running["stalled"] = (db.now() - (running["updated_at"] or 0)) > 180 and not (_worker and _worker.is_alive())
+    totals = db.one("SELECT COALESCE(SUM(seen),0) seen, COALESCE(SUM(added),0) added, COUNT(*) n FROM youtube_imports WHERE status IN ('queued','running')")
+    return {"songs": db.one("SELECT COUNT(*) n FROM songs WHERE source='youtube' AND status='published'")["n"],
+            "running": running, "counts": counts, "pending": counts.get("queued", 0) + counts.get("running", 0),
+            "busy": bool(counts.get("queued") or counts.get("running")), "usage": usage(),
+            "worker_alive": bool(_worker and _worker.is_alive()), "jobs": jobs(40), "pending_totals": totals}
 
 
 # --------------------------------------------------------------------------- snapshot (for hosts with temporary disks)
 
 def export_snapshot():
-    rows = db.q("""SELECT s.youtube_id video_id, s.title, a.name channel, s.duration_sec duration, s.release_year year, s.language_code lang,
+    rows = db.q("""SELECT s.youtube_id video_id, s.title, a.name channel, s.duration_sec duration, s.release_year AS year, s.language_code AS lang,
                    (SELECT group_concat(c.slug) FROM song_categories sc JOIN categories c ON c.id=sc.category_id WHERE sc.song_id=s.id) moods,
                    h.start_sec hs, h.end_sec he, h.source hsrc
                    FROM songs s JOIN artists a ON a.id=s.artist_id LEFT JOIN song_highlights h ON h.song_id=s.id
@@ -398,4 +487,4 @@ def stats():
                                    WHERE s.source='youtube' AND s.status='published' GROUP BY l.code ORDER BY n DESC"""),
             "snapshot": ({"exists": True, "bytes": os.path.getsize(SNAPSHOT), "modified": int(os.path.getmtime(SNAPSHOT))}
                          if os.path.exists(SNAPSHOT) else {"exists": False}),
-            "usage": usage(), "key": bool(config.YOUTUBE_API_KEY)}
+            "usage": usage(), "key": bool(config.YOUTUBE_API_KEY), "database": db.describe()}

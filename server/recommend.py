@@ -94,7 +94,7 @@ def made_for_you(user_id):
     """A few named mixes for the 'Made For You' shelf."""
     mixes = []
     langs = db.q("""SELECT s.language_code code, l.name, SUM(h.seconds_listened) secs FROM listening_history h JOIN songs s ON s.id=h.song_id
-                    JOIN languages l ON l.code=s.language_code WHERE h.user_id=? GROUP BY s.language_code ORDER BY secs DESC LIMIT 2""", (user_id,))
+                    JOIN languages l ON l.code=s.language_code WHERE h.user_id=? GROUP BY s.language_code, l.name ORDER BY secs DESC LIMIT 2""", (user_id,))
     if not langs:
         langs = db.q("SELECT l.code, l.name FROM user_languages u JOIN languages l ON l.code=u.language_code WHERE u.user_id=? LIMIT 2", (user_id,))
     mixes.append({"key": "daily-mix", "title": "Your Daily Mix", "subtitle": "A blend of what you love", "song_ids": recommend(user_id, 15)})

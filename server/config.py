@@ -39,6 +39,11 @@ DATABASE_PATH = env("DATABASE_PATH", os.path.join(ROOT, "data", "pendel.db"))
 _legacy_db = os.path.join(ROOT, "data", "refrain.db")
 if not os.environ.get("DATABASE_PATH") and not os.path.exists(DATABASE_PATH) and os.path.exists(_legacy_db):
     DATABASE_PATH = _legacy_db
+# Persistent database for hosts whose disk is temporary (Render free plan): postgresql://user:pass@host/db?sslmode=require
+DATABASE_URL = env("DATABASE_URL", "")
+MONGO_URI = env("MONGO_URI", "")  # not supported (see db.py); kept only to print a helpful message
+# Render (and similar hosts) wipe the local disk on every restart/redeploy
+EPHEMERAL_DISK = env("EPHEMERAL_DISK", bool(os.environ.get("RENDER")), bool)
 SECRET_KEY = env("SECRET_KEY", "")  # generated + persisted in data/ if empty
 TOKEN_TTL_HOURS = env("TOKEN_TTL_HOURS", 24 * 14, int)
 MEDIA_URL_TTL_SECONDS = env("MEDIA_URL_TTL_SECONDS", 6 * 3600, int)

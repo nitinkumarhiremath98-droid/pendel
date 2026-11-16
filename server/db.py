@@ -1,14 +1,28 @@
 """Database layer: schema, connections and seeding.
 
-SQLite (WAL mode) is used for development and single-node deployments. The SQL
-is kept portable (no SQLite-only types in the logical model) so the schema can be
-moved to PostgreSQL for production scale; see docs/ARCHITECTURE.md.
-"""
-import json, os, secrets, sqlite3, threading, time
+Two backends, chosen at start-up:
 
-from . import config, security
+* PostgreSQL when DATABASE_URL is set (Neon, Supabase, Render Postgres ...).
+  Use this on hosts whose disk is wiped on restart, such as Render's free plan:
+  users, playlists and every imported song survive restarts and redeploys.
+* SQLite (WAL mode) in data/pendel.db otherwise: zero set-up for local development.
+
+The application writes SQLite-flavoured SQL; ``_pg_sql`` translates the few
+dialect differences (INSERT OR IGNORE, COLLATE NOCASE, group_concat, LIKE ...)
+so every query runs unchanged on both.
+"""
+import functools, json, os, re, secrets, sqlite3, threading, time
+
+from . import config, pgwire, security
 
 _local = threading.local()
+
+if config.MONGO_URI and not config.DATABASE_URL:
+    raise SystemExit("[pendel] MONGO_URI is set, but PENDEL's catalogue is relational (joins, unique keys, transactions) and runs on "
+                     "PostgreSQL or SQLite. Create a free PostgreSQL database (for example on neon.com) and set DATABASE_URL instead.")
+
+BACKEND = "postgres" if config.DATABASE_URL else "sqlite"
+IntegrityError = (sqlite3.IntegrityError, pgwire.IntegrityError)
 
 SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -301,6 +315,7 @@ DEFAULT_SETTINGS = {
 
 
 def conn():
+    """SQLite connection for this thread (SQLite backend only)."""
     c = getattr(_local, "conn", None)
     if c is None:
         os.makedirs(os.path.dirname(config.DATABASE_PATH), exist_ok=True)
@@ -313,27 +328,163 @@ def conn():
     return c
 
 
+# ------------------------------------------------------------------ PostgreSQL connection pool
+# Every HTTP request runs on its own short-lived thread, so connections are borrowed from a
+# small pool and handed back when the request ends (release()) or when the thread exits.
+
+_pool, _pool_lock = [], threading.Lock()
+POOL_IDLE = 8          # idle connections kept open
+POOL_MAX_AGE = 240     # seconds; Neon suspends idle computes after 5 minutes, so don't reuse older ones
+
+
+class _Lease:
+    def __init__(self, c):
+        self.c, self.in_tx = c, False
+
+    def __del__(self):  # thread finished without release()
+        _give_back(self.c)
+
+
+def _give_back(c):
+    if c is None or c.closed:
+        return
+    if c.tx_status != "I":
+        c.close()
+        return
+    with _pool_lock:
+        if len(_pool) < POOL_IDLE:
+            _pool.append((time.time(), c))
+            return
+    c.close()
+
+
+def _lease():
+    lease = getattr(_local, "pg", None)
+    if lease is not None and not lease.c.closed:
+        return lease
+    c = None
+    with _pool_lock:
+        while _pool:
+            at, cand = _pool.pop()
+            if time.time() - at < POOL_MAX_AGE and not cand.closed:
+                c = cand
+                break
+            cand.close()
+    if c is None:
+        c = pgwire.Connection(config.DATABASE_URL)
+    _local.pg = _Lease(c)
+    return _local.pg
+
+
+def release():
+    """Return this thread's PostgreSQL connection to the pool (called after each HTTP request)."""
+    lease = getattr(_local, "pg", None)
+    if lease is not None:
+        _local.pg = None
+        c, lease.c = lease.c, None
+        _give_back(c)
+
+
+def _pg_exec(sql, params):
+    lease = _lease()
+    text = _pg_sql(sql)
+    try:
+        return lease.c.execute(text, params)
+    except pgwire.OperationalError:
+        if lease.in_tx:
+            raise
+        # the server restarted or dropped idle connections: every pooled one is suspect, so start fresh
+        _local.pg = None
+        with _pool_lock:
+            stale = [c for _, c in _pool]
+            _pool.clear()
+        for c in stale:
+            c.close()
+        return _lease().c.execute(text, params)
+
+
+@functools.lru_cache(maxsize=2048)
+def _pg_sql(sql):
+    """Translate PENDEL's SQLite-flavoured SQL to PostgreSQL."""
+    s = sql
+    if re.match(r"\s*INSERT OR IGNORE INTO", s, re.I):
+        s = re.sub(r"INSERT OR IGNORE INTO", "INSERT INTO", s, count=1, flags=re.I).rstrip().rstrip(";") + " ON CONFLICT DO NOTHING"
+    s = re.sub(r"([\w.]+)\s+COLLATE\s+NOCASE", r"lower(\1)", s, flags=re.I)
+    s = re.sub(r"group_concat\(([^(),]+),\s*('[^']*')\)", r"string_agg(\1, \2)", s, flags=re.I)
+    s = re.sub(r"group_concat\(([^(),]+)\)", r"string_agg(\1, ',')", s, flags=re.I)
+    s = re.sub(r"\bIFNULL\(", "COALESCE(", s, flags=re.I)
+    s = re.sub(r"(?<![\w])LIKE\b", "ILIKE", s)  # SQLite's LIKE ignores case
+    return s
+
+
+def _pg_ddl(script):
+    s = re.sub(r"(?m)^\s*PRAGMA[^;]*;", "", script)
+    s = re.sub(r"INTEGER PRIMARY KEY AUTOINCREMENT", "BIGSERIAL PRIMARY KEY", s)
+    s = re.sub(r"\bINTEGER\b", "BIGINT", s)
+    s = re.sub(r"\bREAL\b", "DOUBLE PRECISION", s)
+    s = re.sub(r"\s+COLLATE NOCASE", "", s)
+    s = re.sub(r"ADD COLUMN (?!IF NOT EXISTS)", "ADD COLUMN IF NOT EXISTS ", s)
+    return s
+
+
+# ------------------------------------------------------------------ query helpers (both backends)
+
 def q(sql, params=()):
+    if BACKEND == "postgres":
+        cur = _pg_exec(sql, params)
+        cols = cur.columns or []
+        return [dict(zip(cols, r)) for r in cur.rows]
     return [dict(r) for r in conn().execute(sql, params).fetchall()]
 
 
 def one(sql, params=()):
+    if BACKEND == "postgres":
+        rows = q(sql, params)
+        return rows[0] if rows else None
     r = conn().execute(sql, params).fetchone()
     return dict(r) if r else None
 
 
 def run(sql, params=()):
+    if BACKEND == "postgres":
+        return _pg_exec(sql, params)
     return conn().execute(sql, params)
 
 
 class tx:
-    """with tx(): ...  -- an IMMEDIATE transaction on this thread's connection."""
+    """with tx(): ...  -- a transaction on this thread's connection."""
 
     def __enter__(self):
-        conn().execute("BEGIN IMMEDIATE")
+        if BACKEND == "postgres":
+            lease = _lease()
+            lease.c.execute("BEGIN")
+            lease.in_tx = True
+        else:
+            conn().execute("BEGIN IMMEDIATE")
 
     def __exit__(self, et, ev, tb):
+        if BACKEND == "postgres":
+            lease = _local.pg
+            lease.in_tx = False
+            if lease.c.closed:
+                _local.pg = None
+                return
+            try:
+                lease.c.execute("COMMIT" if et is None else "ROLLBACK")
+            except pgwire.OperationalError:
+                _local.pg = None
+                if et is None:
+                    raise
+            return
         conn().execute("COMMIT" if et is None else "ROLLBACK")
+
+
+def describe():
+    """Where data lives, for logs and the admin dashboard (no secrets)."""
+    if BACKEND == "postgres":
+        c = pgwire.parse_url(config.DATABASE_URL)
+        return {"backend": "postgres", "host": c["host"], "database": c["dbname"], "persistent": True}
+    return {"backend": "sqlite", "path": os.path.relpath(config.DATABASE_PATH, config.ROOT), "persistent": not config.EPHEMERAL_DISK}
 
 
 def new_id(prefix):
@@ -367,11 +518,18 @@ MIGRATIONS = [
     "CREATE INDEX IF NOT EXISTS idx_songs_plays ON songs(play_count DESC)",
     "CREATE INDEX IF NOT EXISTS idx_songs_released ON songs(release_year DESC, created_at DESC)",
     "CREATE INDEX IF NOT EXISTS idx_songs_youtube ON songs(youtube_id)",
+    # v4: resumable imports + case-insensitive genre names on PostgreSQL too
+    "ALTER TABLE youtube_imports ADD COLUMN checkpoint TEXT",
+    "ALTER TABLE youtube_imports ADD COLUMN updated_at INTEGER",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_genres_lower ON genres(lower(name))",
 ]
 
 
 def migrate():
     for sql in MIGRATIONS:
+        if BACKEND == "postgres":
+            run(_pg_ddl(sql))
+            continue
         try:
             run(sql)
         except sqlite3.OperationalError as e:
@@ -380,14 +538,29 @@ def migrate():
 
 
 def init():
-    conn().executescript(SCHEMA)
-    migrate()
+    if BACKEND == "postgres":
+        run(_pg_ddl(SCHEMA))  # idempotent: CREATE ... IF NOT EXISTS, ADD COLUMN IF NOT EXISTS
+        migrate()
+        _pg_secret()
+    else:
+        conn().executescript(SCHEMA)
+        migrate()
     for k, v in DEFAULT_SETTINGS.items():
         run("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
     seed_plans()
     seed_admin()
     if config.SEED_DEMO and not one("SELECT 1 FROM songs LIMIT 1"):
         seed_catalog()
+
+
+def _pg_secret():
+    """With no SECRET_KEY set, keep the generated signing key in the database rather than on the
+    (temporary) disk, so logins survive restarts."""
+    if config.SECRET_KEY:
+        return
+    run("CREATE TABLE IF NOT EXISTS app_secrets (name TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    run("INSERT INTO app_secrets(name,value) VALUES('signing_key',?) ON CONFLICT DO NOTHING", (secrets.token_hex(32),))
+    security._SECRET = one("SELECT value FROM app_secrets WHERE name='signing_key'")["value"].encode()
 
 
 def seed_plans():
@@ -409,7 +582,8 @@ def seed_admin():
     if not u:
         run("INSERT INTO users(id,email,password_hash,display_name,created_at) VALUES(?,?,?,?,?)",
             (uid, config.BOOTSTRAP_ADMIN_EMAIL, security.hash_password(config.BOOTSTRAP_ADMIN_PASSWORD), "PENDEL Admin", now()))
-    run("INSERT OR REPLACE INTO admins(user_id, role, created_at) VALUES(?,?,?)", (uid, "super_admin", now()))
+    run("INSERT INTO admins(user_id, role, created_at) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET role=excluded.role",
+        (uid, "super_admin", now()))
     print(f"[pendel] Bootstrap super admin: {config.BOOTSTRAP_ADMIN_EMAIL} (change the password after first login)")
 
 
@@ -417,7 +591,7 @@ def genre_id(name):
     if not name:
         return None
     run("INSERT OR IGNORE INTO genres(name) VALUES(?)", (name,))
-    return one("SELECT id FROM genres WHERE name=?", (name,))["id"]
+    return one("SELECT id FROM genres WHERE lower(name)=lower(?)", (name,))["id"]
 
 
 def seed_catalog():

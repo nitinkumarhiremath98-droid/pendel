@@ -11,7 +11,28 @@ PENDEL is a full-stack, multilingual music streaming platform built around one i
 
 ![PENDEL home](docs/screenshots/home.png)
 
-## New in v3: 50,000+ full songs in every language (YouTube)
+## New in v4: data that survives restarts, background imports, a compact player
+
+- **Persistent database.** Set `DATABASE_URL` to a PostgreSQL database and PENDEL stores everything there: users, playlists, history and every imported song. Render's free plan wipes its disk on each restart; with this nothing is lost. Without `DATABASE_URL`, PENDEL keeps using SQLite in `data/pendel.db` (local development). PostgreSQL support uses PENDEL's own small driver (`server/pgwire.py`, standard library only), so there is still nothing to `pip install`.
+- **Imports run in the background.** Starting an import returns at once; a worker thread does the work and saves a checkpoint after every page of 50 videos. If Render restarts or sleeps, the import continues from its checkpoint on the next start (the 100-unit search is never repeated). Jobs paused by the daily quota continue by themselves the next day. The dashboard shows a live progress bar.
+- **Admin routes stay locked.** Every import, export, cancel and delete route needs an admin login with the right role (tests check that listeners get 403 and visitors 401).
+- **Compact mini-player and reliable auto-next.** The bar shows a 64×64 thumbnail; the YouTube video sits in a 200×200 dock (YouTube's minimum size), which listeners can move or enlarge. When a song ends the next one starts; unplayable videos are skipped; with *Autoplay* on (queue panel) similar songs keep playing after the queue ends.
+
+### Keep your data on Render (free PostgreSQL, about 10 minutes)
+
+1. Create a free account at [neon.com](https://neon.com), create a project (pick the region closest to your Render service, e.g. Singapore), and copy the **connection string**. It looks like `postgresql://user:password@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`. Use the normal (direct) string, not the "pooled" one.
+2. **Copy what you already have** (your imported songs, users and playlists) from your computer, once:
+   ```powershell
+   $env:DATABASE_URL = "postgresql://...paste yours..."
+   python tools/migrate_to_postgres.py
+   Remove-Item Env:DATABASE_URL
+   ```
+3. On Render open your service → **Environment** → add `DATABASE_URL` with the same string, and also `SECRET_KEY` (any long random text) so logins survive redeploys. Save; Render redeploys.
+4. Open `https://pendel.onrender.com/admin` → YouTube catalogue. The Database card shows **PostgreSQL · saved**. From now on, imports you start there are permanent; there is no snapshot to export or commit.
+
+Keep the connection string secret like a password: put it only in Render's Environment tab or your local `.env` (which is git-ignored), never in code or GitHub. Supabase, Render Postgres and any other PostgreSQL host work the same way. MongoDB isn't supported: PENDEL's catalogue is relational (joins, unique keys and transactions everywhere).
+
+## v3: 50,000+ full songs in every language (YouTube)
 
 PENDEL can import **complete official songs** for all 26 languages from YouTube, which plays them in a visible YouTube player inside the app.
 
@@ -19,7 +40,7 @@ PENDEL can import **complete official songs** for all 26 languages from YouTube,
 1. Get a free YouTube API key (see *Turn on full songs* below) and add it to `.env` as `YOUTUBE_API_KEY=...`. Restart PENDEL.
 2. Log in as admin, open **Admin → YouTube catalogue** and click **Run round 1**. PENDEL finds playlists such as "kannada sad songs" or "telugu love songs" for every language and mood and imports every song in them. Language and mood come from the playlist, so labels are accurate. Trailers, teasers, jukeboxes, live streams and non-embeddable videos are skipped. Leave PENDEL running; the page shows progress.
 3. Round 1 typically adds tens of thousands of songs using about a third of the free daily quota. YouTube allows about 100 searches a day, so run **round 2** and **round 3** on the next days for more.
-4. Click **Export snapshot**, then publish it:
+4. *Only if you don't use `DATABASE_URL`:* click **Export snapshot**, then publish it:
    ```powershell
    git add catalog/youtube_snapshot.json.gz
    git commit -m "Add YouTube catalogue"
@@ -33,6 +54,7 @@ PENDEL can import **complete official songs** for all 26 languages from YouTube,
 - The exact count depends on how big the playlists YouTube returns are. Add more with rounds 2–3 or by importing a label's channel (paste its link in *Import a channel or playlist*).
 - A YouTube song's highlight is an estimated 25-second window from about a third of the way in, because PENDEL can't analyse YouTube audio. Admins can set exact windows.
 - YouTube songs stop when the phone screen locks or the browser tab is in the background; that is how YouTube's player works. PENDEL's own songs and Apple previews keep playing.
+- YouTube requires its embedded player to be visible and at least 200×200 pixels, so PENDEL can't shrink the video to a 64×64 thumbnail or hide it for audio-only playback. The bar's 64×64 image is the song's thumbnail; the 200×200 dock is the player.
 - YouTube may show its own ads inside its player.
 
 ## New in v2: real songs in every language + 1-hour Mood Sessions
@@ -84,7 +106,7 @@ Each new song costs one YouTube search, and the result is remembered. The free d
 - **Security:** PBKDF2 password hashing, signed bearer tokens, expiring HMAC-signed audio URLs, a strict Content Security Policy and rate limiting.
 - **Tested:** 31 automated API tests (including simulated Apple and YouTube responses and a 68,000-song import) and a Playwright browser walkthrough.
 
-**Tech stack:** Python 3.10+ (standard library HTTP server, no frameworks) · SQLite · vanilla JavaScript ES modules · HTML/CSS · NumPy · FFmpeg · deployed on Render.
+**Tech stack:** Python 3.10+ (standard library HTTP server, no frameworks) · PostgreSQL (own wire-protocol driver) or SQLite · vanilla JavaScript ES modules · HTML/CSS · NumPy · FFmpeg · deployed on Render.
 
 PENDEL's own 39 demo songs, covers and lyrics are original works generated by code and released as CC0. World-catalogue songs are streamed from Apple (30-second previews) and YouTube (official videos); PENDEL never stores their audio.
 
@@ -118,8 +140,11 @@ On macOS or Linux the commands are the same; use `python3`.
 ## Tests
 
 ```powershell
-python -m unittest tests.test_api -v      # 31 API tests on a throwaway database (Apple/YouTube responses simulated)
+python -m unittest tests.test_api -v      # 34 API tests on a throwaway SQLite database (Apple/YouTube responses simulated)
+python tests/e2e_autonext.py              # browser test: mini-player size, auto-next, autoplay, skipping broken videos
 ```
+
+To run the API tests on PostgreSQL too, point `TEST_DATABASE_URL` at an **empty, throwaway** database (the tests delete everything in it): `$env:TEST_DATABASE_URL = "postgresql://..."`.
 
 `tests/e2e_browser.py` is a Playwright browser walkthrough. It needs `pip install playwright` and the server running; set `BASE` to the server's URL.
 
@@ -166,16 +191,18 @@ python -m unittest tests.test_api -v      # 31 API tests on a throwaway database
 | Cloud audio + CDN | Set `STORAGE_DRIVER=s3` and the `S3_*` variables, then run `python tools/sync_media_to_s3.py` once. Put CloudFront or Cloudflare in front of the bucket and set `CDN_BASE_URL`. If the bucket is on another domain, enable CORS for GET from your site so the admin waveform can load. |
 | Payments | Set `PAYMENT_PROVIDERS=razorpay` with `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` (supports UPI, cards, netbanking and wallets). Point the Razorpay webhook to `/api/webhooks/razorpay` and set `RAZORPAY_WEBHOOK_SECRET`. **Remove `sandbox`.** Other gateways (Stripe, PayPal, Paytm) plug in through `server/payments.py`. |
 | Google login | Set `GOOGLE_CLIENT_ID`. The button appears automatically, and ID tokens are verified on the server. |
-| HTTPS & scale | Run behind Nginx or Caddy with TLS, and set `PUBLIC_URL`. For millions of users, see `docs/ARCHITECTURE.md`: PostgreSQL, Redis, workers, OpenSearch and an audio CDN. |
+| Database | Set `DATABASE_URL` (PostgreSQL). Copy an existing SQLite database over with `python tools/migrate_to_postgres.py`. Set `SECRET_KEY` as well. |
+| HTTPS & scale | Run behind Nginx or Caddy with TLS, and set `PUBLIC_URL`. For millions of users, see `docs/ARCHITECTURE.md`: read replicas, Redis, workers, OpenSearch and an audio CDN. |
 
 ## Project layout
 
 ```
-server/      app.py (HTTP server, router, 100 API endpoints), db.py (schema + seed), security.py,
+server/      app.py (HTTP server, router, 100+ API endpoints), db.py (schema, SQLite/PostgreSQL, seed), pgwire.py (PostgreSQL driver), security.py,
              storage.py (local/S3), highlights.py (detection + preview cutting), recommend.py, payments.py, config.py
 web/         index.html, css/app.css, js/{app,api,ui,player,lyrics,views,highlights,admin}.js, img/ (logo, icons)
 media/       demo audio (full + preview), album covers, artist images
-tools/       generate_demo_music.py (re-creates the CC0 demo catalogue; needs numpy + ffmpeg), catalog_data.py, sync_media_to_s3.py
-tests/       test_api.py, e2e_browser.py
+tools/       generate_demo_music.py (re-creates the CC0 demo catalogue; needs numpy + ffmpeg), catalog_data.py, sync_media_to_s3.py,
+             migrate_to_postgres.py (copy data/pendel.db into PostgreSQL)
+tests/       test_api.py, e2e_browser.py, e2e_autonext.py
 docs/        ARCHITECTURE.md
 ```

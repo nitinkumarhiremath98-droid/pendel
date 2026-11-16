@@ -1,7 +1,7 @@
 import { session, onSession, loadSession, get, post, put, patch, del, setAuth } from "./api.js";
 import { player, syncUI, updateMuteIcon, setMuted } from "./player.js";
 import { refreshLyrics } from "./lyrics.js";
-import { html, render, icon, $, $$, toast, toastError, modal, closeModal, openMenu, closeMenu, songs, queues, debounce, esc, errorState } from "./ui.js";
+import { html, raw, render, icon, $, $$, toast, toastError, modal, closeModal, openMenu, closeMenu, songs, queues, debounce, esc, errorState } from "./ui.js";
 import * as V from "./views.js";
 import { highlightsView } from "./highlights.js";
 
@@ -225,7 +225,8 @@ function renderQueue() {
     </div>`;
   render(body, html`<div class="q-label">Now playing</div>${q[i] ? item(q[i], i, true) : ""}
     <div class="q-label">Next up ${player.shuffle ? "· shuffled" : ""}</div>
-    ${q.length > i + 1 ? q.slice(i + 1).map((s, k) => item(s, i + 1 + k)) : html`<p class="dim small">Nothing queued. Use “Add to queue” from any song's menu.</p>`}`);
+    ${q.length > i + 1 ? q.slice(i + 1).map((s, k) => item(s, i + 1 + k)) : html`<p class="dim small">${player.autoplay ? "Similar songs will keep playing when this one ends." : "Nothing queued. Use “Add to queue” from any song's menu."}</p>`}
+    <label class="q-autoplay"><input type="checkbox" data-action="toggle-autoplay" ${raw(player.autoplay ? "checked" : "")}> Autoplay similar songs when the queue ends</label>`);
 }
 player.on("queue", renderQueue);
 player.on("change", renderQueue);
@@ -277,6 +278,7 @@ const actions = {
   "open-queue": () => { openDrawer("#queue-drawer"); renderQueue(); },
   "close-queue": () => { $("#queue-drawer").hidden = true; },
   "clear-queue": () => player.clearUpcoming(),
+  "toggle-autoplay": (el) => { player.setAutoplay(el.checked); renderQueue(); },
   "queue-jump": (el) => player.jump(+el.dataset.i),
   "queue-remove": (el) => player.removeAt(+el.dataset.i),
   "queue-move": (el) => player.move(+el.dataset.i, +el.dataset.d),

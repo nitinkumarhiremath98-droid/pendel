@@ -4,7 +4,7 @@
 
 ```
 Browser SPA ──HTTP/JSON──▶ server/app.py (ThreadingHTTPServer)
-   │  <audio> + Range            ├── SQLite (WAL)          data/pendel.db
+   │  <audio> + Range            ├── PostgreSQL (DATABASE_URL) or SQLite (WAL) data/pendel.db
    └──── signed URL ───────────▶ ├── Storage driver        media/  or S3-compatible bucket (+ CDN)
                                  ├── highlights.py         ffmpeg + numpy analysis, preview cutting
                                  ├── recommend.py          content-based scoring
@@ -26,7 +26,7 @@ Browser SPA ──HTTP/JSON──▶ server/app.py (ThreadingHTTPServer)
 
 | Layer | Change |
 |---|---|
-| Database | Move the schema to PostgreSQL (the SQL is portable; swap `db.py`'s connection for psycopg). Add read replicas, and partition `listening_history` by month. |
+| Database | Already runs on PostgreSQL when `DATABASE_URL` is set (`server/pgwire.py` speaks the wire protocol with TLS + SCRAM; `db._pg_sql` translates the few SQLite-only constructs; connections are pooled per request). Next steps: read replicas, and partition `listening_history` by month. |
 | API | Run several stateless app instances behind a load balancer. Tokens are self-contained, so no sticky sessions are needed. Port the handlers to FastAPI or Go if you want async I/O. |
 | Audio | Store files in S3/R2 behind a CDN with signed URLs (already supported). Add HLS/DASH packaging with multiple bitrates for adaptive streaming. |
 | Search | Mirror songs and lyrics into OpenSearch/Elasticsearch with ICU analyzers for Indic and CJK scripts. |
