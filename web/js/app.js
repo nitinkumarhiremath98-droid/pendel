@@ -327,4 +327,9 @@ new MutationObserver(() => refreshLyrics()).observe($("#fullplayer"), { attribut
   route();
 })();
 
+// Installable app (Add to Home Screen) + offline app shell. Only on https or localhost.
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => { /* not critical */ }));
+}
+
 export { route };

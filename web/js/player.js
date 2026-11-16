@@ -73,7 +73,12 @@ async function ytLoad(stream, autoplay) {
     await new Promise((res) => {
       yt.player = new window.YT.Player("yt-frame", {
         width: "100%", height: "100%", videoId: opts.videoId,
-        playerVars: { autoplay: autoplay ? 1 : 0, playsinline: 1, rel: 0, start: opts.startSeconds, ...(opts.endSeconds ? { end: opts.endSeconds } : {}), origin: location.origin },
+        // Allowed, documented parameters only. Controls, the YouTube logo/link and fullscreen stay: hiding the
+        // player's standard features, covering it, or blocking taps on it is against YouTube's policies.
+        // Quality: YouTube picks it from the player size, so the 200x200 dock already streams a low resolution
+        // (setPlaybackQuality is deprecated and ignored).
+        playerVars: { autoplay: autoplay ? 1 : 0, playsinline: 1, rel: 0, iv_load_policy: 3, disablekb: 1, start: opts.startSeconds,
+                      ...(opts.endSeconds ? { end: opts.endSeconds } : {}), origin: location.origin },
         events: {
           onReady: () => { yt.player.setVolume(vol); res(); },
           onStateChange: onYTState,
@@ -88,6 +93,7 @@ async function ytLoad(stream, autoplay) {
 function currentVideoId() { try { return yt.player?.getVideoData?.()?.video_id || yt.videoId; } catch { return yt.videoId; } }
 function onYTState(e) {
   yt.state = e.data;
+  if (e.data === ytState("PAUSED") && document.visibilityState === "hidden" && !player.userPaused) pausedByBrowser = true;
   if (e.data === ytState("PLAYING")) yt.errors = 0;
   syncUI(); emit("state");
   // auto-advance: the video finished. Ignore a late ENDED from a video we already moved away from.
@@ -198,10 +204,12 @@ export const player = {
 
   resume() {
     if (!this.current) return;
+    this.userPaused = false;
     const p = media.play();
     if (p) p.catch((e) => { if (e.name === "NotAllowedError") { emit("blocked"); syncUI(); } });
   },
-  pause() { media.pause(); },
+  userPaused: false,
+  pause() { this.userPaused = true; media.pause(); },
   toggle() { if (!this.current) return; this.playing ? this.pause() : this.resume(); },
   seekFrac(f) { if (this.current) media.currentTime = this.current.start + Math.max(0, Math.min(0.999, f)) * this.length; },
   seekBy(d) { if (this.current) media.currentTime = Math.max(this.current.start, Math.min(this.current.end - 0.2, media.currentTime + d)); },
@@ -372,24 +380,71 @@ function maybeShowAd() {
   });
 }
 
-// ------------------------------------------------------------------ media session (lock screen / headset controls)
+// ------------------------------------------------------------------ media session (lock screen, notification shade, headset keys)
+const APP_ICONS = [96, 128, 192, 256, 512].map((n) => ({ src: `/img/icons/icon-${n}.png`, sizes: `${n}x${n}`, type: "image/png" }));
+function artworkFor(song) {
+  const abs = (u) => new URL(u, location.href).href;
+  const yt = song.youtube_id || (/i\.ytimg\.com\/vi\/([\w-]{11})\//.exec(song.cover_url || "") || [])[1];
+  if (yt) { // YouTube thumbnails come in fixed sizes; the OS picks the closest one
+    return [["default", "120x90"], ["mqdefault", "320x180"], ["hqdefault", "480x360"], ["sddefault", "640x480"]]
+      .map(([f, sz]) => ({ src: `https://i.ytimg.com/vi/${yt}/${f}.jpg`, sizes: sz, type: "image/jpeg" })).concat(APP_ICONS.map((i) => ({ ...i, src: abs(i.src) })));
+  }
+  const cover = song.cover_url || "";
+  if (!cover || cover.endsWith(".svg")) return APP_ICONS.map((i) => ({ ...i, src: abs(i.src) })); // Android can't draw SVG artwork
+  const type = /\.png(\?|$)/.test(cover) ? "image/png" : "image/jpeg";
+  // Apple artwork URLs carry their size (…/600x600bb.jpg): ask for each size the OS may want
+  if (/\/\d+x\d+bb\.(jpg|png)/.test(cover)) {
+    return [96, 128, 256, 512].map((n) => ({ src: cover.replace(/\/\d+x\d+bb\./, `/${n}x${n}bb.`), sizes: `${n}x${n}`, type }));
+  }
+  return ["96x96", "128x128", "256x256", "512x512"].map((sizes) => ({ src: abs(cover), sizes, type }));
+}
 function updateMediaSession(song) {
+  if (!("mediaSession" in navigator) || !window.MediaMetadata) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: song.title, artist: song.artist?.name || "", album: song.album?.title || "PENDEL", artwork: artworkFor(song),
+    });
+  } catch { /* very old browsers */ }
+}
+function syncMediaSessionState() {
   if (!("mediaSession" in navigator)) return;
-  navigator.mediaSession.metadata = new MediaMetadata({
-    title: song.title, artist: song.artist.name, album: song.album?.title || "",
-    artwork: [{ src: new URL(song.cover_url, location.href).href, sizes: "600x600", type: song.cover_url.endsWith(".svg") ? "image/svg+xml" : "image/jpeg" }],
-  });
+  try { navigator.mediaSession.playbackState = !player.current ? "none" : player.playing ? "playing" : "paused"; } catch { /* ignore */ }
 }
 if ("mediaSession" in navigator) {
   const ms = navigator.mediaSession;
-  ms.setActionHandler("play", () => player.resume());
-  ms.setActionHandler("pause", () => player.pause());
-  ms.setActionHandler("nexttrack", () => player.next());
-  ms.setActionHandler("previoustrack", () => player.prev());
-  ms.setActionHandler("seekbackward", () => player.seekBy(-10));
-  ms.setActionHandler("seekforward", () => player.seekBy(10));
-  try { ms.setActionHandler("seekto", (d) => { if (player.current) media.currentTime = player.current.start + d.seekTime; }); } catch { /* older browsers */ }
+  const handlers = {
+    play: () => { player.resume(); },
+    pause: () => { player.pause(); },
+    stop: () => { player.pause(); },
+    nexttrack: () => { player.next(); },
+    previoustrack: () => { player.prev(); },
+    seekbackward: (d) => { player.seekBy(-(d?.seekOffset || 10)); },
+    seekforward: (d) => { player.seekBy(d?.seekOffset || 10); },
+    seekto: (d) => { if (player.current && d && isFinite(d.seekTime)) media.currentTime = player.current.start + d.seekTime; syncTime(); },
+  };
+  for (const [action, fn] of Object.entries(handlers)) {
+    try { ms.setActionHandler(action, fn); } catch { /* action not supported by this browser */ }
+  }
 }
+
+// ------------------------------------------------------------------ backgrounding (screen lock, app switch)
+// PENDEL's own songs and Apple previews play in <audio>, which mobile browsers keep playing in the
+// background with the lock-screen controls above. YouTube songs follow YouTube's rules: the browser
+// pauses its player when the page is hidden, and PENDEL does not work around that. When the listener
+// comes back, a song that the browser (not the listener) paused continues where it stopped.
+let pausedByBrowser = false;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") {
+    pausedByBrowser = false;
+    syncMediaSessionState();
+    return;
+  }
+  if (pausedByBrowser && yt.active && player.current && !player.userPaused && yt.state === ytState("PAUSED")) {
+    player.resume();
+  }
+  pausedByBrowser = false;
+  syncUI();
+});
 
 // ------------------------------------------------------------------ UI binding
 const bar = $("#player"), fp = $("#fullplayer");
@@ -409,6 +464,7 @@ function syncTime() {
 }
 
 export function syncUI() {
+  syncMediaSessionState();
   const c = player.current;
   bar.hidden = !c;
   document.body.classList.toggle("has-player", !!c);

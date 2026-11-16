@@ -18,6 +18,8 @@ PENDEL is a full-stack, multilingual music streaming platform built around one i
 - **Admin routes stay locked.** Every import, export, cancel and delete route needs an admin login with the right role (tests check that listeners get 403 and visitors 401).
 - **Compact mini-player and reliable auto-next.** The bar shows a 64×64 thumbnail; the YouTube video sits in a 200×200 dock (YouTube's minimum size), which listeners can move or enlarge. When a song ends the next one starts; unplayable videos are skipped; with *Autoplay* on (queue panel) similar songs keep playing after the queue ends.
 
+- **Phone-friendly.** Lock-screen and notification controls (title, artist, cover, play/pause, next/previous, seek) through the Media Session API, and an installable app: on Android Chrome use *Install app*, on iPhone Safari use *Share → Add to Home Screen*. PENDEL's own songs and Apple previews keep playing with the screen locked. YouTube songs pause when the screen locks or you switch apps (YouTube's rule for embedded players) and continue when you come back.
+
 ### Keep your data on Render (free PostgreSQL, about 10 minutes)
 
 1. Create a free account at [neon.com](https://neon.com), create a project (pick the region closest to your Render service, e.g. Singapore), and copy the **connection string**. It looks like `postgresql://user:password@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`. Use the normal (direct) string, not the "pooled" one.

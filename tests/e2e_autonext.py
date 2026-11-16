@@ -88,6 +88,8 @@ async def main(ids):
         await page.evaluate(play, [ids[:3], 0])
         await page.wait_for_timeout(900)
         await page.screenshot(path=os.path.join(TMP, "mini_player.png"))
+        st0 = await page.evaluate("navigator.mediaSession.playbackState")
+        check(st0 == "playing", f"lock-screen state playing while a song plays: {st0}")
         await page.wait_for_timeout(8100)
         played = await page.evaluate("window.__played")
         check(played[:3] == ["knVid000000", "knVid000001", "knVid000002"], f"queue advances on ENDED: {played}")
@@ -97,6 +99,8 @@ async def main(ids):
         art = await page.evaluate("(() => { const r = document.querySelector('.pl-art').getBoundingClientRect(); return [r.width, r.height] })()")
         check(box["w"] >= 200 and box["h"] >= 200 and not box["hidden"], f"YouTube player visible and >= 200x200: {box}")
         check(art == [64, 64], f"bar thumbnail is 64x64: {art}")
+        ms = await page.evaluate("({t: navigator.mediaSession.metadata?.title, album: navigator.mediaSession.metadata?.album, art: (navigator.mediaSession.metadata?.artwork || []).map(a => a.sizes), state: navigator.mediaSession.playbackState})")
+        check(ms["t"] and ms["t"].startswith("Kannada Love Song") and ms["album"] and len(ms["art"]) >= 4, f"lock-screen title, album and artwork sizes: {ms}")
 
         # 3. single song + autoplay: keeps going with similar songs after the queue ends
         await page.evaluate(play, [ids[5:6], 0])
@@ -117,6 +121,10 @@ async def main(ids):
         await page.wait_for_timeout(6000)
         played = await page.evaluate("window.__played")
         check(played == ["knVid000009"], f"autoplay off stops after the queue: {played}")
+        st = await page.evaluate("navigator.mediaSession.playbackState")
+        check(st == "paused", f"lock-screen state paused at queue end: {st}")
+        sw = await page.evaluate("fetch('/sw.js').then(r => r.status)"); mf = await page.evaluate("fetch('/manifest.webmanifest').then(r => r.json()).then(m => [m.display, m.icons.length])")
+        check(sw == 200 and mf[0] == "standalone" and mf[1] >= 6, f"PWA manifest + service worker served: {sw} {mf}")
 
         # 6. dock buttons: wide and other side
         await page.click("[data-dock=size]"); await page.click("[data-dock=side]")
