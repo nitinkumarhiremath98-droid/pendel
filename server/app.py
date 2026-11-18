@@ -417,6 +417,39 @@ def list_songs(req):
                        "years": db.one("SELECT MIN(release_year) min, MAX(release_year) max FROM songs WHERE status='published'")}}
 
 
+@route("GET", r"/api/songs/search", auth="optional")
+def songs_search(req):
+    """Instant search over the song catalogue (registered before /api/songs/<id> so "search" isn't read as an id).
+
+    Every word must match somewhere: title, artist, album, genre, language or mood. Case-insensitive partial
+    matching (LIKE on SQLite, translated to ILIKE on PostgreSQL). Best matches first: exact title, title
+    starting with the query, title containing it, then artist, then the rest; ties by popularity. Up to 50.
+    """
+    q = re.sub(r"\s+", " ", (req.query.get("q") or "").strip())
+    require(len(q) <= 100, 400, "Search is too long")
+    if not q:
+        return {"q": q, "count": 0, "songs": []}
+    try:
+        limit = max(1, min(50, int(req.query.get("limit") or 50)))
+    except ValueError:
+        limit = 50
+    esc = lambda t: t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")  # treat % and _ as plain text
+    terms = [t for t in q.split(" ") if t][:6]
+    params = {"q": q, "like": f"%{esc(q)}%", "pre": f"{esc(q)}%"}
+    conds = []
+    for i, t in enumerate(terms):
+        params[f"t{i}"] = f"%{esc(t)}%"
+        conds.append(f"""(s.title LIKE :t{i} ESCAPE '\\' OR a.name LIKE :t{i} ESCAPE '\\' OR al.title LIKE :t{i} ESCAPE '\\'
+                          OR g.name LIKE :t{i} ESCAPE '\\' OR l.name LIKE :t{i} ESCAPE '\\' OR l.native_name LIKE :t{i} ESCAPE '\\'
+                          OR s.id IN (SELECT sc.song_id FROM song_categories sc JOIN categories c ON c.id=sc.category_id
+                                      WHERE c.name LIKE :t{i} ESCAPE '\\'))""")
+    rank = """(CASE WHEN lower(s.title)=lower(:q) THEN 0 WHEN s.title LIKE :pre ESCAPE '\\' THEN 1 WHEN s.title LIKE :like ESCAPE '\\' THEN 2
+                    WHEN a.name LIKE :pre ESCAPE '\\' THEN 3 WHEN a.name LIKE :like ESCAPE '\\' THEN 4 ELSE 5 END)"""
+    rows = db.q(f"{SONG_SELECT} WHERE s.status='published' AND {' AND '.join(conds)} ORDER BY {rank}, s.play_count DESC, s.title LIMIT {limit}", params)
+    songs = cards(rows, req.user)
+    return {"q": q, "count": len(songs), "songs": songs}
+
+
 @route("GET", r"/api/songs/(?P<sid>[\w-]+)", auth="optional")
 def song_detail(req, sid):
     r = get_song(sid)

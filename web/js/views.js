@@ -260,27 +260,91 @@ export async function albumView(view, slug, query, alive) {
 }
 
 // ------------------------------------------------------------------ Search
+// Instant search box: results appear while typing (250 ms after the last key), with play / play all /
+// shuffle / add all to queue. Used on the Search page and at the top of Your Library.
+export function instantSearch(box, { initial = "", placeholder = "Search songs, artists, languages, moods…", syncUrl = false,
+  autofocus = false, onQuery = null, alive = () => true } = {}) {
+  render(box, html`<div class="isearch">
+    <div class="searchbox isearch-box" role="search">${icon("search")}
+      <input type="search" value="${initial}" placeholder="${placeholder}" aria-label="Search songs" aria-controls="isearch-results" autocomplete="off" enterkeyhint="search" maxlength="100" ${raw(autofocus ? "autofocus" : "")}>
+      <button type="button" class="icon-btn sm isearch-clear" aria-label="Clear search" ${raw(initial ? "" : "hidden")}>${icon("x")}</button>
+    </div>
+    <div class="isearch-results" id="isearch-results" aria-live="polite"></div></div>`);
+  const input = $("input", box), clear = $(".isearch-clear", box), out = $(".isearch-results", box);
+  let seq = 0, last = null;
+
+  const show = (q, d) => {
+    if (!q) { render(out, ""); return; }
+    if (!d.songs.length) { render(out, emptyState("search", `No songs match “${q}”`, "Check the spelling, or try an artist, a language or a mood.")); return; }
+    const qid = registerQueue(d.songs, `Search: ${q}`);
+    render(out, html`<div class="isearch-head"><span class="dim small">${d.songs.length === 50 ? "Top 50 songs" : `${d.songs.length} song${d.songs.length === 1 ? "" : "s"}`} for “${q}”</span>
+        <div class="isearch-actions"><button class="btn primary sm" data-action="play-all" data-queue="${qid}">${icon("play")}Play all</button>
+        <button class="btn sm" data-action="play-all" data-queue="${qid}" data-shuffle="1">${icon("shuffle")}Shuffle</button>
+        <button class="btn sm" data-action="queue-all" data-queue="${qid}">${icon("list")}Add all to queue</button></div></div>
+      ${songList(d.songs, { label: `Search: ${q}` })}`);
+  };
+  const run = async (raw) => {
+    const q = raw.trim().replace(/\s+/g, " ");
+    clear.hidden = !raw;
+    if (syncUrl) history.replaceState(history.state, "", q ? `/search?q=${encodeURIComponent(q)}` : "/search");
+    onQuery?.(q);
+    if (q === last) return;
+    last = q;
+    const mine = ++seq;
+    if (!q) { show("", null); return; }
+    out.classList.add("loading");
+    try {
+      const d = await get(`/api/songs/search?q=${encodeURIComponent(q)}`, { quiet: true });
+      if (mine !== seq || !alive()) return; // a newer search has started: drop this answer
+      show(q, d);
+    } catch (e) {
+      if (mine === seq && alive()) render(out, errorState(e, false));
+    } finally {
+      if (mine === seq) out.classList.remove("loading");
+    }
+  };
+  const debounced = debounce(run, 250);
+  input.addEventListener("input", () => { clear.hidden = !input.value; debounced(input.value); });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); run(input.value); }
+    else if (e.key === "Escape" && input.value) { e.preventDefault(); input.value = ""; run(""); }
+  });
+  clear.addEventListener("click", () => { input.value = ""; run(""); input.focus(); });
+  if (initial) run(initial);
+  if (autofocus) setTimeout(() => input.focus(), 0);
+  return { input, run };
+}
+
 export async function searchView(view, query, alive) {
   const q = query.q || "";
-  render(view, html`<form class="searchbox" style="max-width:none;margin-bottom:20px" id="page-search" role="search">${icon("search")}<input name="q" type="search" value="${q}" placeholder="What do you want to listen to?" aria-label="Search" autofocus></form><div id="sres"></div>`);
-  $("#page-search").addEventListener("submit", (e) => { e.preventDefault(); nav(`/search?q=${encodeURIComponent(e.target.q.value.trim())}`); });
-  const out = $("#sres");
-  if (!q) {
+  render(view, html`<div id="isearch-slot"></div><div id="sres-more"></div><div id="sres-browse"></div>`);
+  const more = $("#sres-more"), browse = $("#sres-browse");
+  // artists, albums, lyrics and language/mood chips: the full search, a little after typing settles
+  let moreSeq = 0;
+  const loadMore = debounce(async (term) => {
+    const mine = ++moreSeq;
+    if (!term) { render(more, ""); return; }
+    try {
+      const d = await get(`/api/search?q=${encodeURIComponent(term)}`, { quiet: true });
+      if (mine !== moreSeq || !alive()) return;
+      render(more, html`
+        ${d.languages.length || d.categories.length ? html`<div class="chips" style="margin:18px 0 6px">${d.languages.map((l) => html`<a class="chip" href="/language/${l.code}" data-link>${icon("globe")}${l.name} · ${l.native_name}</a>`)}${d.categories.map((c) => html`<a class="chip" href="/category/${c.slug}" data-link>${c.name}</a>`)}</div>` : ""}
+        ${d.lyrics_matches.length ? html`<section class="section"><div class="section-head"><div><h2>Lyrics matches</h2><p>From licensed lyrics</p></div></div>${d.lyrics_matches.map((m) => html`<div class="q-item" style="padding:10px"><img src="${m.song.cover_url}" alt=""><div class="meta"><a class="t" href="/song/${m.song.slug}" data-link>${m.song.title}</a><div class="s" dir="auto">“${m.line}” · ${m.song.artist.name}</div></div><button class="icon-btn" data-action="play" data-id="${m.song.id}" aria-label="Play">${icon("play")}</button></div>`)}</section>` : ""}
+        ${d.artists.length ? html`<section class="section"><div class="section-head"><h2>Artists</h2></div><div class="rail">${d.artists.map((a) => html`<a class="card round" href="/artist/${a.slug}" data-link><div class="card-art"><img src="${a.image_url}" alt=""></div><div class="card-title">${a.name}</div><div class="card-sub">${a.country || "Artist"}</div></a>`)}</div></section>` : ""}
+        ${d.albums.length ? html`<section class="section"><div class="section-head"><h2>Albums</h2></div><div class="rail">${d.albums.map((a) => html`<a class="card" href="/album/${a.slug}" data-link><div class="card-art"><img src="${a.cover_url}" alt=""></div><div class="card-title">${a.title}</div><div class="card-sub">${a.artist_name}</div></a>`)}</div></section>` : ""}`);
+    } catch { if (mine === moreSeq) render(more, ""); }
+  }, 700);
+  let browseShown = false;
+  const showBrowse = async (term) => {
+    browse.hidden = !!term;
+    if (term || browseShown) return;
+    browseShown = true;
     const cats = await get("/api/categories");
-    if (!alive()) return;
-    render(out, html`<h2 style="margin-bottom:14px">Browse moods</h2><div class="tiles">${cats.categories.map(catTile)}</div>`);
-    return;
-  }
-  render(out, skeletonRows());
-  const d = await get(`/api/search?q=${encodeURIComponent(q)}`);
-  if (!alive()) return;
-  const nothing = !d.songs.length && !d.artists.length && !d.albums.length && !d.categories.length && !d.languages.length && !d.lyrics_matches.length;
-  render(out, nothing ? emptyState("search", `No results for “${q}”`, "Check the spelling, or search for a language, mood or lyric line.") : html`
-    ${d.languages.length || d.categories.length ? html`<div class="chips" style="margin-bottom:20px">${d.languages.map((l) => html`<a class="chip" href="/language/${l.code}" data-link>${icon("globe")}${l.name} · ${l.native_name}</a>`)}${d.categories.map((c) => html`<a class="chip" href="/category/${c.slug}" data-link>${c.name}</a>`)}</div>` : ""}
-    ${d.songs.length ? html`<section class="section"><div class="section-head"><h2>Songs</h2></div>${songList(d.songs, { label: `Search: ${q}` })}</section>` : ""}
-    ${d.lyrics_matches.length ? html`<section class="section"><div class="section-head"><div><h2>Lyrics matches</h2><p>From licensed lyrics</p></div></div>${d.lyrics_matches.map((m) => html`<div class="q-item" style="padding:10px"><img src="${m.song.cover_url}" alt=""><div class="meta"><a class="t" href="/song/${m.song.slug}" data-link>${m.song.title}</a><div class="s" dir="auto">“${m.line}” · ${m.song.artist.name}</div></div><button class="icon-btn" data-action="play" data-id="${m.song.id}" aria-label="Play">${icon("play")}</button></div>`)}</section>` : ""}
-    ${d.artists.length ? html`<section class="section"><div class="section-head"><h2>Artists</h2></div><div class="rail">${d.artists.map((a) => html`<a class="card round" href="/artist/${a.slug}" data-link><div class="card-art"><img src="${a.image_url}" alt=""></div><div class="card-title">${a.name}</div><div class="card-sub">${a.country || "Artist"}</div></a>`)}</div></section>` : ""}
-    ${d.albums.length ? html`<section class="section"><div class="section-head"><h2>Albums</h2></div><div class="rail">${d.albums.map((a) => html`<a class="card" href="/album/${a.slug}" data-link><div class="card-art"><img src="${a.cover_url}" alt=""></div><div class="card-title">${a.title}</div><div class="card-sub">${a.artist_name}</div></a>`)}</div></section>` : ""}`);
+    if (alive()) render(browse, html`<h2 style="margin:22px 0 14px">Browse moods</h2><div class="tiles">${cats.categories.map(catTile)}</div>`);
+  };
+  instantSearch($("#isearch-slot"), { initial: q, syncUrl: true, autofocus: true, alive, placeholder: "What do you want to listen to?",
+    onQuery: (term) => { loadMore(term); showBrowse(term); } });
+  showBrowse(q);
 }
 
 // ------------------------------------------------------------------ Library & playlists
@@ -293,8 +357,12 @@ export async function libraryView(view, tab, query, alive) {
   tab = tab || "playlists";
   const tabs = [["playlists", "Playlists"], ["favourites", "Favourites"], ["recent", "Recently played"], ["history", "Listening history"]];
   render(view, html`<div class="section-head"><h1 style="margin:0">Your Library</h1><button class="btn primary" id="new-pl">${icon("plus")}New playlist</button></div>
-    <div class="tabs" role="tablist">${tabs.map(([k, l]) => html`<a class="tab ${k === tab ? "active" : ""}" role="tab" aria-selected="${k === tab}" href="/library/${k}" data-link>${l}</a>`)}</div><div id="lib">${skeletonRows()}</div>`);
+    <div id="lib-search" class="lib-search"></div>
+    <div id="lib-body"><div class="tabs" role="tablist">${tabs.map(([k, l]) => html`<a class="tab ${k === tab ? "active" : ""}" role="tab" aria-selected="${k === tab}" href="/library/${k}" data-link>${l}</a>`)}</div><div id="lib">${skeletonRows()}</div></div>`);
   $("#new-pl").addEventListener("click", () => playlistDialog());
+  // search the whole catalogue from the library; the tabs come back when the box is cleared
+  instantSearch($("#lib-search"), { placeholder: "Search all songs to play or add to the queue…", alive,
+    onQuery: (term) => { $("#lib-body").hidden = !!term; } });
   const out = $("#lib");
   if (tab === "playlists") {
     const [mine, auto] = await Promise.all([get("/api/me/playlists"), get("/api/me/auto-playlists")]);

@@ -256,6 +256,7 @@ const actions = {
   "open-song": (el, e) => { if (e.target.closest("a, button")) return; navigate(`/song/${el.dataset.slug}`); },
   "play": (el) => { const s = songFrom(el); if (!s) return; const { list, index } = queueFrom(el, s); player.hlQueue = false; player.play(s, { queue: list, index }); },
   "play-highlight": (el) => { const s = songFrom(el); if (s) { player.hlQueue = false; player.play(s, { queue: [s], mode: "highlight" }); } },
+  "queue-all": (el) => { const q = queues.get(el.dataset.queue); if (!q?.ids.length) return; player.addAllToQueue(q.ids.map((id) => songs.get(id)).filter(Boolean)); },
   "play-all": (el) => { const q = queues.get(el.dataset.queue); if (!q?.ids.length) return; const list = q.ids.map((id) => songs.get(id)); const i = el.dataset.shuffle ? Math.floor(Math.random() * list.length) : 0; if (el.dataset.shuffle && !player.shuffle) player.shuffle = true; player.hlQueue = false; player.play(list[i], { queue: list, index: i }); },
   "play-with-lyrics": (el) => { const s = songFrom(el); if (!s) return; player.hlQueue = false; player.play(s, { queue: [s] }).then(() => actions["open-lyrics"]()); },
   "fav": (el) => { const s = songFrom(el); if (s) toggleFavourite(s); },

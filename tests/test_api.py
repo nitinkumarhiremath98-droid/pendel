@@ -393,6 +393,28 @@ class PENDELAPI(unittest.TestCase):
             external.FETCH = real
             external._down_until[0] = 0
 
+    def test_instant_song_search(self):
+        # case-insensitive partial match on title, ranked: the exact/prefix title match comes first
+        st, d = call("GET", "/api/songs/search?q=VENNELA")
+        self.assertEqual(st, 200, d)
+        self.assertEqual(d["songs"][0]["title"], "Vennela Daari")
+        # artist + language words together (every word must match something)
+        st, d = call("GET", "/api/songs/search?q=aarav%20telugu")
+        self.assertTrue(d["songs"] and all(x["artist"]["name"] == "Aarav Kiran" for x in d["songs"]), d)
+        # mood names and native language names match too
+        st, d = call("GET", "/api/songs/search?q=" + urllib.parse.quote("తెలుగు"))
+        self.assertTrue(d["songs"] and all(x["language"]["code"] == "te" for x in d["songs"]))
+        # limits, empty and odd input
+        st, d = call("GET", "/api/songs/search?q=a&limit=5")
+        self.assertLessEqual(len(d["songs"]), 5)
+        self.assertEqual(call("GET", "/api/songs/search?q=a&limit=abc")[0], 200)
+        self.assertEqual(call("GET", "/api/songs/search?q=")[1]["songs"], [])
+        self.assertEqual(call("GET", "/api/songs/search?q=%25%25")[1]["songs"], [], "% is plain text, not a wildcard")
+        self.assertEqual(call("GET", "/api/songs/search?q=" + "x" * 101)[0], 400)
+        # the old /api/songs/<id> route still works
+        sid = call("GET", "/api/songs?limit=1")[1]["songs"][0]["id"]
+        self.assertEqual(call("GET", f"/api/songs/{sid}")[0], 200)
+
     # ------------------------------------------------------------------ v4: persistence, resumable imports, protected admin
     def test_admin_import_routes_are_protected(self):
         routes = [("GET", "/api/admin/youtube"), ("GET", "/api/admin/youtube/progress"), ("POST", "/api/admin/youtube/import"),

@@ -246,6 +246,13 @@ export const player = {
     if (!this.current) return this.play(song, { queue: [song] });
     this.queue.push(song); emit("queue"); toast(`Added “${song.title}” to the queue`);
   },
+  addAllToQueue(list) {
+    const fresh = list.filter((s) => s && !this.queue.slice(this.index + 1).some((q) => q.id === s.id));
+    if (!fresh.length) return;
+    if (!this.current) return this.play(fresh[0], { queue: fresh, index: 0 });
+    this.queue.push(...fresh); if (this.original) this.original.push(...fresh);
+    emit("queue"); toast(`Added ${fresh.length} song${fresh.length === 1 ? "" : "s"} to the queue`);
+  },
   removeAt(i) { if (i === this.index) return; this.queue.splice(i, 1); if (i < this.index) this.index--; emit("queue"); },
   move(i, d) {
     const j = i + d;

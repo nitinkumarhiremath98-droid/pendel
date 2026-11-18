@@ -555,3 +555,14 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .yt-live-head .btn { margin-left: auto; }
 .yt-bar { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
 .yt-bar span { display: block; height: 100%; background: var(--accent-strong); border-radius: 4px; transition: width .6s ease; }
+
+/* instant search (Search page + Library) */
+.isearch { margin-bottom: 8px; }
+.isearch-box { max-width: none; margin-bottom: 14px; }
+.isearch-box input::-webkit-search-cancel-button { display: none; }
+.isearch-clear[hidden] { display: none; }
+.isearch-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 4px 0 10px; }
+.isearch-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.isearch-results { transition: opacity .15s; }
+.isearch-results.loading { opacity: .55; }
+.lib-search { margin: 4px 0 6px; }
