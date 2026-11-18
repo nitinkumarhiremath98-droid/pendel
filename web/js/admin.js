@@ -133,6 +133,13 @@ async function songEditor(song, reload) {
       </div>`}
       <div class="modal-actions" style="justify-content:space-between"><span class="dim small">${song ? song.id : "Save first, then upload audio and set the highlight."}</span><div style="display:flex;gap:8px"><button type="button" class="btn ghost" data-close>Close</button><button class="btn primary">${song ? "Save changes" : "Create draft"}</button></div></div>
     </form>
+    ${song ? html`
+      <div class="ed-section"><h4>Direct audio file (plays with the screen off)</h4>
+        <p class="dim small" style="margin-top:-6px">A link to a licensed audio file (.mp3, .m4a, .aac, .opus, .ogg, .flac, .wav) on https, for example from the artist, your storage or a licensed provider. Songs with one play in PENDEL's own audio player, keep playing when the phone is locked, and show lock-screen controls. It's used instead of YouTube. Links to YouTube audio are refused: they aren't licensed for this.</p>
+        <div class="toolbar"><input class="input" id="durl" type="url" placeholder="https://…/song.mp3" value="${song.audio_url || ""}" style="flex:1 1 320px" maxlength="1000">
+          <select class="input" id="dfmt" style="flex:0 0 150px;min-width:0" aria-label="Audio format"><option value="">Format: from link</option>${["mp3", "m4a", "aac", "opus", "ogg", "webm", "flac", "wav"].map((f) => html`<option value="${f}" ${raw(song.audio_format === f ? "selected" : "")}>${f}</option>`)}</select></div>
+        <div class="toolbar"><input class="input" id="dcov" type="url" placeholder="Cover image URL (optional) https://…/cover.jpg" value="${/^https?:/.test(song.cover_url || "") ? song.cover_url : ""}" style="flex:1 1 320px" maxlength="1000">
+          <button class="btn sm primary" id="dsave">Save audio</button>${song.audio_url ? html`<button class="btn sm" id="dtest">${icon("play")}Test</button><button class="btn sm danger" id="dclear">Remove audio link</button>` : ""}<span class="dim small" id="dmsg"></span></div></div>` : ""}
     ${song?.is_external ? html`
       <div class="ed-section"><h4>Full song & custom highlight (YouTube)</h4>
         <p class="dim small" style="margin-top:-6px">Paste the official YouTube video of this song. PENDEL then plays the full song in a visible YouTube player, and you can choose your own 20–30 s highlight window on that video.</p>
@@ -182,6 +189,21 @@ async function songEditor(song, reload) {
     } catch (err) { toastError(err); }
   });
   if (!song) return;
+  const reopenSong = async () => { reload(); songEditor((await get(`/api/admin/songs?q=${song.id}`)).songs[0], reload); };
+  $("#dsave", m).onclick = async () => {
+    const body = { audio_url: $("#durl", m).value.trim() || null, audio_format: $("#dfmt", m).value || null };
+    if ($("#dcov", m).value.trim()) body.cover_url = $("#dcov", m).value.trim();
+    try { await patch(`/api/admin/songs/${song.id}`, body); toast(body.audio_url ? "Audio link saved: this song now plays in PENDEL's own player" : "Saved"); reopenSong(); }
+    catch (err) { $("#dmsg", m).textContent = err.message; }
+  };
+  const dclear = $("#dclear", m);
+  if (dclear) dclear.onclick = async () => { try { await patch(`/api/admin/songs/${song.id}`, { audio_url: null }); toast("Audio link removed"); reopenSong(); } catch (err) { toastError(err); } };
+  const dtest = $("#dtest", m);
+  if (dtest) dtest.onclick = () => {
+    const a = new Audio(song.audio_url);
+    a.play().then(() => { $("#dmsg", m).textContent = "Playing 5 seconds…"; setTimeout(() => a.pause(), 5000); })
+      .catch(() => { $("#dmsg", m).textContent = "This browser couldn't play that file. Check the link and format."; });
+  };
   if (song.is_external) {
     const reopen = async () => { reload(); songEditor((await get(`/api/admin/songs?q=${song.id}`)).songs[0], reload); };
     $("#ysave", m).onclick = async () => {

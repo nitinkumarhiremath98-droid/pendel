@@ -1,7 +1,9 @@
 import { session, get, post } from "./api.js";
 import { $, $$, esc, fmtTime, toast, setRangeFill, songs as songRegistry } from "./ui.js";
 
-const audio = document.getElementById("audio");
+// PENDEL's own audio player: songs with a direct audio file, PENDEL uploads and previews play here, so they keep
+// playing with the screen off and show lock-screen controls. Only songs whose sole source is YouTube use the YouTube player.
+const audio = document.getElementById("audio-player");
 
 // ------------------------------------------------------------------ playback engines
 // PENDEL songs and Apple previews play in <audio>. Full world-catalogue songs play in a visible
@@ -193,6 +195,12 @@ export const player = {
       if (token !== this.loadToken) return;
     } else {
       stopYT();
+      if (!canPlay(stream.format)) {
+        toast(`This browser can't play ${stream.format} audio. Skipping…`, { error: true });
+        this.current.ended = true;
+        setTimeout(() => this.next(true), 800);
+        return;
+      }
       audio.src = stream.url;
       audio.dataset.seekTo = String(stream.start);
     }
@@ -295,7 +303,13 @@ export const player = {
 };
 
 // ------------------------------------------------------------------ audio events
+const MIME = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", opus: 'audio/ogg; codecs="opus"', ogg: "audio/ogg", webm: "audio/webm", flac: "audio/flac", wav: "audio/wav" };
+function canPlay(fmt) { return !fmt || !MIME[fmt] || audio.canPlayType(MIME[fmt]) !== ""; }
+
 audio.addEventListener("loadedmetadata", () => {
+  // a direct audio file may arrive without a stored duration: take it from the file so the seek bar works
+  const c = player.current;
+  if (c && c.mode === "full" && !(c.end > c.start) && isFinite(audio.duration)) c.end = audio.duration;
   const t = parseFloat(audio.dataset.seekTo || "0");
   if (t > 0) { try { audio.currentTime = t; } catch { /* ignore */ } }
   audio.dataset.seekTo = "";
@@ -319,7 +333,7 @@ audio.addEventListener("playing", () => document.body.classList.remove("bufferin
 audio.addEventListener("error", async () => {
   if (yt.active || !audio.getAttribute("src")) return;
   const c = player.current;
-  if (!c || player.retried) { if (c) toast("This track couldn't be played. Skipping…", { error: true }); if (c && player.queue.length > 1) player.next(true); return; }
+  if (!c || player.retried) { if (c) { toast("This track couldn't be played. Skipping…", { error: true }); c.ended = true; player.next(true); } return; }
   // signed URLs expire: fetch a fresh one and resume where we were
   player.retried = true;
   const at = audio.currentTime;

@@ -415,6 +415,54 @@ class PENDELAPI(unittest.TestCase):
         sid = call("GET", "/api/songs?limit=1")[1]["songs"][0]["id"]
         self.assertEqual(call("GET", f"/api/songs/{sid}")[0], 200)
 
+    def test_direct_audio_url_plays_natively(self):
+        from server import youtube_catalog as ytc
+        ytc.materialise([{"video_id": "dirAudio001", "title": "Direct Audio Song", "channel": "Indie Label", "channel_id": "UCdir",
+                          "duration": 200, "year": 2025, "lang": "or", "moods": ["love"]}])
+        sid = ytc.song_id("dirAudio001")
+        # before: YouTube embed
+        self.assertEqual(call("GET", f"/api/stream/{sid}")[1]["mode"], "youtube")
+        # only admins may set it
+        self.assertEqual(call("PATCH", f"/api/admin/songs/{sid}", {"audio_url": "https://cdn.example.com/a.mp3"}, token=self.user)[0], 403)
+        # YouTube audio, bad schemes and non-audio files are refused
+        for bad in ("https://www.youtube.com/watch?v=dirAudio001", "https://rr3---sn-abc.googlevideo.com/videoplayback?id=1",
+                    "http://cdn.example.com/a.mp3", "javascript:alert(1)", "https://cdn.example.com/page.html"):
+            st, d = call("PATCH", f"/api/admin/songs/{sid}", {"audio_url": bad}, token=self.admin)
+            self.assertEqual(st, 400, (bad, d))
+        st, d = call("PATCH", f"/api/admin/songs/{sid}", {"audio_url": "https://cdn.example.com/songs/direct.m4a",
+                                                          "cover_url": "https://cdn.example.com/covers/direct.jpg"}, token=self.admin)
+        self.assertEqual(st, 200, d)
+        card = d["song"]
+        self.assertEqual((card["audio_url"], card["audio_format"], card["playback"]), ("https://cdn.example.com/songs/direct.m4a", "m4a", "audio"))
+        self.assertEqual(card["cover_url"], "https://cdn.example.com/covers/direct.jpg")
+        # after: native audio, full song and a highlight range on the same file
+        st, full = call("GET", f"/api/stream/{sid}")
+        self.assertEqual((full["mode"], full["url"], full["format"]), ("full", "https://cdn.example.com/songs/direct.m4a", "m4a"))
+        st, hl = call("GET", f"/api/stream/{sid}?kind=highlight")
+        self.assertEqual(hl["mode"], "range")
+        self.assertEqual(hl["url"], full["url"])
+        # listings carry the new fields
+        found = call("GET", "/api/songs/search?q=direct%20audio%20song")[1]["songs"][0]
+        self.assertEqual((found["audio_url"], found["playback"]), (full["url"], "audio"))
+        # a format can be given for links without an extension; removing the link goes back to YouTube
+        st, d = call("PATCH", f"/api/admin/songs/{sid}", {"audio_url": "https://cdn.example.com/stream/123", "audio_format": "opus"}, token=self.admin)
+        self.assertEqual((st, d["song"]["audio_format"]), (200, "opus"))
+        call("PATCH", f"/api/admin/songs/{sid}", {"audio_url": None}, token=self.admin)
+        self.assertEqual(call("GET", f"/api/stream/{sid}")[1]["mode"], "youtube")
+
+    def test_csv_import_with_audio_url(self):
+        csv_text = ("title,artist,language_code,licensor,license_type,allow_free_full_stream,audio_url,cover_url,duration_sec,categories\n"
+                    "Indie Night Drive,Indie Artist Test,or,Indie Artist Test,direct,1,https://cdn.example.com/indie/night.mp3,https://cdn.example.com/indie/night.jpg,215,love\n")
+        st, d = call("POST", "/api/admin/import/csv", {"csv": csv_text}, token=self.admin)
+        self.assertEqual((st, d.get("imported")), (200, 1), d)
+        song = call("GET", "/api/songs/search?q=indie%20night%20drive")[1]["songs"][0]
+        self.assertEqual((song["status"], song["playback"], song["duration"]), ("published", "audio", 215))
+        s = call("GET", f"/api/stream/{song['id']}")[1]
+        self.assertEqual((s["mode"], s["url"]), ("full", "https://cdn.example.com/indie/night.mp3"))
+        # YouTube links are refused in imports too
+        bad = csv_text.replace("https://cdn.example.com/indie/night.mp3", "https://youtu.be/abcdefghijk").replace("Indie Night Drive", "Other")
+        self.assertEqual(call("POST", "/api/admin/import/csv", {"csv": bad}, token=self.admin)[1].get("imported", 0), 0)
+
     # ------------------------------------------------------------------ v4: persistence, resumable imports, protected admin
     def test_admin_import_routes_are_protected(self):
         routes = [("GET", "/api/admin/youtube"), ("GET", "/api/admin/youtube/progress"), ("POST", "/api/admin/youtube/import"),

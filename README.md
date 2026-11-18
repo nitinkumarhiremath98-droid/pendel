@@ -20,6 +20,8 @@ PENDEL is a full-stack, multilingual music streaming platform built around one i
 
 - **Phone-friendly.** Lock-screen and notification controls (title, artist, cover, play/pause, next/previous, seek) through the Media Session API, and an installable app: on Android Chrome use *Install app*, on iPhone Safari use *Share → Add to Home Screen*. PENDEL's own songs and Apple previews keep playing with the screen locked. YouTube songs pause when the screen locks or you switch apps (YouTube's rule for embedded players) and continue when you come back.
 
+- **Direct audio files (native player).** A song can have an `audio_url`: a licensed `.mp3`, `.m4a`, `.aac`, `.opus`, `.ogg`, `.webm`, `.flac` or `.wav` file on https. Such songs play in PENDEL's own `<audio id="audio-player">` player instead of YouTube, so they keep playing with the screen off and when switching apps, with full lock-screen controls. Set it in **Admin → Songs → edit → Direct audio file**, or with the `audio_url`, `audio_format`, `cover_url` and `duration_sec` columns of the CSV import. Links to YouTube audio are refused. Songs with no direct file keep using the visible YouTube player.
+
 ### Keep your data on Render (free PostgreSQL, about 10 minutes)
 
 1. Create a free account at [neon.com](https://neon.com), create a project (pick the region closest to your Render service, e.g. Singapore), and copy the **connection string**. It looks like `postgresql://user:password@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`. Use the normal (direct) string, not the "pooled" one.

@@ -125,6 +125,7 @@ def public_user(u):
 SONG_SELECT = """
 SELECT s.id, s.slug, s.title, s.release_year, s.duration_sec, s.cover_key, s.is_explicit, s.is_featured, s.trending_pin,
        s.status, s.play_count, s.language_code, s.created_at, s.is_demo, s.source, s.external_url, s.youtube_id,
+       s.audio_url, s.audio_format,
        a.id artist_id, a.slug artist_slug, a.name artist_name,
        al.id album_id, al.slug album_slug, al.title album_title,
        l.name language_name, l.native_name language_native,
@@ -177,6 +178,9 @@ def cards(rows, user=None):
             "premium_only": (not r["allow_free_full_stream"]) if r["source"] == "pendel" else False,
             "source": r["source"], "is_external": r["source"] != "pendel",
             "external_url": r["external_url"], "youtube_id": r["youtube_id"] or None,
+            "audio_url": r["audio_url"] or None, "audio_format": r["audio_format"] or None,
+            # how the full song plays: "audio" = native <audio> (screen-off + lock-screen controls), "youtube" = visible embed
+            "playback": "audio" if (r["audio_url"] or r["source"] == "pendel") else "youtube" if (r["youtube_id"] or r["source"] == "youtube") else "preview",
             "youtube_url": external.youtube_search_url({"title": r["title"], "artist_name": r["artist_name"]}) if r["source"] != "pendel" else None,
             "is_favourite": r["id"] in favs, "is_explicit": bool(r["is_explicit"]), "is_featured": bool(r["is_featured"]),
             "plays": r["play_count"], "status": r["status"],
@@ -532,11 +536,15 @@ def highlight_feed(req):
 
 
 def stream_info(song_id, kind, user):
-    r = db.one("SELECT s.status, s.source, s.duration_sec, lic.allow_free_full_stream, h.start_sec, h.end_sec, h.preview_asset_id FROM songs s LEFT JOIN licensing lic ON lic.song_id=s.id LEFT JOIN song_highlights h ON h.song_id=s.id WHERE s.id=?", (song_id,))
+    r = db.one("""SELECT s.status, s.source, s.duration_sec, s.audio_url, s.audio_format, lic.song_id lic_row, lic.allow_free_full_stream,
+                         h.start_sec, h.end_sec, h.preview_asset_id
+                  FROM songs s LEFT JOIN licensing lic ON lic.song_id=s.id LEFT JOIN song_highlights h ON h.song_id=s.id WHERE s.id=?""", (song_id,))
     require(r, 404, "Song not found")
     if r["status"] == "taken_down":
         raise ApiError(451, "This song has been removed at the request of the rights holder.", "taken_down")
     require(r["status"] == "published", 404, "Song not found")
+    if r["audio_url"]:
+        return direct_stream_info(kind, r, user)
     if r["source"] != "pendel":
         return world_stream_info(song_id, kind, r)
     premium = user_plan(user["id"] if user else None)["tier"] == "premium"
@@ -559,6 +567,22 @@ def stream_info(song_id, kind, user):
     if r["start_sec"] is not None:
         out["preview"] = stream_info(song_id, "highlight", user)
     return out
+
+
+def direct_stream_info(kind, r, user):
+    """Songs with a licensed direct audio file: always the native <audio> player, never YouTube."""
+    url, fmt = r["audio_url"], r["audio_format"]
+    if kind == "highlight":
+        if r["start_sec"] is not None:
+            return {"mode": "range", "url": url, "format": fmt, "start": r["start_sec"], "end": r["end_sec"], "song_offset": 0}
+        return {"mode": "range", "url": url, "format": fmt, "start": 0, "end": min(30, r["duration_sec"] or 30), "song_offset": 0}
+    # a licence that says "Premium only" is respected; songs without such a licence stream for everyone
+    premium = user_plan(user["id"] if user else None)["tier"] == "premium"
+    if r["lic_row"] and not r["allow_free_full_stream"] and not premium:
+        out = {"mode": "restricted", "reason": "premium_required", "message": "The rights holder has made this full song available to Premium listeners."}
+        out["preview"] = direct_stream_info("highlight", r, user)
+        return out
+    return {"mode": "full", "url": url, "format": fmt, "start": 0, "end": r["duration_sec"] or 0, "premium": premium}
 
 
 def world_stream_info(song_id, kind, r):
@@ -1321,6 +1345,38 @@ def _license_fields(b):
             "notes": s_(lic.get("notes"), "Notes", 1000, False)}
 
 
+AUDIO_EXT = {".mp3": "mp3", ".m4a": "m4a", ".mp4": "m4a", ".aac": "aac", ".opus": "opus", ".ogg": "ogg", ".oga": "ogg", ".webm": "webm",
+             ".flac": "flac", ".wav": "wav"}
+# Audio taken out of YouTube videos is not licensed for this use (and breaks YouTube's terms), so such links are refused.
+BLOCKED_AUDIO_HOSTS = ("youtube.com", "youtu.be", "googlevideo.com", "ytimg.com", "youtube-nocookie.com")
+
+
+def _https_url(v, label, exts=(), any_ext=False):
+    v = s_(v, label, 1000, False)
+    if not v:
+        return None
+    u = urllib.parse.urlsplit(v)
+    local = u.hostname in ("localhost", "127.0.0.1")
+    require(u.scheme == "https" or (u.scheme == "http" and local), 400, f"{label} must be an https:// link")
+    require(u.hostname and not u.username and not u.password, 400, f"{label} is not a valid link")
+    require(any_ext or not exts or os.path.splitext(u.path.lower())[1] in exts, 400, f"{label} must end in {', '.join(exts)}")
+    return v
+
+
+def _audio_url(v, fmt=None):
+    """Validate a direct audio link: https, an audio file (or an explicit format), never YouTube."""
+    url = _https_url(v, "Audio URL")
+    if not url:
+        return None, None
+    host = (urllib.parse.urlsplit(url).hostname or "").lower()
+    require(not any(host == h or host.endswith("." + h) for h in BLOCKED_AUDIO_HOSTS), 400,
+            "YouTube audio can't be used as a direct audio file. Use a licensed audio file (your own upload, the artist's, or a licensed provider).")
+    ext = os.path.splitext(urllib.parse.urlsplit(url).path.lower())[1]
+    fmt = (fmt or AUDIO_EXT.get(ext) or "").lower() or None
+    require(fmt in set(AUDIO_EXT.values()), 400, "Audio URL must be an .mp3, .m4a, .aac, .opus, .ogg, .webm, .flac or .wav file (or set audio_format)")
+    return url, fmt
+
+
 def _apply_song_fields(sid, b, creating=False):
     sets, vals = [], []
     if "title" in b or creating:
@@ -1352,6 +1408,11 @@ def _apply_song_fields(sid, b, creating=False):
         yid = m.group(1) if m else yid
         require(not yid or re.fullmatch(r"[\w-]{11}", yid), 400, "Paste a YouTube link or an 11-character video ID")
         sets.append("youtube_id=?"); vals.append(yid or None)
+    if "audio_url" in b:
+        url, fmt = _audio_url(b.get("audio_url"), b.get("audio_format"))
+        sets += ["audio_url=?", "audio_format=?"]; vals += [url, fmt]
+    if "cover_url" in b:
+        sets.append("cover_key=?"); vals.append(_https_url(b.get("cover_url"), "Cover image URL", (".jpg", ".jpeg", ".png", ".webp", ".avif"), any_ext=True))
     if "status" in b:
         require(b["status"] in ("draft", "published"), 400, "Use the takedown action to remove content")
         sets.append("status=?"); vals.append(b["status"])
@@ -1398,10 +1459,14 @@ def admin_update_song(req, sid):
     get_song(sid, True)
     b = req.json
     if b.get("status") == "published" and get_song(sid, True)["source"] == "pendel":
-        require(db.one("SELECT 1 FROM audio_assets WHERE song_id=? AND kind='full'", (sid,)), 400, "Upload the licensed audio before publishing")
+        require(db.one("SELECT 1 FROM audio_assets WHERE song_id=? AND kind='full'", (sid,)) or b.get("audio_url")
+                or db.one("SELECT 1 FROM songs WHERE id=? AND audio_url IS NOT NULL", (sid,)), 400,
+                "Upload the licensed audio (or add its direct audio URL) before publishing")
         require(db.one("SELECT 1 FROM licensing WHERE song_id=?", (sid,)) or b.get("license"), 400, "Add licensing information before publishing")
     with db.tx():
         _apply_song_fields(sid, b)
+    if b.get("audio_url"):
+        _default_highlight(sid)
     audit(req, "update", "song", sid, {k: b[k] for k in b if k != "license"})
     return {"song": cards([get_song(sid, True)])[0]}
 
@@ -1483,14 +1548,26 @@ def admin_upload_audio(req, sid):
             "song": cards([get_song(sid, True)])[0]}
 
 
+def _default_highlight(sid):
+    """A song that streams from a remote audio file can't be analysed here: estimate its highlight like YouTube
+    imports do (25 s from a third of the way in). Editors can move it later."""
+    r = db.one("SELECT s.duration_sec, h.song_id has_hl FROM songs s LEFT JOIN song_highlights h ON h.song_id=s.id WHERE s.id=?", (sid,))
+    dur = r and r["duration_sec"] or 0
+    if r and not r["has_hl"] and dur >= 40:
+        start = round(min(dur * 0.33, dur - 26), 2)
+        _save_highlight(sid, start, round(start + 25, 2), "auto")
+
+
 def _save_highlight(sid, start, end, source, src_local=None):
-    srow = db.one("SELECT duration_sec, source, youtube_id FROM songs WHERE id=?", (sid,))
+    srow = db.one("SELECT duration_sec, source, youtube_id, audio_url FROM songs WHERE id=?", (sid,))
     dur = srow["duration_sec"]
     err = highlights.validate_window(start, end, dur)
     require(not err, 400, err or "")
     start, end = round(float(start), 2), round(float(end), 2)
-    if srow["source"] != "pendel":  # world song: the window plays on its YouTube video; Apple's preview asset stays
-        require(srow["youtube_id"], 400, "Set this song's YouTube video ID first: its custom highlight plays from that video")
+    has_file = db.one("SELECT 1 FROM audio_assets WHERE song_id=? AND kind='full'", (sid,))
+    if srow["source"] != "pendel" or (srow["audio_url"] and not has_file):
+        # the window plays straight from the song's direct audio URL or its YouTube video; no clip is cut
+        require(srow["audio_url"] or srow["youtube_id"], 400, "Add this song's audio URL or YouTube video ID first: its highlight plays from that")
         db.run("""INSERT INTO song_highlights(id,song_id,start_sec,end_sec,source,preview_asset_id,updated_at) VALUES(?,?,?,?,?,NULL,?)
                   ON CONFLICT(song_id) DO UPDATE SET start_sec=excluded.start_sec, end_sec=excluded.end_sec, source=excluded.source, updated_at=excluded.updated_at""",
                (db.new_id("hl"), sid, start, end, source, db.now()))
@@ -1618,13 +1695,14 @@ def admin_generic_upload(req):
 
 
 CSV_COLUMNS = ["title", "artist", "album", "language_code", "genre", "categories", "release_year", "audio_key", "cover_key",
-               "highlight_start", "highlight_end", "licensor", "license_type", "allow_free_full_stream", "allow_lyrics", "lyrics_lrc", "lyrics_source"]
+               "highlight_start", "highlight_end", "licensor", "license_type", "allow_free_full_stream", "allow_lyrics", "lyrics_lrc", "lyrics_source",
+               "audio_url", "audio_format", "cover_url", "duration_sec"]
 
 
 @route("GET", r"/api/admin/import/template", auth="content")
 def csv_template(req):
     return {"columns": CSV_COLUMNS, "example": ",".join(CSV_COLUMNS) + "\n" +
-            'My Song,New Artist,Debut,te,Film Pop,love;melody,2026,uploads/audio/bulk-abc123.mp3,,62.5,88,Example Records,label,0,1,"[00:12.00] first line",Example Records lyric licence'}
+            'My Song,New Artist,Debut,te,Film Pop,love;melody,2026,uploads/audio/bulk-abc123.mp3,,62.5,88,Example Records,label,0,1,"[00:12.00] first line",Example Records lyric licence,,,,'}
 
 
 @route("POST", r"/api/admin/import/csv", auth="content")
@@ -1655,6 +1733,8 @@ def _import_row(req, r, dry):
     for c in cats:
         require(db.one("SELECT 1 FROM categories WHERE slug=?", (c,)), 400, f"Unknown category '{c}'")
     audio_key = (r.get("audio_key") or "").strip()
+    audio_url, audio_fmt = _audio_url(r.get("audio_url"), r.get("audio_format"))
+    cover = _https_url(r.get("cover_url"), "cover_url", any_ext=True) or (r.get("cover_key") or None)
     if audio_key:
         require(audio_key.startswith("uploads/audio/") and storage.exists(audio_key), 400, f"Audio file '{audio_key}' was not found in storage")
     lic = {"licensor": r.get("licensor"), "license_type": (r.get("license_type") or "").strip(), "allow_free_full_stream": r.get("allow_free_full_stream") in ("1", "true", "yes"),
@@ -1677,7 +1757,10 @@ def _import_row(req, r, dry):
                        (alid, unique_slug("albums", r["album"]), r["album"].strip(), aid, int_(r.get("release_year"), "release_year", 1900, 2100), r.get("cover_key") or None, db.now()))
         sid, t = db.new_id("sng"), db.now()
         db.run("INSERT INTO songs(id,slug,title,artist_id,album_id,language_code,status,cover_key,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
-               (sid, unique_slug("songs", title), title, aid, alid, lang, "draft", r.get("cover_key") or None, t, t))
+               (sid, unique_slug("songs", title), title, aid, alid, lang, "draft", cover, t, t))
+        if audio_url:
+            dur = float(r.get("duration_sec") or 0) or None
+            db.run("UPDATE songs SET audio_url=?, audio_format=?, duration_sec=COALESCE(?, duration_sec) WHERE id=?", (audio_url, audio_fmt, dur, sid))
         _apply_song_fields(sid, {"genre": r.get("genre"), "release_year": r.get("release_year"), "categories": cats, "license": lic})
         if audio_key:
             dur = highlights.probe_duration(storage.local_path(audio_key)) or 0
@@ -1695,6 +1778,12 @@ def _import_row(req, r, dry):
             _save_highlight(sid, sug["start"], sug["end"], "auto")
         if dur:
             db.run("UPDATE songs SET status='published' WHERE id=?", (sid,))
+    elif audio_url:
+        if r.get("highlight_start") and r.get("highlight_end"):
+            _save_highlight(sid, r["highlight_start"], r["highlight_end"], "editorial")
+        else:
+            _default_highlight(sid)
+        db.run("UPDATE songs SET status='published' WHERE id=?", (sid,))
     return sid
 
 

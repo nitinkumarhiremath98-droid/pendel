@@ -522,6 +522,9 @@ MIGRATIONS = [
     "ALTER TABLE youtube_imports ADD COLUMN checkpoint TEXT",
     "ALTER TABLE youtube_imports ADD COLUMN updated_at INTEGER",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_genres_lower ON genres(lower(name))",
+    # v5: songs that stream from a licensed direct audio file (mp3 / m4a / opus ...) play in the native <audio> player
+    "ALTER TABLE songs ADD COLUMN audio_url TEXT",
+    "ALTER TABLE songs ADD COLUMN audio_format TEXT",
 ]
 
 

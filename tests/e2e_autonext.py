@@ -152,6 +152,27 @@ async def main(ids):
         check(left == 0 and val == "", f"clear button empties the box and results: {left} rows, value {val!r}")
         await page.fill(".isearch input", "zzzqqq"); await page.wait_for_timeout(600)
         check(await page.locator(".isearch-results .empty").count() == 1, "no-match message")
+        # 8. songs with a direct audio file play in the native <audio> player (no YouTube), and advance on "ended"
+        import json as _j
+        def api(m, path, body=None, tok=None):
+            h = {"Content-Type": "application/json", **({"Authorization": "Bearer " + tok} if tok else {})}
+            with urllib.request.urlopen(urllib.request.Request(BASE + path, data=_j.dumps(body).encode() if body is not None else None, method=m, headers=h)) as r:
+                return _j.loads(r.read())
+        adm = api("POST", "/api/auth/login", {"email": "admin@pendel.local", "password": "Admin@12345"})["token"]
+        demo = [x for x in api("GET", "/api/songs?limit=50")["songs"] if x["source"] == "pendel" and x["highlight"]][:2]
+        for yt_id, d in zip(ids[10:12], demo):
+            clip = api("GET", f"/api/stream/{d['id']}?kind=highlight")["url"]  # a short licensed demo file
+            api("PATCH", f"/api/admin/songs/{yt_id}", {"audio_url": BASE + clip}, adm)
+        await page.evaluate("(async () => { const { player } = await import('/js/player.js'); player.setAutoplay(false); })()")
+        await page.evaluate(play, [ids[10:12], 0])
+        await page.wait_for_timeout(1500)
+        st = await page.evaluate("({dock: document.getElementById('yt-dock').hidden, src: document.getElementById('audio-player').getAttribute('src') || '', paused: document.getElementById('audio-player').paused, ms: navigator.mediaSession.playbackState, title: navigator.mediaSession.metadata?.title})")
+        check(st["dock"] and "/media/" in st["src"] and not st["paused"] and st["ms"] == "playing", f"direct audio plays natively, no YouTube player: {st}")
+        first = st["src"]
+        await page.evaluate("(() => { const a = document.getElementById('audio-player'); a.currentTime = Math.max(0, a.duration - 0.5); })()")
+        await page.wait_for_timeout(2500)
+        st2 = await page.evaluate("({src: document.getElementById('audio-player').getAttribute('src') || '', title: navigator.mediaSession.metadata?.title})")
+        check(st2["src"] != first and st2["title"] == "Kannada Love Song 11", f"native 'ended' moves to the next song: {st2}")
         check(not errors, f"no page errors: {errors}")
         await b.close()
     return fails
