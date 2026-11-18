@@ -35,6 +35,29 @@ def call(method, path, body=None, token=None, raw=None, ctype=None):
         return e.code, json.loads(e.read() or b"{}")
 
 
+def multipart(fields, files):
+    """(body, content-type) for a multipart/form-data upload."""
+    b = "----pendeltest" + os.urandom(6).hex()
+    out = b""
+    for k, v in fields.items():
+        out += f'--{b}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode()
+    for k, (fname, ctype, data) in files.items():
+        out += f'--{b}\r\nContent-Disposition: form-data; name="{k}"; filename="{fname}"\r\nContent-Type: {ctype}\r\n\r\n'.encode() + data + b"\r\n"
+    return out + f"--{b}--\r\n".encode(), f"multipart/form-data; boundary={b}"
+
+
+def wav_bytes(seconds=45, rate=8000):
+    import io, wave
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(1); w.setframerate(rate); w.writeframes(b"\x80" * rate * seconds)
+    return buf.getvalue()
+
+
+PNG_1PX = bytes.fromhex("89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+                        "1f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082")
+
+
 class PENDELAPI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -462,6 +485,70 @@ class PENDELAPI(unittest.TestCase):
         # YouTube links are refused in imports too
         bad = csv_text.replace("https://cdn.example.com/indie/night.mp3", "https://youtu.be/abcdefghijk").replace("Indie Night Drive", "Other")
         self.assertEqual(call("POST", "/api/admin/import/csv", {"csv": bad}, token=self.admin)[1].get("imported", 0), 0)
+
+    def test_upload_track_local_and_r2(self):
+        audio = ("demo-song.wav", "audio/wav", wav_bytes())
+        form = {"title": "Upload Test Song", "artist": "Upload Test Artist", "language_code": "kn", "moods": "love",
+                "rights_confirmed": "1", "duration": "45"}
+        body, ct = multipart(form, {"audio": audio, "cover": ("c.png", "image/png", PNG_1PX)})
+        # admins only
+        self.assertEqual(call("POST", "/api/songs/upload", raw=body, ctype=ct)[0], 401)
+        self.assertEqual(call("POST", "/api/songs/upload", raw=body, ctype=ct, token=self.user)[0], 403)
+        # the rights promise is required, and the file must really be audio
+        b2, c2 = multipart({**form, "rights_confirmed": "0"}, {"audio": audio})
+        self.assertEqual(call("POST", "/api/songs/upload", raw=b2, ctype=c2, token=self.admin)[0], 400)
+        b3, c3 = multipart(form, {"audio": ("fake.mp3", "audio/mpeg", b"<html>not audio</html>")})
+        self.assertEqual(call("POST", "/api/songs/upload", raw=b3, ctype=c3, token=self.admin)[0], 415)
+        b4, c4 = multipart(form, {"audio": ("song.exe", "application/octet-stream", wav_bytes(1))})
+        self.assertEqual(call("POST", "/api/songs/upload", raw=b4, ctype=c4, token=self.admin)[0], 415)
+        # no R2 settings: stored locally, published, plays natively
+        st, d = call("POST", "/api/songs/upload", raw=body, ctype=ct, token=self.admin)
+        self.assertEqual((st, d.get("stored_in")), (200, "local"), d)
+        song = d["song"]
+        self.assertEqual((song["status"], song["playback"], song["duration"], song["audio_format"]), ("published", "audio", 45, "wav"))
+        self.assertTrue(song["highlight"])
+        lic = db.one("SELECT licensor, license_type, allow_free_full_stream FROM licensing WHERE song_id=?", (song["id"],))
+        self.assertEqual((lic["licensor"], lic["license_type"], lic["allow_free_full_stream"]), ("Upload Test Artist", "direct", 1))
+        s = call("GET", f"/api/stream/{song['id']}")[1]
+        self.assertEqual((s["mode"], s["url"]), ("full", song["audio_url"]))
+        with urllib.request.urlopen(BASE + song["audio_url"]) as r:
+            self.assertEqual(r.read()[:4], b"RIFF")
+        found = call("GET", "/api/songs/search?q=upload%20test%20song")[1]["songs"][0]
+        self.assertTrue(found["audio_url"] and found["cover_url"])
+        listed = [x for x in call("GET", "/api/songs?q=Upload%20Test%20Song&limit=10")[1]["songs"] if x["id"] == song["id"]]
+        self.assertTrue(listed and listed[0]["audio_url"] == song["audio_url"])
+        # with R2 settings: uploaded to the bucket, public R2 URL saved (the S3 PUT is captured instead of sent)
+        from server import config as cfg, storage as stmod
+        sent = []
+        real_put = stmod.S3Storage.put
+        stmod.S3Storage.put = lambda self, key, data, ctype="", cache_control=None: sent.append((self.bucket, key, ctype, len(data), self.region)) or key
+        saved = {k: getattr(cfg, k) for k in ("R2_ENDPOINT_URL", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET_NAME", "R2_PUBLIC_URL")}
+        try:
+            cfg.R2_ENDPOINT_URL, cfg.R2_ACCESS_KEY_ID, cfg.R2_SECRET_ACCESS_KEY = "https://acc123.r2.cloudflarestorage.com", "AK", "SK"
+            cfg.R2_BUCKET_NAME, cfg.R2_PUBLIC_URL = "pendel-songs", "https://pub-abc.r2.dev"
+            b5, c5 = multipart({**form, "title": "R2 Test Song"}, {"audio": audio, "cover": ("c.png", "image/png", PNG_1PX)})
+            st, d = call("POST", "/api/songs/upload", raw=b5, ctype=c5, token=self.admin)
+            self.assertEqual((st, d.get("stored_in")), (200, "r2"), d)
+            self.assertEqual([(b, k.split("/")[0], c, r) for b, k, c, n, r in sent],
+                             [("pendel-songs", "songs", "audio/wav", "auto"), ("pendel-songs", "covers", "image/png", "auto")])
+            self.assertTrue(d["song"]["audio_url"].startswith("https://pub-abc.r2.dev/songs/r2-test-song-") and d["song"]["audio_url"].endswith(".wav"))
+            self.assertTrue(d["song"]["cover_url"].startswith("https://pub-abc.r2.dev/covers/"))
+            self.assertEqual(call("GET", f"/api/stream/{d['song']['id']}")[1]["url"], d["song"]["audio_url"])
+        finally:
+            stmod.S3Storage.put = real_put
+            for k, v in saved.items():
+                setattr(cfg, k, v)
+
+    def test_s3_signature_matches_aws_test_vectors(self):
+        import datetime
+        from server.storage import S3Storage
+        s = S3Storage(bucket="examplebucket", access_key="AKIAIOSFODNN7EXAMPLE", secret_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                      endpoint="https://examplebucket.s3.amazonaws.com", region="us-east-1")
+        s._canonical_path = lambda key: "/" + key  # AWS's examples use virtual-hosted-style URLs
+        t = datetime.datetime(2013, 5, 24, tzinfo=datetime.timezone.utc)
+        self.assertTrue(s.presign("test.txt", 86400, now=t).endswith("aeeed9bbccd4d02ee5c0109b86d86835f995330da4c265957d157751f604d404"))
+        h = s._request("GET", "test.txt", b"", None, {"range": "bytes=0-9"}, now=t, send=False)
+        self.assertTrue(h["Authorization"].endswith("f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41"))
 
     # ------------------------------------------------------------------ v4: persistence, resumable imports, protected admin
     def test_admin_import_routes_are_protected(self):

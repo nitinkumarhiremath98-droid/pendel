@@ -6,6 +6,7 @@ import csv, gzip, html, io, json, mimetypes, os, re, secrets, sys, time, traceba
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import config, db, external, highlights, payments, recommend, security, youtube_catalog
+from . import storage as storage_mod
 from .storage import storage, is_protected
 
 ROUTES = []
@@ -419,6 +420,103 @@ def list_songs(req):
             "total": total, "page": page, "pages": max(1, -(-total // limit)),
             "facets": {"genres": [r["name"] for r in db.q("SELECT DISTINCT g.name FROM genres g JOIN songs s ON s.genre_id=g.id WHERE s.status='published' ORDER BY g.name")],
                        "years": db.one("SELECT MIN(release_year) min, MAX(release_year) max FROM songs WHERE status='published'")}}
+
+
+def parse_multipart(req):
+    """multipart/form-data body -> ({field: text}, {field: (filename, content_type, bytes)}), standard library only."""
+    import email.parser, email.policy
+    ct = req.headers.get("Content-Type", "")
+    require(ct.lower().startswith("multipart/form-data") and "boundary=" in ct, 415, "Send the form as multipart/form-data")
+    msg = email.parser.BytesParser(policy=email.policy.HTTP).parsebytes(b"Content-Type: " + ct.encode("latin-1") + b"\r\n\r\n" + req.body)
+    fields, files = {}, {}
+    for part in msg.iter_parts():
+        name = part.get_param("name", header="content-disposition")
+        if not name:
+            continue
+        data = part.get_payload(decode=True) or b""
+        if part.get_filename() is not None:
+            files[name] = (part.get_filename(), part.get_content_type().lower(), data)
+        else:
+            fields[name] = data.decode("utf-8", "replace").strip()
+    return fields, files
+
+
+UPLOAD_AUDIO = {".mp3": ("audio/mpeg", "mp3"), ".m4a": ("audio/mp4", "m4a"), ".opus": ("audio/ogg", "opus"), ".wav": ("audio/wav", "wav")}
+
+
+def _audio_magic_ok(ext, data):
+    head = data[:12]
+    return {".mp3": head[:3] == b"ID3" or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0),
+            ".m4a": head[4:8] == b"ftyp", ".opus": head[:4] == b"OggS", ".wav": head[:4] == b"RIFF" and head[8:12] == b"WAVE"}[ext]
+
+
+@route("POST", r"/api/songs/upload", auth="content")
+def songs_upload(req):
+    """Admins upload a song they hold the rights to. The audio (and cover) go to the Cloudflare R2 bucket and the song
+    streams straight from R2's public URL in the native <audio> player: screen-off playback and lock-screen controls."""
+    f, files = parse_multipart(req)
+    title = s_(f.get("title"), "Title", 150)
+    artist = s_(f.get("artist"), "Artist", 120)
+    lang = f.get("language_code") or "und"
+    require(db.one("SELECT 1 FROM languages WHERE code=?", (lang,)), 400, "Unknown language")
+    require(f.get("rights_confirmed") in ("1", "true", "on", "yes"), 400,
+            "Confirm that you own this song or have the rights holder's written permission to stream it")
+    licensor = s_(f.get("licensor") or artist, "Rights holder", 120)
+    require("audio" in files and files["audio"][2], 400, "Choose an audio file")
+    fname, _, data = files["audio"]
+    ext = os.path.splitext(fname.lower())[1]
+    require(ext in UPLOAD_AUDIO, 415, "Upload an .mp3, .m4a, .opus or .wav file")
+    require(_audio_magic_ok(ext, data), 415, "That file doesn't look like a real " + ext + " audio file")
+    mime, fmt = UPLOAD_AUDIO[ext]
+    cover = files.get("cover")
+    if cover and cover[2]:
+        require(cover[1] in IMAGE_TYPES and len(cover[2]) <= 8 * 1024 * 1024, 415, "Cover must be a PNG, JPEG or WebP image under 8 MB")
+        c = cover[2]
+        require(c[:8] == b"\x89PNG\r\n\x1a\n" or c[:3] == b"\xff\xd8\xff" or (c[:4] == b"RIFF" and c[8:12] == b"WEBP"), 415, "Cover file is not a valid image")
+    try:
+        duration = float(f.get("duration") or 0)
+    except ValueError:
+        duration = 0
+    sid = db.new_id("sng")
+    slug = unique_slug("songs", title)
+    base = f"{slug}-{secrets.token_hex(4)}"
+    bucket = storage_mod.r2()
+    if bucket:  # Cloudflare R2: permanent public URL, survives Render restarts
+        bucket.put(f"songs/{base}{ext}", data, mime, cache_control="public, max-age=31536000, immutable")
+        audio_url = bucket.public(f"songs/{base}{ext}")
+        cover_key = None
+        if cover and cover[2]:
+            bucket.put(f"covers/{base}{IMAGE_TYPES[cover[1]]}", cover[2], cover[1], cache_control="public, max-age=31536000, immutable")
+            cover_key = bucket.public(f"covers/{base}{IMAGE_TYPES[cover[1]]}")
+        stored = "r2"
+    else:  # no R2 configured (local development): keep it in PENDEL's own media folder
+        key = f"uploads/direct/{base}{ext}"
+        storage.put(key, data, mime)
+        audio_url = storage.url(key)
+        cover_key = None
+        if cover and cover[2]:
+            cover_key = f"uploads/covers/{base}{IMAGE_TYPES[cover[1]]}"
+            storage.put(cover_key, cover[2], cover[1])
+        stored = "local"
+    if not duration and stored == "local":
+        duration = highlights.probe_duration(storage.local_path(key)) or 0
+    require(not duration or duration >= 30, 400, "That audio is shorter than 30 seconds. Upload the full song.")
+    t = db.now()
+    with db.tx():
+        a = db.one("SELECT id FROM artists WHERE lower(name)=lower(?)", (artist,))
+        aid = a["id"] if a else db.new_id("art")
+        if not a:
+            db.run("INSERT INTO artists(id,slug,name,is_independent,created_at) VALUES(?,?,?,?,?)", (aid, unique_slug("artists", artist), artist, 1, t))
+        db.run("""INSERT INTO songs(id,slug,title,artist_id,language_code,status,cover_key,duration_sec,audio_url,audio_format,created_at,updated_at)
+                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""", (sid, slug, title, aid, lang, "published", cover_key, duration or None, audio_url, fmt, t, t))
+        moods = [m.strip() for m in (f.get("moods") or "").split(",") if m.strip()]
+        _apply_song_fields(sid, {**({"genre": f["genre"]} if f.get("genre") else {}), "categories": moods,
+                                 "license": {"licensor": licensor, "license_type": "direct", "territories": f.get("territories") or "WORLD",
+                                             "allow_free_full_stream": f.get("allow_free", "1") in ("1", "true", "on", "yes"),
+                                             "reference": f.get("reference") or None}})
+    _default_highlight(sid)
+    audit(req, "upload_song", "song", sid, {"stored": stored, "bytes": len(data), "licensor": licensor})
+    return {"ok": True, "stored_in": stored, "song": cards([get_song(sid, True)])[0]}
 
 
 @route("GET", r"/api/songs/search", auth="optional")

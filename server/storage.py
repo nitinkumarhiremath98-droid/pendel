@@ -74,11 +74,14 @@ class LocalStorage:
 class S3Storage:
     name = "s3"
 
-    def __init__(self):
-        if not (config.S3_BUCKET and config.S3_ACCESS_KEY and config.S3_SECRET_KEY):
+    def __init__(self, bucket=None, access_key=None, secret_key=None, endpoint=None, region=None, public_url=None):
+        self.bucket = bucket or config.S3_BUCKET
+        self.access_key, self.secret_key = access_key or config.S3_ACCESS_KEY, secret_key or config.S3_SECRET_KEY
+        if not (self.bucket and self.access_key and self.secret_key):
             raise RuntimeError("STORAGE_DRIVER=s3 needs S3_BUCKET, S3_ACCESS_KEY and S3_SECRET_KEY")
-        self.bucket, self.region = config.S3_BUCKET, config.S3_REGION
-        ep = config.S3_ENDPOINT or f"https://s3.{self.region}.amazonaws.com"
+        self.region = region or config.S3_REGION
+        self.public_url = (public_url or "").rstrip("/")  # a public bucket domain (R2: https://pub-….r2.dev or your own)
+        ep = endpoint or config.S3_ENDPOINT or f"https://s3.{self.region}.amazonaws.com"
         u = urllib.parse.urlparse(ep)
         self.scheme, self.host = u.scheme, u.netloc
         self.cache_dir = os.path.join(os.path.dirname(config.DATABASE_PATH), "s3cache")
@@ -88,7 +91,7 @@ class S3Storage:
         return hmac.new(key, msg.encode(), hashlib.sha256).digest()
 
     def _signing_key(self, date):
-        k = self._sign(("AWS4" + config.S3_SECRET_KEY).encode(), date)
+        k = self._sign(("AWS4" + self.secret_key).encode(), date)
         k = self._sign(k, self.region)
         k = self._sign(k, "s3")
         return self._sign(k, "aws4_request")
@@ -96,12 +99,12 @@ class S3Storage:
     def _canonical_path(self, key):
         return "/" + self.bucket + "/" + urllib.parse.quote(key, safe="/~")
 
-    def presign(self, key, expires=None, method="GET"):
+    def presign(self, key, expires=None, method="GET", now=None):
         expires = expires or config.MEDIA_URL_TTL_SECONDS
-        t = datetime.datetime.now(datetime.timezone.utc)
+        t = now or datetime.datetime.now(datetime.timezone.utc)
         amz, date = t.strftime("%Y%m%dT%H%M%SZ"), t.strftime("%Y%m%d")
         scope = f"{date}/{self.region}/s3/aws4_request"
-        qs = {"X-Amz-Algorithm": "AWS4-HMAC-SHA256", "X-Amz-Credential": f"{config.S3_ACCESS_KEY}/{scope}", "X-Amz-Date": amz,
+        qs = {"X-Amz-Algorithm": "AWS4-HMAC-SHA256", "X-Amz-Credential": f"{self.access_key}/{scope}", "X-Amz-Date": amz,
               "X-Amz-Expires": str(min(expires, 604800)), "X-Amz-SignedHeaders": "host"}
         cq = "&".join(f"{urllib.parse.quote(k, safe='~')}={urllib.parse.quote(v, safe='~')}" for k, v in sorted(qs.items()))
         creq = "\n".join([method, self._canonical_path(key), cq, f"host:{self.host}\n", "host", "UNSIGNED-PAYLOAD"])
@@ -109,28 +112,35 @@ class S3Storage:
         sig = hmac.new(self._signing_key(date), sts.encode(), hashlib.sha256).hexdigest()
         return f"{self.scheme}://{self.host}{self._canonical_path(key)}?{cq}&X-Amz-Signature={sig}"
 
-    def _request(self, method, key, data=b"", content_type=None):
-        t = datetime.datetime.now(datetime.timezone.utc)
+    def _request(self, method, key, data=b"", content_type=None, extra_headers=None, now=None, send=True):
+        t = now or datetime.datetime.now(datetime.timezone.utc)
         amz, date = t.strftime("%Y%m%dT%H%M%SZ"), t.strftime("%Y%m%d")
         payload_hash = hashlib.sha256(data).hexdigest()
         headers = {"host": self.host, "x-amz-content-sha256": payload_hash, "x-amz-date": amz}
         if content_type:
             headers["content-type"] = content_type
+        headers.update({k.lower(): v for k, v in (extra_headers or {}).items()})
         signed = ";".join(sorted(headers))
         canon_headers = "".join(f"{k}:{headers[k]}\n" for k in sorted(headers))
         creq = "\n".join([method, self._canonical_path(key), "", canon_headers, signed, payload_hash])
         scope = f"{date}/{self.region}/s3/aws4_request"
         sts = "\n".join(["AWS4-HMAC-SHA256", amz, scope, hashlib.sha256(creq.encode()).hexdigest()])
         sig = hmac.new(self._signing_key(date), sts.encode(), hashlib.sha256).hexdigest()
-        headers["Authorization"] = f"AWS4-HMAC-SHA256 Credential={config.S3_ACCESS_KEY}/{scope}, SignedHeaders={signed}, Signature={sig}"
+        headers["Authorization"] = f"AWS4-HMAC-SHA256 Credential={self.access_key}/{scope}, SignedHeaders={signed}, Signature={sig}"
+        if not send:  # for tests: the signature without a network call
+            return headers
         req = urllib.request.Request(f"{self.scheme}://{self.host}{self._canonical_path(key)}", data=data or None, method=method,
                                      headers={k: v for k, v in headers.items() if k != "host"})
         with urllib.request.urlopen(req, timeout=120) as r:
             return r.read()
 
-    def put(self, key, data, content_type="application/octet-stream"):
-        self._request("PUT", key, data, content_type)
+    def put(self, key, data, content_type="application/octet-stream", cache_control=None):
+        self._request("PUT", key, data, content_type, {"cache-control": cache_control} if cache_control else None)
         return key
+
+    def public(self, key):
+        """Permanent public link (bucket served through its public domain), for files meant to be streamed by anyone."""
+        return f"{self.public_url}/{urllib.parse.quote(key, safe='/~')}" if self.public_url else None
 
     def put_file(self, key, src_path, content_type="application/octet-stream"):
         with open(src_path, "rb") as f:
@@ -173,3 +183,12 @@ def _make():
 
 
 storage = _make()
+
+
+def r2():
+    """Cloudflare R2 bucket for direct-stream uploads (S3-compatible API, signed here with SigV4: no boto3 needed).
+    None when the R2_* settings are missing."""
+    if not (config.R2_ENDPOINT_URL and config.R2_ACCESS_KEY_ID and config.R2_SECRET_ACCESS_KEY and config.R2_BUCKET_NAME and config.R2_PUBLIC_URL):
+        return None
+    return S3Storage(bucket=config.R2_BUCKET_NAME, access_key=config.R2_ACCESS_KEY_ID, secret_key=config.R2_SECRET_ACCESS_KEY,
+                     endpoint=config.R2_ENDPOINT_URL, region="auto", public_url=config.R2_PUBLIC_URL)

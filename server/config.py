@@ -58,6 +58,13 @@ S3_REGION = env("S3_REGION", "us-east-1")
 S3_ENDPOINT = env("S3_ENDPOINT", "")  # e.g. https://<account>.r2.cloudflarestorage.com ; empty = AWS
 S3_ACCESS_KEY = env("S3_ACCESS_KEY", "")
 S3_SECRET_KEY = env("S3_SECRET_KEY", "")
+# Cloudflare R2 bucket for songs uploaded with /api/songs/upload (streamed straight from R2 by the native player).
+# R2_ENDPOINT_URL: https://<account-id>.r2.cloudflarestorage.com   R2_PUBLIC_URL: the bucket's public domain (https://pub-….r2.dev)
+R2_ENDPOINT_URL = env("R2_ENDPOINT_URL", "").rstrip("/")
+R2_ACCESS_KEY_ID = env("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY = env("R2_SECRET_ACCESS_KEY", "")
+R2_BUCKET_NAME = env("R2_BUCKET_NAME", "")
+R2_PUBLIC_URL = env("R2_PUBLIC_URL", "").rstrip("/")
 # Optional CDN in front of public assets (covers, artist images). Audio always goes through signed URLs.
 CDN_BASE_URL = env("CDN_BASE_URL", "")
 

@@ -173,6 +173,27 @@ async def main(ids):
         await page.wait_for_timeout(2500)
         st2 = await page.evaluate("({src: document.getElementById('audio-player').getAttribute('src') || '', title: navigator.mediaSession.metadata?.title})")
         check(st2["src"] != first and st2["title"] == "Kannada Love Song 11", f"native 'ended' moves to the next song: {st2}")
+        # 9. "Upload track" from the admin page -> plays natively, lock-screen info set, no YouTube player
+        import io, wave
+        wav = os.path.join(TMP, "my-own-song.wav")
+        with wave.open(wav, "wb") as w:
+            w.setnchannels(1); w.setsampwidth(1); w.setframerate(8000); w.writeframes(b"\x80" * 8000 * 40)
+        await page.evaluate(f"localStorage.setItem('rf_token', {_j.dumps(adm)})")
+        await page.goto(BASE + "/admin/songs")
+        await page.click("#up-song")
+        await page.set_input_files("#upf input[name=audio]", wav)
+        await page.wait_for_timeout(500)
+        await page.fill("#upf input[name=title]", "My Own Song")
+        await page.fill("#upf input[name=artist]", "Campus Band")
+        await page.check("#upf input[name=rights_confirmed]")
+        await page.click("#up-go")
+        await page.wait_for_selector("#upf", state="detached", timeout=8000)
+        up = [x for x in api("GET", "/api/songs/search?q=my%20own%20song")["songs"]]
+        check(up and up[0]["playback"] == "audio" and up[0]["duration"] == 40, f"upload form publishes a native-audio song: {[(x['title'], x['playback'], x['duration']) for x in up]}")
+        await page.evaluate(play, [[up[0]["id"]], 0])
+        await page.wait_for_timeout(1200)
+        st3 = await page.evaluate("({dock: document.getElementById('yt-dock').hidden, src: document.getElementById('audio-player').getAttribute('src') || '', paused: document.getElementById('audio-player').paused, title: navigator.mediaSession.metadata?.title, album: navigator.mediaSession.metadata?.album})")
+        check(st3["dock"] and "uploads/direct/" in st3["src"] and not st3["paused"] and st3["title"] == "My Own Song" and st3["album"] == "PENDEL", f"uploaded song plays in <audio> with lock-screen info: {st3}")
         check(not errors, f"no page errors: {errors}")
         await b.close()
     return fails

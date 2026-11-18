@@ -76,7 +76,8 @@ async function songsTab(el, alive) {
   render(el, html`<div class="toolbar"><input class="input" id="sq" type="search" placeholder="Search title, artist or ID" aria-label="Search songs">
     <select class="input" id="sst" aria-label="Status" style="min-width:150px;flex:0 0 160px"><option value="">All statuses</option><option value="published">Published</option><option value="draft">Draft</option><option value="taken_down">Taken down</option></select>
     <select class="input" id="ssrc" aria-label="Source" style="min-width:150px;flex:0 0 170px"><option value="">All sources</option><option value="pendel">PENDEL songs</option><option value="itunes">Apple Music previews</option><option value="youtube">YouTube full songs</option></select>
-    <button class="btn primary" id="new-song" style="margin-left:auto">${icon("plus")}Add song</button></div><div id="slist">${skeletonRows()}</div>`);
+    <button class="btn primary" id="up-song" style="margin-left:auto">${icon("upload")}Upload track</button>
+    <button class="btn" id="new-song">${icon("plus")}Add song</button></div><div id="slist">${skeletonRows()}</div>`);
   const load = async () => {
     const p = new URLSearchParams({ q: $("#sq").value, status: $("#sst").value, source: $("#ssrc").value });
     const d = await get("/api/admin/songs?" + p);
@@ -85,8 +86,11 @@ async function songsTab(el, alive) {
       ${d.songs.map((s) => html`<tr><td><img src="${s.cover_url || "/img/logo.svg"}" alt=""></td>
         <td><strong>${s.title}</strong><div class="dim small">${s.artist.name} · ${s.id}</div></td><td>${s.language.name}</td>
         <td>${s.highlight ? html`${fmtTime(s.highlight.start)}–${fmtTime(s.highlight.end)}<div class="dim small">${s.highlight.source}</div>` : html`<span class="dim">none</span>`}</td>
-        <td>${s.assets.filter((a) => a.kind === "full").length ? html`${fmtTime(s.duration)}${s.assets.some((a) => a.kind === "preview") ? html`<div class="dim small">+ preview</div>` : ""}` : html`<span class="dim">missing</span>`}</td>
-        <td class="small">${s.license ? html`${s.license.licensor}<div class="dim">${s.license.license_type}${s.license.allow_free_full_stream ? " · free stream" : " · premium"}</div>` : html`<span class="dim">missing</span>`}</td>
+        <td>${s.audio_url ? html`${s.duration ? fmtTime(s.duration) : "Full"}<div class="dim small">direct file</div>`
+          : s.assets.filter((a) => a.kind === "full").length ? html`${fmtTime(s.duration)}${s.assets.some((a) => a.kind === "preview") ? html`<div class="dim small">+ preview</div>` : ""}`
+          : s.source === "youtube" ? html`Full<div class="dim small">YouTube player</div>` : s.source === "itunes" ? html`0:30<div class="dim small">Apple preview</div>` : html`<span class="dim">missing</span>`}</td>
+        <td class="small">${s.license ? html`${s.license.licensor}<div class="dim">${s.license.license_type}${s.license.allow_free_full_stream ? " · free stream" : " · premium"}</div>`
+          : s.source === "youtube" ? html`<span class="dim">via YouTube</span>` : s.source === "itunes" ? html`<span class="dim">via Apple</span>` : html`<span class="dim">missing</span>`}</td>
         <td><span class="status ${s.status}">${s.status.replace("_", " ")}</span></td>
         <td class="acts"><button class="btn sm" data-edit="${s.id}">Edit</button></td></tr>`)}</tbody></table></div>`
       : emptyState("music", "No songs found"));
@@ -96,7 +100,68 @@ async function songsTab(el, alive) {
   $("#sst").addEventListener("change", load);
   $("#ssrc").addEventListener("change", load);
   $("#new-song").onclick = () => songEditor(null, load);
+  $("#up-song").onclick = () => uploadTrackDialog(load);
   await load();
+}
+
+// "Upload track": one form -> /api/songs/upload -> Cloudflare R2 -> streams in the native audio player
+async function uploadTrackDialog(reload) {
+  const L = await getLookups();
+  const m = modal(html`<h2>Upload track</h2>
+    <p class="muted small" style="margin-top:-4px">The song is stored in your Cloudflare R2 bucket and plays in PENDEL's own audio player: it keeps playing with the phone screen off, with lock-screen controls.</p>
+    <form id="upf" class="stack" style="gap:12px">
+      <div class="form-grid">
+        <div class="field"><label>Title</label><input class="input" name="title" required maxlength="150"></div>
+        <div class="field"><label>Artist</label><input class="input" name="artist" required maxlength="120" list="up-artists"><datalist id="up-artists">${L.artists.map((a) => html`<option value="${a.name}">`)}</datalist></div>
+        <div class="field"><label>Language</label><select class="input" name="language_code">${L.languages.map((l) => html`<option value="${l.code}" ${raw(l.code === "kn" ? "selected" : "")}>${l.name}</option>`)}</select></div>
+        <div class="field"><label>Mood (optional)</label><select class="input" name="moods"><option value="">None</option>${L.categories.map((c) => html`<option value="${c.slug}">${c.name}</option>`)}</select></div>
+      </div>
+      <div class="field"><label>Audio file (.mp3, .m4a, .opus, .wav)</label><input class="input" type="file" name="audio" required accept=".mp3,.m4a,.opus,.wav,audio/mpeg,audio/mp4,audio/ogg,audio/wav"><div class="dim small" id="up-dur"></div></div>
+      <div class="field"><label>Cover image (optional, PNG/JPEG/WebP)</label><input class="input" type="file" name="cover" accept="image/png,image/jpeg,image/webp"></div>
+      <div class="field"><label>Rights holder</label><input class="input" name="licensor" maxlength="120" placeholder="Leave empty if it's the artist"></div>
+      <label class="check"><input type="checkbox" name="allow_free" checked>Free listeners can play the full song</label>
+      <label class="check"><input type="checkbox" name="rights_confirmed" required>I own this song, or I have the rights holder's written permission to stream it on PENDEL</label>
+      <div class="yt-bar" id="up-bar" hidden><span style="width:0%"></span></div><div class="dim small" id="up-msg" aria-live="polite"></div>
+      <div class="modal-actions"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" id="up-go">${icon("upload")}Upload</button></div>
+    </form>`, { wide: true });
+  $("[data-close]", m).onclick = closeModal;
+  const form = $("#upf", m);
+  let duration = 0;
+  form.audio.addEventListener("change", () => { // read the length in the browser, so the server needs no ffmpeg
+    duration = 0;
+    const file = form.audio.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file), probe = new Audio();
+    probe.preload = "metadata";
+    probe.onloadedmetadata = () => { duration = isFinite(probe.duration) ? probe.duration : 0; $("#up-dur", m).textContent = duration ? `Length ${fmtTime(duration)} · ${(file.size / 1e6).toFixed(1)} MB` : ""; URL.revokeObjectURL(url); };
+    probe.onerror = () => { $("#up-dur", m).textContent = "This browser can't read that file's length; it will still upload."; URL.revokeObjectURL(url); };
+    probe.src = url;
+    if (!form.title.value) form.title.value = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+  });
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    fd.set("rights_confirmed", form.rights_confirmed.checked ? "1" : "0");
+    fd.set("allow_free", form.allow_free.checked ? "1" : "0");
+    if (!form.cover.files.length) fd.delete("cover");
+    if (duration) fd.set("duration", String(Math.round(duration * 100) / 100));
+    const bar = $("#up-bar", m), msg = $("#up-msg", m), go = $("#up-go", m);
+    bar.hidden = false; go.disabled = true; msg.textContent = "Uploading…";
+    const xhr = new XMLHttpRequest(); // XHR (not fetch) so we can show upload progress
+    xhr.open("POST", "/api/songs/upload");
+    if (session.token) xhr.setRequestHeader("Authorization", `Bearer ${session.token}`);
+    xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) { const p = Math.round(100 * ev.loaded / ev.total); $("span", bar).style.width = p + "%"; msg.textContent = p < 100 ? `Uploading… ${p}%` : "Saving to storage…"; } };
+    xhr.onload = () => {
+      let d = {}; try { d = JSON.parse(xhr.responseText); } catch { /* not JSON */ }
+      go.disabled = false;
+      if (xhr.status !== 200) { msg.textContent = d.error || `Upload failed (${xhr.status})`; return; }
+      closeModal();
+      toast(d.stored_in === "r2" ? `“${d.song.title}” uploaded to Cloudflare R2 and published` : `“${d.song.title}” published (stored on this server: add the R2 settings to keep uploads permanently)`);
+      reload();
+    };
+    xhr.onerror = () => { go.disabled = false; msg.textContent = "Network error. Check your connection and try again."; };
+    xhr.send(fd);
+  });
 }
 
 async function songEditor(song, reload) {

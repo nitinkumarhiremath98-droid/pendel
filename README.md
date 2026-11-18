@@ -22,6 +22,15 @@ PENDEL is a full-stack, multilingual music streaming platform built around one i
 
 - **Direct audio files (native player).** A song can have an `audio_url`: a licensed `.mp3`, `.m4a`, `.aac`, `.opus`, `.ogg`, `.webm`, `.flac` or `.wav` file on https. Such songs play in PENDEL's own `<audio id="audio-player">` player instead of YouTube, so they keep playing with the screen off and when switching apps, with full lock-screen controls. Set it in **Admin → Songs → edit → Direct audio file**, or with the `audio_url`, `audio_format`, `cover_url` and `duration_sec` columns of the CSV import. Links to YouTube audio are refused. Songs with no direct file keep using the visible YouTube player.
 
+- **Upload tracks to Cloudflare R2.** *Admin → Songs → Upload track*: title, artist, language, mood, audio (.mp3, .m4a, .opus, .wav), optional cover, and a required rights confirmation. The file goes to your R2 bucket (signed S3 API calls in `server/storage.py`, standard library only) and the song streams from R2's public URL in the native player. Endpoint: `POST /api/songs/upload` (multipart form, admins only). Without the R2 settings, uploads are kept on the server's own disk, which Render wipes on restart.
+
+### Set up Cloudflare R2 (free tier, about 10 minutes)
+
+1. In the Cloudflare dashboard open **R2 Object Storage** and **Create bucket** (for example `pendel-songs`).
+2. In the bucket's **Settings**, turn on the **Public Development URL** (`https://pub-….r2.dev`), or connect your own domain.
+3. Back in R2, open **Manage API tokens → Create API token** with **Object Read & Write** on that bucket. Copy the **Access Key ID**, **Secret Access Key** and the **S3 endpoint** (`https://<account-id>.r2.cloudflarestorage.com`).
+4. Add `R2_ENDPOINT_URL`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` and `R2_PUBLIC_URL` to Render's **Environment** tab (and to `.env` for local use). Never commit them.
+
 ### Keep your data on Render (free PostgreSQL, about 10 minutes)
 
 1. Create a free account at [neon.com](https://neon.com), create a project (pick the region closest to your Render service, e.g. Singapore), and copy the **connection string**. It looks like `postgresql://user:password@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`. Use the normal (direct) string, not the "pooled" one.
