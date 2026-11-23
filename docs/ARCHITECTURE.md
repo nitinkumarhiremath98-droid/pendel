@@ -20,7 +20,7 @@ Browser SPA ──HTTP/JSON──▶ server/app.py (ThreadingHTTPServer)
 
 ## Data model
 
-`users`, `admins` (role), `artists`, `albums`, `songs` (unique `sng_…` id + slug), `song_categories` (many-to-many), `languages`, `categories`, `genres`, `audio_assets` (full/preview × standard/high), `song_highlights` (one per song, start/end stored separately, `CHECK` 20–30 s), `lyrics` (original + translations, synced lines as JSON, plain text for search), `licensing` (one per song), `playlists`, `playlist_songs` (ordered), `playlist_follows`, `listening_history`, `favourites`, `user_languages`, `user_categories`, `plans`, `subscriptions`, `payments`, `skip_events`, `takedowns`, `audit_log`, `settings`.
+`users`, `admins` (role), `artists`, `albums`, `songs` (unique `sng_…` id + slug), `song_categories` (many-to-many), `languages`, `categories`, `genres`, `audio_assets` (full/preview × standard/high), `song_highlights` (one per song, start/end stored separately, `CHECK` ≤ 45 s; 42 s by default), `lyrics` (original + translations, synced lines as JSON, plain text for search), `licensing` (one per song), `playlists`, `playlist_songs` (ordered), `playlist_follows`, `listening_history`, `favourites`, `user_languages`, `user_categories`, `plans`, `subscriptions`, `payments`, `skip_events`, `takedowns`, `audit_log`, `settings`.
 
 ## Scaling to millions of listeners
 

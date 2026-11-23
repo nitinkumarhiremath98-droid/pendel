@@ -207,7 +207,7 @@ async function songEditor(song, reload) {
           <button class="btn sm primary" id="dsave">Save audio</button>${song.audio_url ? html`<button class="btn sm" id="dtest">${icon("play")}Test</button><button class="btn sm danger" id="dclear">Remove audio link</button>` : ""}<span class="dim small" id="dmsg"></span></div></div>` : ""}
     ${song?.is_external ? html`
       <div class="ed-section"><h4>Full song & custom highlight (YouTube)</h4>
-        <p class="dim small" style="margin-top:-6px">Paste the official YouTube video of this song. PENDEL then plays the full song in a visible YouTube player, and you can choose your own 20–30 s highlight window on that video.</p>
+        <p class="dim small" style="margin-top:-6px">Paste the official YouTube video of this song. PENDEL then plays the full song in a visible YouTube player, and you can choose your own 40–45 s highlight window on that video (leave End empty for 42 s from the start).</p>
         <div class="toolbar"><input class="input" id="yid" placeholder="https://www.youtube.com/watch?v=… or video ID" value="${song.youtube_id || ""}" style="flex:1 1 320px"><button class="btn sm primary" id="ysave">Save video</button>
           <a class="btn sm" href="${song.youtube_url}" target="_blank" rel="noopener">${icon("external")}Search YouTube</a></div>
         <div class="toolbar"><label class="small">Highlight start (s) <input class="input" id="yhs" type="number" step="0.1" min="0" value="${song.highlight?.source === "provider" ? "" : song.highlight?.start ?? ""}" style="width:110px;min-width:0;display:inline-block;height:36px"></label>
@@ -218,8 +218,8 @@ async function songEditor(song, reload) {
           <select class="input" id="aq" style="min-width:150px;flex:0 0 170px" aria-label="Audio quality"><option value="standard">Standard quality</option><option value="high">High quality (Premium)</option></select>
           <label class="btn">${icon("upload")}Upload cover<input type="file" id="cov" accept="image/png,image/jpeg,image/webp" class="sr-only"></label>
           <span class="dim small" id="aud-msg">${song.assets.map((a) => `${a.kind}/${a.quality} ${a.size_bytes ? Math.round(a.size_bytes / 1024) + " KB" : ""}`).join(" · ") || "No audio yet"}</span></div></div>
-      <div class="ed-section"><h4>Highlight (20–30 seconds)</h4>
-        <p class="dim small" style="margin-top:-6px">Drag the pink window over the chorus or hook. Drag its edges to resize. Only this part plays in Song Highlights.</p>
+      <div class="ed-section"><h4>Highlight (40–45 seconds)</h4>
+        <p class="dim small" style="margin-top:-6px">Drag the pink window over the main vocal hook or chorus (not the intro). Drag its edges to resize. Only this part plays in Song Highlights. Auto-detect uses synced lyrics first, then the audio.</p>
         <div class="wave-wrap" id="wave"><canvas></canvas><div class="wave-sel" id="wsel"><div class="h l"></div><div class="h r"></div><span></span></div><div class="wave-head" id="whead" hidden></div><div class="wave-msg" id="wmsg">Loading waveform…</div></div>
         <div class="toolbar" style="margin-top:10px">
           <label class="small">Start <input class="input" id="hs" type="number" step="0.1" min="0" style="width:100px;min-width:0;display:inline-block;height:36px"></label>
@@ -275,7 +275,8 @@ async function songEditor(song, reload) {
       try { await patch(`/api/admin/songs/${song.id}`, { youtube_id: $("#yid", m).value.trim() }); toast("YouTube video saved"); reopen(); } catch (err) { toastError(err); }
     };
     $("#yhsave", m).onclick = async () => {
-      try { await put(`/api/admin/songs/${song.id}/highlight`, { start: +$("#yhs", m).value, end: +$("#yhe", m).value }); toast("Highlight saved: it now plays from the YouTube video"); reopen(); }
+      const hs0 = +$("#yhs", m).value, he0 = $("#yhe", m).value === "" ? hs0 + HL.def : +$("#yhe", m).value;
+      try { await put(`/api/admin/songs/${song.id}/highlight`, { start: hs0, end: he0 }); toast("Highlight saved: it now plays from the YouTube video"); reopen(); }
       catch (err) { $("#yhmsg", m).textContent = err.message; }
     };
     return;
@@ -331,14 +332,18 @@ function takedownDialog(song, reload) {
   });
 }
 
+// Highlight length: 42 s by default, 40–45 s allowed (server/highlights.py)
+const HL = { min: 40, max: 45, def: 42 };
+
 function highlightEditor(m, song) {
   const wrap = $("#wave", m), canvas = $("canvas", wrap), sel = $("#wsel", m), msg = $("#wmsg", m), head = $("#whead", m);
   const hs = $("#hs", m), he = $("#he", m), hmsg = $("#hmsg", m);
   const dur = song.duration || 0;
-  let start = song.highlight?.start ?? Math.min(30, Math.max(0, dur * 0.35)), end = song.highlight?.end ?? Math.min(dur, start + 25);
+  const lo = Math.min(HL.min, dur), hi = Math.min(HL.max, dur);  // a song shorter than a highlight plays whole
+  let start = song.highlight?.start ?? Math.max(0, Math.min(dur * 0.3, dur - HL.def - 5)), end = song.highlight?.end ?? Math.min(dur, start + HL.def);
   let previewAudio = null, raf = null;
   const clamp = () => {
-    let len = Math.min(30, Math.max(20, end - start));
+    let len = Math.min(hi, Math.max(lo, end - start));
     start = Math.max(0, Math.min(start, dur - len)); end = Math.min(dur, start + len);
   };
   const draw = () => {
@@ -387,16 +392,16 @@ function highlightEditor(m, song) {
     const r = wrap.getBoundingClientRect();
     const dt = ((e.clientX - r.left) / r.width) * dur - drag.x0;
     if (drag.mode === "move") { start = drag.s0 + dt; end = drag.e0 + dt; const len = drag.e0 - drag.s0; start = Math.max(0, Math.min(start, dur - len)); end = start + len; }
-    else if (drag.mode === "l") { start = Math.max(0, Math.min(drag.s0 + dt, end - 20)); if (end - start > 30) start = end - 30; }
-    else { end = Math.min(dur, Math.max(drag.e0 + dt, start + 20)); if (end - start > 30) end = start + 30; }
+    else if (drag.mode === "l") { start = Math.max(0, Math.min(drag.s0 + dt, end - lo)); if (end - start > hi) start = end - hi; }
+    else { end = Math.min(dur, Math.max(drag.e0 + dt, start + lo)); if (end - start > hi) end = start + hi; }
     draw();
   });
   wrap.addEventListener("pointerup", () => (drag = null));
-  [hs, he].forEach((i) => i.addEventListener("change", () => { start = +hs.value; end = +he.value; if (end - start < 20 || end - start > 30) { hmsg.textContent = "Length must be 20–30 s; adjusted."; } clamp(); draw(); }));
+  [hs, he].forEach((i) => i.addEventListener("change", () => { start = +hs.value; end = +he.value; if (end - start < lo || end - start > hi) { hmsg.textContent = `Length must be ${HL.min}–${HL.max} s; adjusted.`; } clamp(); draw(); }));
 
   $("#hauto", m).onclick = async () => {
     hmsg.textContent = "Analysing audio…";
-    try { const { suggestion: s } = await get(`/api/admin/songs/${song.id}/highlight/suggest`); start = s.start; end = s.end; clamp(); draw(); hmsg.textContent = `Suggested by ${s.method} (confidence ${Math.round(s.confidence * 100)}%). Review and save.`; }
+    try { const { suggestion: s } = await get(`/api/admin/songs/${song.id}/highlight/suggest`); start = s.start; end = s.end; clamp(); draw(); hmsg.textContent = `Suggested from ${({ "lyrics-chorus": "the chorus in the synced lyrics", "lyrics-vocals": "where the vocals start", "audio-analysis": "audio analysis", peak: "the most-replayed moment", heuristic: "the song's structure" })[s.method] || s.method} (confidence ${Math.round(s.confidence * 100)}%). Review and save.`; }
     catch (err) { hmsg.textContent = ""; toastError(err); }
   };
   $("#hplay", m).onclick = async () => {

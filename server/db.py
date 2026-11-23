@@ -13,7 +13,7 @@ so every query runs unchanged on both.
 """
 import functools, json, os, re, secrets, sqlite3, threading, time
 
-from . import config, pgwire, security
+from . import config, highlights, pgwire, security
 
 _local = threading.local()
 
@@ -148,7 +148,8 @@ CREATE TABLE IF NOT EXISTS song_highlights (
   source TEXT NOT NULL DEFAULT 'manual' CHECK (source IN ('auto','manual','editorial')),
   preview_asset_id TEXT REFERENCES audio_assets(id) ON DELETE SET NULL,
   updated_at INTEGER NOT NULL,
-  CHECK (start_sec >= 0 AND end_sec - start_sec >= 20 AND end_sec - start_sec <= 30)
+  -- 40-45 s (42 s by default, server/highlights.py); a song shorter than that plays as a whole
+  CONSTRAINT song_highlights_len CHECK (start_sec >= 0 AND end_sec > start_sec AND end_sec - start_sec <= 45)
 );
 
 CREATE TABLE IF NOT EXISTS licensing (
@@ -548,12 +549,87 @@ def init():
     else:
         conn().executescript(SCHEMA)
         migrate()
+    _highlight_length_check()
     for k, v in DEFAULT_SETTINGS.items():
         run("INSERT OR IGNORE INTO settings(key,value) VALUES(?,?)", (k, v))
     seed_plans()
     seed_admin()
     if config.SEED_DEMO and not one("SELECT 1 FROM songs LIMIT 1"):
         seed_catalog()
+    upgrade_highlights()
+
+
+def _highlight_length_check():
+    """Databases made before highlights became 40-45 s still have a 20-30 s CHECK on song_highlights: replace it."""
+    if BACKEND == "postgres":
+        rows = q("""SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint
+                    WHERE conrelid = (SELECT oid FROM pg_class WHERE relname = 'song_highlights' AND relkind = 'r' LIMIT 1) AND contype = 'c'""")
+        for c in rows:
+            if "end_sec - start_sec" in c["def"] and c["conname"] != "song_highlights_len":
+                run(f'ALTER TABLE song_highlights DROP CONSTRAINT "{c["conname"]}"')
+        if not any(c["conname"] == "song_highlights_len" for c in rows):
+            run("ALTER TABLE song_highlights ADD CONSTRAINT song_highlights_len CHECK (start_sec >= 0 AND end_sec > start_sec AND end_sec - start_sec <= 45)")
+        return
+    sql = (one("SELECT sql FROM sqlite_master WHERE type='table' AND name='song_highlights'") or {}).get("sql") or ""
+    if "song_highlights_len" in sql:
+        return
+    ddl = re.search(r"CREATE TABLE IF NOT EXISTS song_highlights \(.*?\n\);", SCHEMA, re.S).group(0)
+    c = conn()
+    c.commit()
+    c.execute("PRAGMA foreign_keys=OFF")
+    try:
+        c.executescript("BEGIN;" + ddl.replace("IF NOT EXISTS song_highlights", "song_highlights_new") + """
+            INSERT INTO song_highlights_new(id,song_id,start_sec,end_sec,source,preview_asset_id,updated_at)
+              SELECT id,song_id,start_sec,end_sec,source,preview_asset_id,updated_at FROM song_highlights;
+            DROP TABLE song_highlights;
+            ALTER TABLE song_highlights_new RENAME TO song_highlights;
+            COMMIT;""")
+    finally:
+        c.execute("PRAGMA foreign_keys=ON")
+
+
+HIGHLIGHTS_VERSION = f"{highlights.DEFAULT_LEN:g}s-hook-v1"
+
+
+def upgrade_highlights():
+    """One-time move of automatic highlights (and the original demo songs' windows) to 42 s on the main hook.
+    Windows set by hand ('manual') or given in an import ('editorial') are kept. Runs again only when the
+    highlight length or the method changes."""
+    if (one("SELECT value FROM settings WHERE key='highlights_version'") or {}).get("value") == HIGHLIGHTS_VERSION:
+        return
+    L, tail = highlights.DEFAULT_LEN, highlights.TAIL
+    which = """(source='auto' OR (source='editorial' AND song_id IN (SELECT id FROM songs WHERE is_demo=1)))"""
+    # 1) every song by structure, in one statement (YouTube catalogues have tens of thousands of songs)
+    d = "(SELECT duration_sec FROM songs WHERE songs.id = song_highlights.song_id)"
+    pct = f"(CASE WHEN {d} < 90 THEN 0.15 WHEN {d} > 360 THEN 0.25 ELSE 0.30 END)"
+    latest = f"(CASE WHEN {d} - {L + tail} >= 0 THEN {d} - {L + tail} ELSE {d} - {L} END)"
+    start = f"(CASE WHEN {d} IS NULL OR {d} <= 0 THEN 45 WHEN {d} <= {L} THEN 0 WHEN {d} * {pct} > {latest} THEN {latest} ELSE {d} * {pct} END)"
+    end = f"(CASE WHEN {d} > 0 AND {d} <= {L} THEN {d} ELSE {start} + {L} END)"
+    with tx():
+        run(f"UPDATE song_highlights SET start_sec = ROUND(CAST({start} AS NUMERIC), 2), end_sec = ROUND(CAST({end} AS NUMERIC), 2), "
+            f"source = 'auto', updated_at = ? WHERE {which}", (now(),))
+        # 2) songs with synced lyrics: start on the chorus instead
+        for r in q(f"""SELECT h.song_id, s.duration_sec, l.lines_json FROM song_highlights h JOIN songs s ON s.id = h.song_id
+                       JOIN lyrics l ON l.song_id = s.id AND l.is_translation = 0 AND l.is_synced = 1
+                       WHERE h.source = 'auto'"""):
+            try:
+                w = highlights.smart_window(r["duration_sec"] or 0, lyrics=json.loads(r["lines_json"]))
+            except ValueError:
+                continue
+            run("UPDATE song_highlights SET start_sec=?, end_sec=? WHERE song_id=?", (w["start"], w["end"], r["song_id"]))
+        # 3) demo songs: their preview files in media/audio/preview were re-cut to the same window
+        #    (tools/render_demo_previews.py); they stay 'editorial' like a fresh install
+        demo = "SELECT id FROM songs WHERE is_demo=1 AND source='pendel'"
+        run(f"UPDATE song_highlights SET source='editorial' WHERE song_id IN ({demo})")
+        run(f"""UPDATE audio_assets SET duration_sec = (SELECT end_sec - start_sec FROM song_highlights WHERE song_highlights.song_id = audio_assets.song_id)
+                WHERE kind='preview' AND song_id IN ({demo})""")
+        # 4) clips cut for uploaded songs are the old window: play the new window from the full file instead
+        #    (the next time an editor saves the highlight, a 42 s clip is cut again where ffmpeg is installed)
+        own = "SELECT song_id FROM song_highlights WHERE source='auto' AND song_id IN (SELECT id FROM songs WHERE source='pendel' AND is_demo=0)"
+        run(f"UPDATE song_highlights SET preview_asset_id = NULL WHERE song_id IN ({own})")
+        run(f"DELETE FROM audio_assets WHERE kind='preview' AND song_id IN ({own})")
+        run("DELETE FROM settings WHERE key='highlights_version'")
+        run("INSERT INTO settings(key,value) VALUES('highlights_version', ?)", (HIGHLIGHTS_VERSION,))
 
 
 def _pg_secret():
@@ -633,6 +709,7 @@ def seed_catalog():
                  s["year"], s["duration"], s["cover"], int(s.get("featured", False)), s.get("plays", 0), 1, t - i * 3600 * 20, t))
             for c in s["cats"]:
                 run("INSERT OR IGNORE INTO song_categories(song_id,category_id) VALUES(?,?)", (sid, cats[c]))
+            # the 42 s highlight on the first chorus (tools/render_demo_previews.py cut the preview files)
             full_id, prev_id = new_id("aud"), new_id("aud")
             run("INSERT INTO audio_assets(id,song_id,kind,storage_key,bitrate_kbps,duration_sec,size_bytes,created_at) VALUES(?,?,?,?,?,?,?,?)",
                 (full_id, sid, "full", s["audio_full"], 80, s["duration"], _size(s["audio_full"]), t))

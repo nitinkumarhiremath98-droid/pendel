@@ -7,7 +7,7 @@
 
 Demo login: `demo@pendel.local` / `Demo@12345`
 
-PENDEL is a full-stack, multilingual music streaming platform built around one idea: every song has a 20–30 second moment that makes people fall in love with it. Listeners swipe through those **Song Highlights** by mood and language, then tap **Play full song** to hear the complete licensed track.
+PENDEL is a full-stack, multilingual music streaming platform built around one idea: every song has a 40–45 second moment (its chorus) that makes people fall in love with it. Listeners swipe through those **Song Highlights** by mood and language, then tap **Play full song** to hear the complete licensed track.
 
 ![PENDEL home](docs/screenshots/home.png)
 
@@ -75,7 +75,7 @@ PENDEL can import **complete official songs** for all 26 languages from YouTube,
 ## New in v2: real songs in every language + 1-hour Mood Sessions
 
 - **World catalogue:** PENDEL is connected to Apple's public **iTunes Search API**, giving millions of real releases in 26 languages, from Telugu, Tamil, Hindi and Kannada to K-pop and Latin. Every song plays its **official 30-second preview** as its highlight in the Highlights feed, on language and mood pages, and in search. Nothing is copied: audio streams from Apple's servers.
-- **Full songs:** add a free YouTube API key and "Play full song" plays the official video in a visible YouTube player inside PENDEL. Admins can also paste a video link and set their **own 20–30 s highlight** on it.
+- **Full songs:** add a free YouTube API key and "Play full song" plays the official video in a visible YouTube player inside PENDEL. Admins can also paste a video link and set their **own 40–45 s highlight** on it.
 - **Mood Session:** pick a mood, one or more languages and a length (30 min, 1 h, 90 min or 2 h). PENDEL builds a non-stop queue: either a **Highlights marathon** (about 120 back-to-back best moments per hour) or **Full songs**.
 - **Trending on Apple Music:** the home page shows the live most-played chart for India.
 - PENDEL's own 39 songs keep everything they had: full audio, waveform highlight editor and synced lyrics.
@@ -104,13 +104,13 @@ Each new song costs one YouTube search, and the result is remembered. The free d
 | **Language-wise library** | **Mobile** |
 | ![Language page](docs/screenshots/language.png) | <img src="docs/screenshots/mobile-highlights.png" width="260" alt="Mobile highlights"> |
 
-**Admin waveform highlight editor:** drag a 20–30 s window over the chorus, auto-detect it from the audio, preview and save.
+**Admin waveform highlight editor:** drag a 40–45 s window over the chorus, auto-detect it (synced lyrics first, then the audio), preview and save.
 
 ![Admin highlight editor](docs/screenshots/admin-highlight-editor.png)
 
 ## Highlights of the project
 
-- **20–30 s Song Highlights:** a vertical swipe feed with 10 mood feeds, synced lyric lines and translations, auto-advance, and one tap to the full song.
+- **42 s Song Highlights on the chorus:** a vertical swipe feed with 10 mood feeds, synced lyric lines and translations, auto-advance, and one tap to the full song.
 - **Automatic chorus detection:** scores audio windows by loudness and repetition (NumPy + FFmpeg). It finds the chorus in 35 of 39 demo songs.
 - **24 languages** in the demo catalogue (Telugu, Tamil, Hindi, Kannada, Malayalam, Bengali, Punjabi, English, Spanish, Korean, Japanese, Arabic and more), with native-script lyrics.
 - **Complete player:** queue, shuffle, repeat, seek, mini and full-screen modes, lock-screen controls, synced lyrics with click-to-seek.
@@ -180,12 +180,12 @@ To run the API tests on PostgreSQL too, point `TEST_DATABASE_URL` at an **empty,
 | Library: playlists, auto playlists (My Sad Songs, My Love Songs, My Favourite Devotional Songs, My DJ Collection, My Trending Songs), favourites, recently played, listening history | `/library` |
 | Playlists: create, edit, delete, add/remove songs, drag-and-drop or ▲▼ reordering, public/private, share link, follow | `/playlist/<id>` |
 | Subscriptions: Free (house ads every N songs, skip limit, previews of Premium-only songs) and Premium (full streams, no ads, unlimited skips, high-quality assets when uploaded) | `/premium` |
-| Admin: role-based (super admin, content manager, moderator, analyst); analytics including highlight→full-song conversion; song CRUD with mandatory licensing; audio and cover upload; **waveform highlight editor** (drag a 20–30 s window, auto-detect, preview, save); LRC lyrics and translations; bulk upload with CSV import and dry run; artists, albums, categories, languages, users, roles, Premium grants, playlists, plans and free-tier rules; copyright takedown/restore log; audit log | `/admin` |
+| Admin: role-based (super admin, content manager, moderator, analyst); analytics including highlight→full-song conversion; song CRUD with mandatory licensing; audio and cover upload; **waveform highlight editor** (drag a 40–45 s window, auto-detect, preview, save); LRC lyrics and translations; bulk upload with CSV import and dry run; artists, albums, categories, languages, users, roles, Premium grants, playlists, plans and free-tier rules; copyright takedown/restore log; audit log | `/admin` |
 | SEO: server-rendered `<title>`, meta description, Open Graph tags and JSON-LD (`MusicRecording`/`MusicGroup`) on song, artist, language and category URLs; `sitemap.xml`, `robots.txt` | |
 
 ## How highlights work
 
-1. Every song has one row in `song_highlights` (`start_sec`, `end_sec`), connected to the song by `song_id`. A database `CHECK` constraint enforces a length of 20–30 seconds.
+1. Every song has one row in `song_highlights` (`start_sec`, `end_sec`), connected to the song by `song_id`. Highlights are 42 s by default (`HIGHLIGHT_DURATION_SEC`, 40–45 s) and start on the chorus: the most repeated line of the synced lyrics, else a most-replayed peak, else audio analysis, else ~30 % into the song. A database `CHECK` caps the length at 45 s.
 2. When an admin uploads audio, `server/highlights.py` decodes it and scores every 25-second window on **loudness/density** and **repetition** (how closely it matches another part of the song, which is the signature of a chorus). The first 15 seconds are penalised, so a highlight never defaults to the intro. On the demo catalogue it lands on a chorus in 35 of 39 songs.
 3. The suggestion is saved as `source=auto`. Admins can drag the window in the waveform editor, and their choice is saved as `manual`, which a later re-upload never overwrites.
 4. ffmpeg cuts a separate **preview asset** with short fades. The highlight feed streams only that file, so free listeners never receive the full track for Premium-only songs.

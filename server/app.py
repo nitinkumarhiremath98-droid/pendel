@@ -221,7 +221,7 @@ def lyric_excerpt(song_id, start, end):
     for i, l in enumerate(lines):
         if start - 0.5 <= l["t"] < end:
             out.append({"t": round(l["t"] - start, 2), "text": l["text"], "tr": trl[i]["text"] if i < len(trl) else None})
-    return out[:6] or None
+    return out[:14] or None  # a 42 s window holds ~8-12 lines; the card scrolls them like karaoke
 
 
 # --------------------------------------------------------------------------- public catalogue
@@ -673,7 +673,8 @@ def direct_stream_info(kind, r, user):
     if kind == "highlight":
         if r["start_sec"] is not None:
             return {"mode": "range", "url": url, "format": fmt, "start": r["start_sec"], "end": r["end_sec"], "song_offset": 0}
-        return {"mode": "range", "url": url, "format": fmt, "start": 0, "end": min(30, r["duration_sec"] or 30), "song_offset": 0}
+        w = highlights.smart_window(r["duration_sec"] or 0)
+        return {"mode": "range", "url": url, "format": fmt, "start": w["start"], "end": w["end"], "song_offset": 0}
     # a licence that says "Premium only" is respected; songs without such a licence stream for everyone
     premium = user_plan(user["id"] if user else None)["tier"] == "premium"
     if r["lic_row"] and not r["allow_free_full_stream"] and not premium:
@@ -761,7 +762,7 @@ def world_mood(req):
 def mood_session(req):
     """A ready-to-play queue that lasts `minutes` (default 60) for a mood and a set of languages.
     mode=full: complete songs (PENDEL songs you may stream + world songs when YouTube is connected).
-    mode=highlights: a non-stop run of 20-30 s highlights."""
+    mode=highlights: a non-stop run of 40-45 s highlights."""
     import random
     qd = req.query
     mood = qd.get("mood") or "trending"
@@ -1686,7 +1687,7 @@ def admin_upload_audio(req, sid):
     for o in old:
         if o["storage_key"].startswith("uploads/"):
             storage.delete(o["storage_key"])
-    suggestion = highlights.suggest_highlight(local, duration)
+    suggestion = _smart_window(sid, duration, local)
     hl = db.one("SELECT * FROM song_highlights WHERE song_id=?", (sid,))
     applied = False
     if not hl or hl["source"] == "auto" or hl["end_sec"] > duration:
@@ -1697,14 +1698,33 @@ def admin_upload_audio(req, sid):
             "song": cards([get_song(sid, True)])[0]}
 
 
-def _default_highlight(sid):
-    """A song that streams from a remote audio file can't be analysed here: estimate its highlight like YouTube
-    imports do (25 s from a third of the way in). Editors can move it later."""
-    r = db.one("SELECT s.duration_sec, h.song_id has_hl FROM songs s LEFT JOIN song_highlights h ON h.song_id=s.id WHERE s.id=?", (sid,))
+def _synced_lyrics(sid):
+    """The song's own synced lyric lines [{t, text}] (not a translation), or None."""
+    r = db.one("SELECT lines_json FROM lyrics WHERE song_id=? AND is_translation=0 AND is_synced=1 ORDER BY created_at LIMIT 1", (sid,))
+    try:
+        return json.loads(r["lines_json"]) if r else None
+    except ValueError:
+        return None
+
+
+def _smart_window(sid, duration, audio_local=None, peak=None):
+    return highlights.smart_window(duration, lyrics=_synced_lyrics(sid), peak=peak, audio_path=audio_local)
+
+
+def _auto_highlight(sid, audio_local=None, peak=None, replace_auto=False):
+    """Sets a 42 s highlight on the song's main hook (see highlights.smart_window): when the song has none yet,
+    or, with replace_auto, when the current one was chosen automatically. Hand-set windows are never touched."""
+    r = db.one("SELECT s.duration_sec, h.source hl_source FROM songs s LEFT JOIN song_highlights h ON h.song_id=s.id WHERE s.id=?", (sid,))
     dur = r and r["duration_sec"] or 0
-    if r and not r["has_hl"] and dur >= 40:
-        start = round(min(dur * 0.33, dur - 26), 2)
-        _save_highlight(sid, start, round(start + 25, 2), "auto")
+    if not r or not dur or (r["hl_source"] and not (replace_auto and r["hl_source"] == "auto")):
+        return None
+    w = _smart_window(sid, dur, audio_local, peak)
+    _save_highlight(sid, w["start"], w["end"], "auto", audio_local)
+    return w
+
+
+def _default_highlight(sid):
+    _auto_highlight(sid)
 
 
 def _save_highlight(sid, start, end, source, src_local=None):
@@ -1762,8 +1782,10 @@ def admin_set_highlight(req, sid):
 def admin_suggest_highlight(req, sid):
     s = get_song(sid, True)
     full = db.one("SELECT storage_key FROM audio_assets WHERE song_id=? AND kind='full' LIMIT 1", (sid,))
-    require(full, 400, "Upload audio first")
-    return {"suggestion": highlights.suggest_highlight(storage.local_path(full["storage_key"]), s["duration_sec"])}
+    if not full:  # streams from a direct link or YouTube: lyrics / structure only
+        require(s["duration_sec"], 400, "Upload audio first")
+        return {"suggestion": _smart_window(sid, s["duration_sec"])}
+    return {"suggestion": _smart_window(sid, s["duration_sec"], storage.local_path(full["storage_key"]))}
 
 
 @route("GET", r"/api/admin/songs/(?P<sid>sng_\w+)/preview-url", auth="content")
@@ -1809,6 +1831,11 @@ def admin_lyrics(req, sid):
         if b.get("translation_text"):
             tl = parse_lyrics(b["translation_text"])
             db.save_lyrics(sid, s_(b.get("translation_language"), "Translation language", 10, False) or "en", tl, True, source)
+    # synced lyrics show where the chorus is: move an automatic highlight onto it (hand-set ones stay)
+    try:
+        _auto_highlight(sid, replace_auto=True)
+    except ApiError:
+        pass
     audit(req, "set_lyrics", "song", sid, {"lines": len(lines)})
     return {"ok": True, "lines": len(lines), "synced": all(l["t"] is not None for l in lines)}
 
@@ -1845,13 +1872,13 @@ def admin_generic_upload(req):
 
 CSV_COLUMNS = ["title", "artist", "album", "language_code", "genre", "categories", "release_year", "audio_key", "cover_key",
                "highlight_start", "highlight_end", "licensor", "license_type", "allow_free_full_stream", "allow_lyrics", "lyrics_lrc", "lyrics_source",
-               "audio_url", "audio_format", "cover_url", "duration_sec"]
+               "audio_url", "audio_format", "cover_url", "duration_sec", "highlight_duration", "highlight_peak"]
 
 
 @route("GET", r"/api/admin/import/template", auth="content")
 def csv_template(req):
     return {"columns": CSV_COLUMNS, "example": ",".join(CSV_COLUMNS) + "\n" +
-            'My Song,New Artist,Debut,te,Film Pop,love;melody,2026,uploads/audio/bulk-abc123.mp3,,62.5,88,Example Records,label,0,1,"[00:12.00] first line",Example Records lyric licence,,,,'}
+            'My Song,New Artist,Debut,te,Film Pop,love;melody,2026,uploads/audio/bulk-abc123.mp3,,62.5,104.5,Example Records,label,0,1,"[00:12.00] first line",Example Records lyric licence,,,,,,'}
 
 
 @route("POST", r"/api/admin/import/csv", auth="content")
@@ -1918,12 +1945,17 @@ def _import_row(req, r, dry):
             db.run("UPDATE songs SET duration_sec=? WHERE id=?", (dur, sid))
         if (r.get("lyrics_lrc") or "").strip() and lic["allow_lyrics"]:
             db.save_lyrics(sid, lang, parse_lyrics(r["lyrics_lrc"]), False, r.get("lyrics_source") or lic["licensor"])
+    if r.get("highlight_start") and not r.get("highlight_end") and r.get("highlight_duration"):
+        try:  # "highlight_start + highlight_duration" works as well as "highlight_start, highlight_end"
+            r["highlight_end"] = str(float(r["highlight_start"]) + float(r["highlight_duration"]))
+        except ValueError:
+            raise ApiError(400, "highlight_start and highlight_duration must be numbers (seconds)")
     if audio_key:
         dur = db.one("SELECT duration_sec FROM songs WHERE id=?", (sid,))["duration_sec"]
         if r.get("highlight_start") and r.get("highlight_end"):
             _save_highlight(sid, r["highlight_start"], r["highlight_end"], "editorial")
         elif dur:
-            sug = highlights.suggest_highlight(storage.local_path(audio_key), dur)
+            sug = _smart_window(sid, dur, storage.local_path(audio_key), r.get("highlight_peak") or None)
             _save_highlight(sid, sug["start"], sug["end"], "auto")
         if dur:
             db.run("UPDATE songs SET status='published' WHERE id=?", (sid,))
@@ -1931,7 +1963,7 @@ def _import_row(req, r, dry):
         if r.get("highlight_start") and r.get("highlight_end"):
             _save_highlight(sid, r["highlight_start"], r["highlight_end"], "editorial")
         else:
-            _default_highlight(sid)
+            _auto_highlight(sid, peak=r.get("highlight_peak") or None)
         db.run("UPDATE songs SET status='published' WHERE id=?", (sid,))
     return sid
 
@@ -2539,7 +2571,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def seo_tags(path):
     title, desc, image, jsonld = (f"{config.APP_NAME} - Feel Every Beat",
-                                  "Stream music in every language. Discover songs by mood through 20-30 second highlights, then play the full track.", None, None)
+                                  "Stream music in every language. Discover songs by mood through 40-45 second highlights, then play the full track.", None, None)
     m = SEO_ROUTES.match(path)
     lm = re.match(r"^/legal(?:/([\w-]+))?$", path)
     if lm and (lm.group(1) or "") in LEGAL_TITLES:
@@ -2567,7 +2599,7 @@ def seo_tags(path):
         elif m and m.group(1) == "category":
             c = db.one("SELECT * FROM categories WHERE slug=?", (m.group(2),))
             if c:
-                title, desc = f"{c['name']} | {config.APP_NAME}", f"Listen to {c['name'].lower()} from every language, with 20-30 second highlights."
+                title, desc = f"{c['name']} | {config.APP_NAME}", f"Listen to {c['name'].lower()} from every language, with 40-45 second highlights."
     except Exception:
         traceback.print_exc()
     e = html.escape

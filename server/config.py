@@ -83,6 +83,8 @@ RAZORPAY_WEBHOOK_SECRET = env("RAZORPAY_WEBHOOK_SECRET", "")
 CURRENCY = env("CURRENCY", "INR")
 
 FFMPEG = env("FFMPEG_PATH", "ffmpeg")
+# Song highlights: how long each preview plays (seconds). Kept within 40-45 s; 42 s by default.
+HIGHLIGHT_DURATION_SEC = min(45.0, max(40.0, env("HIGHLIGHT_DURATION_SEC", 42.0, float)))
 
 # World catalogue: real songs via Apple's public iTunes Search API (30 s previews) + YouTube for full songs
 WORLD_CATALOG = env("WORLD_CATALOG", True, bool)

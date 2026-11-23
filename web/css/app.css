@@ -222,13 +222,16 @@ img { display: block; }
 .hl-artist a:hover { text-decoration: underline; }
 .hl-tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .hl-tags .tag { background: rgba(255,255,255,.14); color: #fff; }
-.hl-lyrics { min-height: 96px; display: flex; flex-direction: column; gap: 4px; font-size: 19px; font-weight: 600; line-height: 1.35; }
+.hl-lyrics { min-height: 96px; display: flex; flex-direction: column; gap: 4px; font-size: 19px; font-weight: 600; line-height: 1.35;
+  max-height: 172px; overflow: hidden; position: relative; scroll-behavior: smooth;
+  -webkit-mask-image: linear-gradient(transparent, #000 14%, #000 78%, transparent); mask-image: linear-gradient(transparent, #000 14%, #000 78%, transparent); }
 .hl-lyrics .ln { opacity: .38; transition: opacity .35s, transform .35s; transform-origin: left; }
 .hl-lyrics .ln.on { opacity: 1; transform: scale(1.02); }
 .hl-lyrics .tr { font-size: 13px; font-weight: 400; opacity: .75; display: block; }
 .hl-lyrics .nolyr { font-size: 14px; font-weight: 400; opacity: .7; }
 .hl-progress { height: 4px; border-radius: 2px; background: rgba(255,255,255,.2); overflow: hidden; }
-.hl-progress span { display: block; height: 100%; width: 0; background: #fff; border-radius: 2px; }
+.hl-progress span { display: block; height: 100%; width: 0; background: #fff; border-radius: 2px; transition: width .26s linear; }
+@media (prefers-reduced-motion: reduce) { .hl-progress span { transition: none; } .hl-lyrics { scroll-behavior: auto; } }
 .hl-time { display: flex; justify-content: space-between; font-size: 12px; opacity: .7; font-variant-numeric: tabular-nums; }
 .hl-actions { display: flex; align-items: center; gap: 10px; }
 .hl-actions .icon-btn { color: #fff; background: rgba(255,255,255,.12); }
@@ -494,8 +497,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   .hl-nav { display: none; }
   .hl-hint { display: none; }
   .hl-card { gap: 10px; padding-top: 58px; }
-  .hl-lyrics { font-size: 17px; min-height: 0; }
-  .hl-lyrics .ln:nth-child(n+4) { display: none; }
+  .hl-lyrics { font-size: 17px; min-height: 0; max-height: 118px; }
   .hl-title { font-size: 22px; }
   .searchbox { min-width: 0; padding: 0 12px; }
   .top-actions [data-action=toggle-theme], #account-slot .btn.ghost { display: none; }

@@ -23,7 +23,7 @@ is available, and one older than 30 days is not used without a refresh.
 import gzip, hashlib, json, os, queue, re, threading, time, urllib.parse
 from datetime import datetime, timezone
 
-from . import config, db, external
+from . import config, db, external, highlights
 
 API = "https://www.googleapis.com/youtube/v3/"
 SNAPSHOT = os.path.join(config.ROOT, "catalog", "youtube_snapshot.json.gz")
@@ -224,9 +224,9 @@ def materialise(rows):
                           created_at,updated_at,source,external_id,external_url,youtube_id) VALUES(?,?,?,?,?,?,?,?,'published',0,0,?,?,'youtube',?,?,?)""",
                        (sid, f"yt-{external._slug(r['title'])[:40]}-{sid[6:14]}", r["title"], aid, lang, r["year"], r["duration"], thumb, t0, t0,
                         r["video_id"], f"https://www.youtube.com/watch?v={r['video_id']}", r["video_id"]))
-                start = max(15.0, min(r["duration"] * 0.33, r["duration"] - 30))  # estimated window: no audio analysis on YouTube songs
+                w = highlights.smart_window(r["duration"])  # 42 s where the first chorus usually lands (no audio to analyse)
                 db.run("""INSERT OR IGNORE INTO song_highlights(id,song_id,start_sec,end_sec,source,preview_asset_id,updated_at)
-                          VALUES(?,?,?,?, 'auto', NULL, ?)""", (db.new_id("hl"), sid, round(start, 1), round(start + 25, 1), t0))
+                          VALUES(?,?,?,?, 'auto', NULL, ?)""", (db.new_id("hl"), sid, w["start"], w["end"], t0))
                 new += 1
             for m in r["moods"]:
                 if m in cats:

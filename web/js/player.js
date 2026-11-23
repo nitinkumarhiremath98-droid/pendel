@@ -554,7 +554,7 @@ export function syncUI() {
   $(".fp-title", fp).textContent = s.title;
   const fa = $(".fp-artist", fp); fa.textContent = s.artist.name; fa.href = `/artist/${s.artist.slug}`;
   $(".fp-context", fp).textContent = c.mode === "highlight" ? "Song highlight" : "Now playing";
-  $(".fp-chips", fp).innerHTML = [s.language.name, ...s.categories.slice(0, 3).map((x) => x.name), c.mode === "highlight" ? "20–30s highlight" : null]
+  $(".fp-chips", fp).innerHTML = [s.language.name, ...s.categories.slice(0, 3).map((x) => x.name), c.mode === "highlight" ? `${Math.round(c.end - c.start)}s highlight` : null]
     .filter(Boolean).map((t) => `<span class="tag">${esc(t)}</span>`).join("");
   $$("[data-action=toggle-play]").forEach((b) => {
     b.querySelector("use").setAttribute("href", `/img/icons.svg#${playing ? "pause" : "play"}`);

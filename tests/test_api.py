@@ -92,9 +92,59 @@ class PENDELAPI(unittest.TestCase):
         for s in db.q("SELECT s.id, s.language_code, h.start_sec, h.end_sec, s.duration_sec FROM songs s LEFT JOIN song_highlights h ON h.song_id=s.id WHERE s.status='published' AND s.source='pendel'"):
             self.assertTrue(s["language_code"])
             self.assertIsNotNone(s["start_sec"])
-            self.assertTrue(20 <= s["end_sec"] - s["start_sec"] <= 30)
+            self.assertTrue(40 <= s["end_sec"] - s["start_sec"] <= 45, s)
             self.assertGreater(s["start_sec"], 20, "highlight must not default to the opening")
-            self.assertLessEqual(s["end_sec"], s["duration_sec"])
+            self.assertLessEqual(s["end_sec"], s["duration_sec"] - 5, "ends at least 5 s before the song does")
+
+    def test_auto_highlight_follows_synced_lyrics_and_upgrade(self):
+        # a song with a direct audio link gets a structural 42 s window, then moves onto the chorus once lyrics arrive
+        body = {"title": "Hook Finder", "artist_id": db.one("SELECT id FROM artists LIMIT 1")["id"], "language_code": "en",
+                "audio_url": "https://cdn.example.com/hook.mp3", "duration_sec": 200,
+                "license": {"licensor": "Test", "license_type": "direct", "allow_free_full_stream": True, "allow_lyrics": True}}
+        st, d = call("POST", "/api/admin/songs", body, token=self.admin)
+        self.assertEqual(st, 200, d)
+        sid = d["song"]["id"]
+        db.run("UPDATE songs SET duration_sec=200 WHERE id=?", (sid,))
+        call("PATCH", f"/api/admin/songs/{sid}", {"audio_url": "https://cdn.example.com/hook.mp3"}, token=self.admin)
+        h = db.one("SELECT * FROM song_highlights WHERE song_id=?", (sid,))
+        self.assertEqual((h["start_sec"], h["end_sec"], h["source"]), (60.0, 102.0, "auto"), "30 % into a 200 s song, 42 s long")
+        lrc = "\n".join(f"[{m:02d}:{s_:02d}.00] {t}" for m, s_, t in [(0, 20, "verse one"), (0, 30, "verse two"), (0, 50, "we are the chorus"),
+                                                                     (0, 56, "singing all night"), (1, 30, "verse three"), (1, 50, "we are the chorus"), (2, 40, "we are the chorus")])
+        self.assertEqual(call("PUT", f"/api/admin/songs/{sid}/lyrics", {"text": lrc, "source": "Test"}, token=self.admin)[0], 200)
+        h = db.one("SELECT * FROM song_highlights WHERE song_id=?", (sid,))
+        self.assertEqual((h["start_sec"], h["end_sec"]), (49.4, 91.4), "starts on the first chorus, just before the first word")
+        sug = call("GET", f"/api/admin/songs/{sid}/highlight/suggest", token=self.admin)[1]["suggestion"]
+        self.assertEqual((sug["start"], sug["method"]), (49.4, "lyrics-chorus"))
+        # the one-time upgrade moves old 25 s automatic windows and keeps hand-set ones
+        auto_sid = db.one("SELECT h.song_id FROM song_highlights h JOIN songs s ON s.id=h.song_id WHERE s.is_demo=1 AND s.slug='rise-again'")["song_id"]
+        db.run("UPDATE song_highlights SET start_sec=74.18, end_sec=100.36, source='auto' WHERE song_id=?", (auto_sid,))  # the old 26 s window
+        db.run("UPDATE song_highlights SET start_sec=70.1, end_sec=95.1, source='manual' WHERE song_id=?", (sid,))
+        db.run("DELETE FROM settings WHERE key='highlights_version'")
+        db.upgrade_highlights()
+        a = db.one("SELECT h.start_sec, h.end_sec, h.source, h.preview_asset_id FROM song_highlights h WHERE h.song_id=?", (auto_sid,))
+        self.assertEqual((a["start_sec"], a["end_sec"], a["source"]), (34.31, 76.31, "editorial"), "Rise Again: its first chorus (“We rise again”)")
+        self.assertTrue(a["preview_asset_id"], "the demo's re-cut 42 s preview file is kept")
+        self.assertEqual(db.one("SELECT start_sec, end_sec FROM song_highlights WHERE song_id=?", (sid,)), {"start_sec": 70.1, "end_sec": 95.1})
+
+    def test_highlight_window_rules(self):
+        from server import highlights as H
+        self.assertEqual(H.DEFAULT_LEN, 42)
+        for dur, at in [(200, 60), (300, 90), (420, 105), (80, 12)]:  # 30 % / 25 % / 15 %
+            w = H.smart_window(dur)
+            self.assertAlmostEqual(w["start"], at, delta=0.01, msg=dur); self.assertAlmostEqual(w["end"] - w["start"], 42, delta=0.01)
+        w = H.smart_window(60)                  # short: clamped so it ends 5 s before the end
+        self.assertEqual((w["start"], w["end"]), (9.0, 51.0))
+        w = H.smart_window(80, peak=70)
+        self.assertEqual((w["start"], w["end"]), (33.0, 75.0), "never closer than 5 s to the end")
+        self.assertEqual(H.smart_window(30), {"start": 0.0, "end": 30.0, "method": "heuristic", "confidence": 0.2})
+        self.assertEqual(H.smart_window(240, peak=100)["start"], 95.0, "5 s before the most-replayed peak")
+        self.assertEqual(H.smart_window(240, peak=230)["start"], 193.0, "clamped to the end")
+        lines = [{"t": 12, "text": "Intro line"}, {"t": 20, "text": "Verse"}, {"t": 40, "text": "Oh oh, the hook!"}, {"t": 70, "text": "verse"},
+                 {"t": 90, "text": "oh oh the hook"}, {"t": 150, "text": "Oh oh, the HOOK"}]
+        self.assertEqual(H.smart_window(240, lyrics=lines)["start"], 39.4)
+        self.assertEqual(H.smart_window(240, lyrics=[{"t": 33, "text": "only once"}])["method"], "lyrics-vocals")
+        self.assertIsNone(H.validate_window(10, 52, 200)); self.assertIsNotNone(H.validate_window(10, 35, 200))
+        self.assertIsNone(H.validate_window(0, 30, 30), "a 30 s song plays whole")
 
     def test_highlight_feed_and_preview_asset(self):
         st, d = call("GET", "/api/highlights?feed=sad")
@@ -102,6 +152,7 @@ class PENDELAPI(unittest.TestCase):
         self.assertTrue(d["items"])
         it = d["items"][0]
         self.assertEqual(it["stream"]["mode"], "preview")
+        self.assertAlmostEqual(it["stream"]["end"] - it["stream"]["start"], 42, delta=0.05)
         self.assertIn("sig=", it["stream"]["url"])
         self.assertTrue(all("sad" in [c["slug"] for c in i["categories"]] for i in d["items"]))
         # range request on the signed URL
@@ -217,11 +268,14 @@ class PENDELAPI(unittest.TestCase):
         self.assertEqual(st, 200, up)
         self.assertTrue(up["highlight_applied"])
         hl = up["song"]["highlight"]
-        self.assertTrue(20 <= hl["end"] - hl["start"] <= 30)
-        self.assertEqual(call("PUT", f"/api/admin/songs/{sid}/highlight", {"start": 10, "end": 50}, token=self.admin)[0], 400)
-        st, d = call("PUT", f"/api/admin/songs/{sid}/highlight", {"start": 79.1, "end": 104.1}, token=self.admin)
-        self.assertEqual((d["song"]["highlight"]["start"], d["song"]["highlight"]["source"]), (79.1, "manual"))
-        st, d = call("PUT", f"/api/admin/songs/{sid}/lyrics", {"text": "[01:19.10] first line\n[01:25.00] second line", "source": "Test Records lyric licence"}, token=self.admin)
+        self.assertAlmostEqual(hl["end"] - hl["start"], 42, delta=0.05)
+        self.assertGreater(hl["start"], 20, "not the intro")
+        self.assertEqual(call("PUT", f"/api/admin/songs/{sid}/highlight", {"start": 10, "end": 35}, token=self.admin)[0], 400, "25 s is too short now")
+        self.assertEqual(call("PUT", f"/api/admin/songs/{sid}/highlight", {"start": 10, "end": 60}, token=self.admin)[0], 400, "50 s is too long")
+        st, d = call("PUT", f"/api/admin/songs/{sid}/highlight", {"start": 70.1, "end": 112.1}, token=self.admin)
+        self.assertEqual((d["song"]["highlight"]["start"], d["song"]["highlight"]["source"]), (70.1, "manual"))
+        st, d = call("PUT", f"/api/admin/songs/{sid}/lyrics", {"text": "[01:10.10] first line\n[01:25.00] second line", "source": "Test Records lyric licence"}, token=self.admin)
+        self.assertEqual(db.one("SELECT source FROM song_highlights WHERE song_id=?", (sid,))["source"], "manual", "adding lyrics never moves a hand-set highlight")
         self.assertEqual((st, d["synced"]), (200, True))
         self.assertEqual(call("PATCH", f"/api/admin/songs/{sid}", {"status": "published"}, token=self.admin)[0], 200)
         st, feed = call("GET", "/api/highlights?feed=love&limit=30")
@@ -389,11 +443,11 @@ class PENDELAPI(unittest.TestCase):
             self.assertEqual((full["mode"], full["video_id"]), ("youtube", "abcDEF12345"))
             st, d = call("GET", "/api/sessions/mood?mood=party&langs=pa&minutes=30&mode=full")
             self.assertTrue(d["complete"], d["note"])
-            # admin sets a video by link and a custom 25 s window on it
+            # admin sets a video by link and a custom 42 s window on it
             self.assertEqual(call("PATCH", f"/api/admin/songs/{sid}", {"youtube_id": "https://youtu.be/XYZxyz12345"}, token=self.admin)[0], 200)
-            self.assertEqual(call("PUT", f"/api/admin/songs/{sid}/highlight", {"start": 60, "end": 85}, token=self.admin)[0], 200)
+            self.assertEqual(call("PUT", f"/api/admin/songs/{sid}/highlight", {"start": 60, "end": 102}, token=self.admin)[0], 200)
             st, hl = call("GET", f"/api/stream/{sid}?kind=highlight")
-            self.assertEqual((hl["mode"], hl["video_id"], hl["start"], hl["end"]), ("youtube", "XYZxyz12345", 60.0, 85.0))
+            self.assertEqual((hl["mode"], hl["video_id"], hl["start"], hl["end"]), ("youtube", "XYZxyz12345", 60.0, 102.0))
             self.assertEqual(call("PATCH", f"/api/admin/songs/{sid}", {"youtube_id": "not a video"}, token=self.admin)[0], 400)
         finally:
             cfg.YOUTUBE_API_KEY = ""
@@ -421,7 +475,8 @@ class PENDELAPI(unittest.TestCase):
             st, f = call("GET", f"/api/stream/{sid}?kind=full")
             self.assertEqual(f["mode"], "youtube"); self.assertEqual(f["start"], 0)
             st, h = call("GET", f"/api/stream/{sid}?kind=highlight")
-            self.assertEqual(h["mode"], "youtube"); self.assertAlmostEqual(h["end"] - h["start"], 25, delta=0.2)
+            self.assertEqual(h["mode"], "youtube"); self.assertAlmostEqual(h["end"] - h["start"], 42, delta=0.05)
+            self.assertLessEqual(h["end"], full[0]["duration"] - 5)
             self.assertIn("sad", [c["slug"] for c in full[0]["categories"]])
         finally:
             cfg.YOUTUBE_API_KEY = ""

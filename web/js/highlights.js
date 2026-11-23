@@ -1,5 +1,5 @@
 // Song Highlights: a vertical, swipeable feed that plays only each song's
-// curated 20-30 s highlight, with synced lyric lines, then auto-advances.
+// 42 s highlight on the main vocal hook / chorus, with synced lyric lines, then auto-advances.
 import { session, get } from "./api.js";
 import { player } from "./player.js";
 import { html, render, icon, $, $$, fmtTime, songs, emptyState } from "./ui.js";
@@ -25,7 +25,7 @@ export async function highlightsView(view, feed = "trending", query = {}, alive)
     <div class="hl-feed" id="hl-feed" tabindex="0" aria-label="Highlights. Use up and down arrow keys to move between songs.">
       ${items.length ? items.map(slide) : html`<div class="hl-slide"><div class="hl-card">${emptyState("spark", "No highlights here yet", "Try another mood or language.")}</div></div>`}
     </div>
-    ${unlocked || !items.length ? "" : html`<div class="hl-start" id="hl-start"><div class="hl-start-card"><img src="/img/logo.svg" alt="" width="64" height="64"><h2>Song Highlights</h2><p>The best 20–30 seconds of every song. Swipe up for the next one.</p><button class="btn primary lg" id="hl-go">${icon("play")}Start listening</button></div></div>`}
+    ${unlocked || !items.length ? "" : html`<div class="hl-start" id="hl-start"><div class="hl-start-card"><img src="/img/logo.svg" alt="" width="64" height="64"><h2>Song Highlights</h2><p>The best 40 seconds of every song: straight to the chorus. Swipe up for the next one.</p><button class="btn primary lg" id="hl-go">${icon("play")}Start listening</button></div></div>`}
   </div>`);
   const feedEl = $("#hl-feed");
   $("#hl-lang").addEventListener("change", (e) => window.rfNavigate(`/highlights/${feed}${e.target.value ? `?lang=${e.target.value}` : ""}`));
@@ -45,7 +45,7 @@ export async function highlightsView(view, feed = "trending", query = {}, alive)
           ${s.lyrics_excerpt ? s.lyrics_excerpt.map((l) => html`<div class="ln" data-t="${l.t}">${l.text}${l.tr ? html`<span class="tr" lang="en">${l.tr}</span>` : ""}</div>`)
             : html`<div class="nolyr">${s.has_lyrics ? "♪ Instrumental moment" : "Lyrics aren't licensed for this song."}</div>`}
         </div>
-        <div><div class="hl-progress"><span></span></div><div class="hl-time"><span class="hl-cur">0:00</span><span>Highlight ${fmtTime(s.highlight.start)}–${fmtTime(s.highlight.end)} · ${Math.round(len)}s</span></div></div>
+        <div><div class="hl-progress" role="progressbar" aria-label="Highlight progress" aria-valuemin="0" aria-valuemax="${Math.round(len)}" aria-valuenow="0"><span></span></div><div class="hl-time"><span class="hl-cur">0:00</span><span>Highlight ${fmtTime(s.highlight.start)}–${fmtTime(s.highlight.end)} · ${Math.round(len)}s</span></div></div>
         <div class="hl-actions">
           <button class="icon-btn ${s.is_favourite ? "fav-on" : ""}" data-action="fav" data-id="${s.id}" aria-label="${s.is_favourite ? "Remove from" : "Add to"} favourites" aria-pressed="${s.is_favourite}">${icon(s.is_favourite ? "heart-fill" : "heart")}</button>
           <button class="btn primary" data-hl="full" data-i="${i}">${icon("play")}Play full song</button>
@@ -103,12 +103,19 @@ export async function highlightsView(view, feed = "trending", query = {}, alive)
     const c = player.current, el = curSlide();
     if (!c || c.mode !== "highlight" || !el || c.song.id !== el.dataset.id) return;
     const pos = player.pos;
-    $(".hl-progress span", el).style.width = `${(100 * pos) / player.length}%`;
+    $(".hl-progress span", el).style.width = `${Math.min(100, (100 * pos) / player.length)}%`;
+    $(".hl-progress", el).setAttribute("aria-valuenow", String(Math.round(pos)));
     $(".hl-cur", el).textContent = fmtTime(pos);
     const lines = $$(".ln", el);
     let on = -1;
     lines.forEach((l, k) => { if (parseFloat(l.dataset.t) <= pos + 0.15) on = k; });
     lines.forEach((l, k) => l.classList.toggle("on", k === on));
+    // keep the sung line in view: the 42 s window has more lines than the card shows at once
+    const box = $(".hl-lyrics", el);
+    if (box && on >= 0 && +box.dataset.on !== on) {
+      box.dataset.on = on;
+      box.scrollTop = Math.max(0, lines[on].offsetTop - (lines[0]?.offsetHeight || 0) * 0.6);  // .hl-lyrics is the offsetParent
+    }
   });
   const offState = player.on("state", () => {
     const el = curSlide();

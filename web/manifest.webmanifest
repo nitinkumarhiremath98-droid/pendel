@@ -2,7 +2,7 @@
   "id": "/",
   "name": "PENDEL - Feel Every Beat",
   "short_name": "PENDEL",
-  "description": "Music in every language. Discover songs by mood through 20-30 second highlights, then play the full track.",
+  "description": "Music in every language. Discover songs by mood through 40-45 second highlights, then play the full track.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",

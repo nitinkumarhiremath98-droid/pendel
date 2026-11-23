@@ -13,7 +13,7 @@ How it fits PENDEL
 * Full songs: if YOUTUBE_API_KEY is set, PENDEL finds the official video with the
   YouTube Data API (cached per song) and plays it in a visible YouTube embed,
   which is what YouTube's terms require. Admins can also set a video id and a
-  custom 20-30 s highlight window by hand.
+  custom 40-45 s highlight window by hand.
 * Everything is cached in the `external_cache` table (12 h) because Apple rate
   limits the API (~20 calls/minute). A slow background warm-up fills the cache.
 

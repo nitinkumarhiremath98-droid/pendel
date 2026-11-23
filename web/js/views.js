@@ -762,7 +762,7 @@ export async function moodView(view, query, alive) {
         <div class="seg" id="m-mode" role="group" aria-label="Session style"><button data-mode="highlights" aria-pressed="${st.mode === "highlights"}">Highlights marathon</button><button data-mode="full" aria-pressed="${st.mode === "full"}">Full songs</button></div>
         <button class="btn primary lg" id="m-go">${icon("play")}Start session</button>
       </div>
-      <p class="dim small">Highlights marathon: back-to-back 20–30 second best moments. Full songs: complete tracks${world.enabled && !world.full_songs ? " (world catalogue songs play in full once a YouTube API key is added; until then PENDEL songs are used)" : ""}.</p>
+      <p class="dim small">Highlights marathon: back-to-back 40–45 second choruses. Full songs: complete tracks${world.enabled && !world.full_songs ? " (world catalogue songs play in full once a YouTube API key is added; until then PENDEL songs are used)" : ""}.</p>
     </section>
     <div id="m-out">${sessionState.data ? "" : ""}</div>`);
   const out = $("#m-out");

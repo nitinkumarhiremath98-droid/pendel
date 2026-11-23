@@ -4,13 +4,13 @@
 
 Requires numpy + ffmpeg. Writes:
   media/audio/full/<slug>.mp3      complete song
-  media/audio/preview/<slug>.mp3   the 20-30 s highlight cut (licensed preview asset)
+  media/audio/preview/<slug>.mp3   the 42 s highlight cut on the first chorus (via tools/render_demo_previews.py)
   media/covers/<album>.svg         album artwork
   media/artists/<artist>.svg       artist artwork
   server/seed/catalog.json         metadata, synced lyrics and highlight times
 
 Each song is composed as intro / verse / chorus / verse / chorus / outro. The
-highlight is set on the second (fullest) chorus, never on the first 30 seconds.
+highlight is then cut by tools/render_demo_previews.py: 42 s from the first chorus, found in the synced lyrics.
 """
 import json, math, os, re, subprocess, sys, hashlib
 import numpy as np
@@ -333,6 +333,8 @@ def main():
                         "audio_full": f"audio/full/{s['slug']}.mp3", "audio_preview": f"audio/preview/{s['slug']}.mp3",
                         "cover": f"covers/{album_slug}.svg"})
         print(f"{s['slug']:24s} {dur:6.1f}s  highlight {hs:6.2f}-{hs + hl:6.2f}  lyrics {len(lyr)}")
+    if not only:
+        pass  # previews: run tools/render_demo_previews.py afterwards (42 s on the first chorus)
     for slug, name, *_ in ARTISTS:
         with open(os.path.join(ROOT, "media/artists", slug + ".svg"), "w", encoding="utf-8") as f:
             f.write(artist_svg(name, sum(map(ord, slug))))

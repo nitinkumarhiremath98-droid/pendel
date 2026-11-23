@@ -229,7 +229,7 @@ export async function share(url, title) {
 function songMenu(anchor, song) {
   openMenu(anchor, [
     { label: "Play full song", icon: "play", run: () => player.play(song, { queue: [song] }) },
-    ...(song.highlight ? [{ label: "Play 20–30s highlight", icon: "spark", run: () => player.play(song, { queue: [song], mode: "highlight" }) }] : []),
+    ...(song.highlight ? [{ label: "Play 42s highlight", icon: "spark", run: () => player.play(song, { queue: [song], mode: "highlight" }) }] : []),
     { label: "Play next", icon: "queue", run: () => player.playNext(song) },
     { label: "Add to queue", icon: "list", run: () => player.addToQueue(song) },
     "-",
