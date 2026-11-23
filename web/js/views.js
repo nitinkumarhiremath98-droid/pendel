@@ -546,6 +546,7 @@ export async function registerView(view) {
       <div class="field"><label for="em">Email</label><input class="input" id="em" name="email" type="email" autocomplete="email" required></div>
       <div class="field"><label for="pw">Password</label><input class="input" id="pw" name="password" type="password" autocomplete="new-password" minlength="8" required><span class="hint">At least 8 characters with a letter and a number.</span></div>
       <div class="field"><span class="lbl">Languages you love (optional)</span><div class="chips">${languages.filter((l) => l.featured).map((l) => html`<button type="button" class="chip" data-lang="${l.code}" aria-pressed="false">${l.name}</button>`)}</div></div>
+      <p class="muted small consent-line">By creating an account you confirm you are 13 or older (under 18 in India: with a parent's or guardian's consent) and agree to the <a href="/legal/terms" data-link>Terms of Service</a> and <a href="/legal/privacy" data-link>Privacy Policy</a>.</p>
       <button class="btn primary lg" style="width:100%">Create account</button></form>
     <p class="muted small" style="text-align:center;margin-top:18px">Already have an account? <a href="/login${location.search}" data-link style="color:var(--accent)">Log in</a></p></div>`);
   googleButton("g-btn");
@@ -589,6 +590,11 @@ export async function profileView(view, query, alive) {
           <h3 style="margin-top:20px">Favourite moods</h3>
           <div class="chips" id="pref-cat">${categories.map((c) => html`<button class="chip" data-v="${c.slug}" aria-pressed="${u.preferred_categories.includes(c.slug)}">${c.name}</button>`)}</div>
           <button class="btn primary" id="save-prefs" style="margin-top:16px">Save preferences</button></div>
+        <section class="panel" aria-labelledby="your-data-h"><h3 id="your-data-h">Your data &amp; legal</h3>
+          <p class="muted small">Your rights under India's DPDP Act, 2023 and the GDPR. See the <a href="/legal/privacy" data-link>Privacy Policy</a>.</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="export-data">${icon("down")}Download my data</button><button class="btn danger" id="delete-account">${icon("trash")}Delete my account</button></div>
+          <nav class="legal-links" aria-label="Legal documents"><a href="/legal/terms" data-link>Terms of Service</a><a href="/legal/privacy" data-link>Privacy Policy</a><a href="/legal/copyright" data-link>Copyright / DMCA</a><a href="/legal/refunds" data-link>Refunds &amp; Cancellation</a><a href="/legal/contact" data-link>Contact &amp; Grievance Officer</a></nav>
+        </section>
       </div></div>`);
   const refreshUser = (user) => { session.user = user; import("./api.js").then((m) => m.emitSession()); };
   $("#av").addEventListener("change", async (e) => {
@@ -617,6 +623,37 @@ export async function profileView(view, query, alive) {
     if (!(await confirmDialog("Log out everywhere?", "You'll be signed out on every device, including this one."))) return;
     try { await post("/api/auth/logout-all", {}); setAuth(null, null); nav("/login"); } catch (err) { toastError(err); }
   };
+  $("#export-data").onclick = async (e) => {
+    const b = e.currentTarget; b.disabled = true;
+    try {
+      const data = await get("/api/me/export");
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+      const a = Object.assign(document.createElement("a"), { href: url, download: `pendel-data-${new Date().toISOString().slice(0, 10)}.json` });
+      document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast("Your data download has started");
+    } catch (err) { toastError(err); } finally { b.disabled = false; }
+  };
+  $("#delete-account").onclick = () => {
+    if (u.admin_role) return toast("Admin accounts can't be deleted here. Ask a super admin to remove your admin role first.", { error: true });
+    const pw = u.auth_provider === "email";
+    const m = modal(html`<h3 id="del-h">Delete your account?</h3>
+      <p class="muted">This permanently erases your profile, playlists, favourites, listening history and preferences, and signs you out everywhere. ${u.plan === "premium" ? "Your Premium subscription will be cancelled without a refund for the current period. " : ""}Payment records are kept without your name or email, as tax law requires. This can't be undone.</p>
+      <form id="del-form"><div class="field">${pw
+        ? html`<label for="del-pw">Enter your password to confirm</label><input class="input" id="del-pw" type="password" autocomplete="current-password" required>`
+        : html`<label for="del-pw">Type DELETE to confirm</label><input class="input" id="del-pw" autocomplete="off" required>`}</div>
+        <div id="del-err"></div>
+        <div class="modal-actions"><button type="button" class="btn ghost" data-x>Cancel</button><button class="btn danger">Delete account</button></div></form>`);
+    m.setAttribute("aria-labelledby", "del-h");
+    m.querySelector("[data-x]").onclick = () => closeModal();
+    m.querySelector("#del-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const v = m.querySelector("#del-pw").value, btn = e.target.querySelector(".btn.danger"); btn.disabled = true;
+      try {
+        await del("/api/me", { body: pw ? { password: v } : { confirm: v } });
+        closeModal(); setAuth(null, null); toast("Your account has been deleted"); nav("/");
+      } catch (err) { render(m.querySelector("#del-err"), html`<div class="form-error" role="alert">${err.message}</div>`); btn.disabled = false; }
+    });
+  };
   $("#cancel-sub")?.addEventListener("click", async () => {
     if (!(await confirmDialog("Cancel Premium?", `You'll keep Premium until ${fmtDate(u.plan_renews_at)}. After that you'll move to the Free plan.`, { ok: "Cancel subscription", danger: true }))) return;
     try { const r = await post("/api/subscriptions/cancel", {}); refreshUser(r.user); toast("Subscription cancelled"); profileView(view, query, alive); } catch (err) { toastError(err); }
@@ -637,7 +674,8 @@ export async function premiumView(view, query, alive) {
       ${p.tier === "free" ? html`<button class="btn" disabled>${session.premium ? "Included" : "Your current plan"}</button>`
         : html`<button class="btn primary" data-plan="${p.id}" ${raw(!d.providers.length ? "disabled" : "")}>${session.premium ? "Extend Premium" : "Get Premium"}</button>`}
     </div>`)}</div>
-    <p class="dim small" style="text-align:center;margin-top:24px">Accepted: ${d.providers.length ? d.providers.map((p) => p.label).join(" · ") : "none configured"}. Offline downloads are available only for songs whose licence permits it.</p></div>`);
+    <p class="dim small" style="text-align:center;margin-top:24px">Accepted: ${d.providers.length ? d.providers.map((p) => p.label).join(" · ") : "none configured"}. Offline downloads are available only for songs whose licence permits it.</p>
+    <p class="dim small" style="text-align:center">Cancel anytime; Premium stays active until the end of the paid period. Fees are non-refundable once activated, except as described in our <a href="/legal/refunds" data-link style="color:var(--accent)">Refund &amp; Cancellation Policy</a>. By subscribing you agree to the <a href="/legal/terms" data-link style="color:var(--accent)">Terms of Service</a>.</p></div>`);
   $("#premium-page").addEventListener("click", async (e) => {
     const b = e.target.closest("[data-plan]");
     if (!b) return;

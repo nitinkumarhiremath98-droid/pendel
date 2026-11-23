@@ -1020,6 +1020,57 @@ def upload_avatar(req):
     return {"avatar_url": storage.url(key)}
 
 
+# --------------------------------------------------------------------------- privacy rights (DPDP Act 2023 / GDPR)
+
+@route("GET", r"/api/me/export", auth="user")
+def export_my_data(req):
+    """Right of access / portability: everything we hold that is linked to this account, as JSON."""
+    uid = req.user["id"]
+    pub = public_user(req.user)
+    playlists = db.q("SELECT id, title, description, is_public, created_at, updated_at FROM playlists WHERE owner_id=? ORDER BY created_at", (uid,))
+    for p in playlists:
+        p["songs"] = db.q("SELECT s.title, a.name artist, ps.added_at FROM playlist_songs ps JOIN songs s ON s.id=ps.song_id LEFT JOIN artists a ON a.id=s.artist_id WHERE ps.playlist_id=? ORDER BY ps.position", (p["id"],))
+    return {
+        "exported_at": db.now(), "service": config.APP_NAME,
+        "account": {k: pub[k] for k in ("id", "email", "display_name", "auth_provider", "theme", "created_at", "plan", "preferred_languages", "preferred_categories")}
+        | {"last_login_at": req.user["last_login_at"], "avatar_url": pub["avatar_url"]},
+        "playlists": playlists,
+        "followed_playlists": db.q("SELECT p.title, f.created_at FROM playlist_follows f JOIN playlists p ON p.id=f.playlist_id WHERE f.user_id=?", (uid,)),
+        "favourites": db.q("SELECT s.title, a.name artist, f.created_at FROM favourites f JOIN songs s ON s.id=f.song_id LEFT JOIN artists a ON a.id=s.artist_id WHERE f.user_id=? ORDER BY f.created_at", (uid,)),
+        "listening_history": db.q("SELECT s.title, a.name artist, h.context, h.seconds_listened, h.completed, h.played_at FROM listening_history h JOIN songs s ON s.id=h.song_id LEFT JOIN artists a ON a.id=s.artist_id WHERE h.user_id=? ORDER BY h.played_at", (uid,)),
+        "subscriptions": db.q("SELECT s.status, s.provider, s.started_at, s.current_period_end, p.name plan_name FROM subscriptions s LEFT JOIN plans p ON p.id=s.plan_id WHERE s.user_id=?", (uid,)),
+        "payments": db.q("SELECT provider, amount_minor, currency, status, method, created_at FROM payments WHERE user_id=? ORDER BY created_at", (uid,)),
+    }
+
+
+@route("DELETE", r"/api/me", auth="user")
+def delete_my_account(req):
+    """Right to erasure. Personal data is removed and the row is anonymised; payment records stay
+    (without name or email) because tax and accounting law requires them to be kept."""
+    u, b = req.user, req.json or {}
+    require(not db.one("SELECT 1 FROM admins WHERE user_id=?", (u["id"],)), 400,
+            "Admin accounts can't be deleted from here. Ask a super admin to remove your admin role first.")
+    if u["password_hash"]:
+        require(security.verify_password(b.get("password") or "", u["password_hash"]), 400, "Password is incorrect")
+    else:
+        require((b.get("confirm") or "").strip().upper() == "DELETE", 400, "Type DELETE to confirm")
+    uid = u["id"]
+    if u["avatar_key"]:
+        try:
+            storage.delete(u["avatar_key"])
+        except Exception:
+            traceback.print_exc()
+    for sql in ("DELETE FROM playlists WHERE owner_id=?", "DELETE FROM playlist_follows WHERE user_id=?",
+                "DELETE FROM listening_history WHERE user_id=?", "DELETE FROM favourites WHERE user_id=?",
+                "DELETE FROM user_languages WHERE user_id=?", "DELETE FROM user_categories WHERE user_id=?",
+                "DELETE FROM skip_events WHERE user_id=?",
+                "UPDATE subscriptions SET status='cancelled', cancel_at_period_end=1 WHERE user_id=? AND status IN ('pending','active')"):
+        db.run(sql, (uid,))
+    db.run("""UPDATE users SET email=?, display_name='Deleted user', password_hash=NULL, avatar_key=NULL, google_sub=NULL,
+              is_active=0, token_version=token_version+1 WHERE id=?""", (f"deleted-{uid}@deleted.invalid", uid))
+    return {"ok": True}
+
+
 @route("GET", r"/api/me/history", auth="user")
 def get_history(req):
     rows = db.q("""SELECT h.song_id, MAX(h.played_at) last_played, COUNT(*) plays, SUM(h.seconds_listened) secs
@@ -2285,6 +2336,8 @@ CSP = ("default-src 'self'; script-src 'self' https://accounts.google.com https:
        "img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' https:; "
        "frame-src https://accounts.google.com https://api.razorpay.com https://checkout.razorpay.com https://www.youtube.com https://www.youtube-nocookie.com; base-uri 'self'; form-action 'self'")
 
+LEGAL_TITLES = {"": "Legal", "terms": "Terms of Service", "privacy": "Privacy Policy", "copyright": "Copyright & DMCA Policy",
+                "refunds": "Refund & Cancellation Policy", "contact": "Contact & Grievance Officer"}
 SEO_ROUTES = re.compile(r"^/(song|artist|language|category|album)/([^/]+)$")
 
 
@@ -2488,6 +2541,10 @@ def seo_tags(path):
     title, desc, image, jsonld = (f"{config.APP_NAME} - Feel Every Beat",
                                   "Stream music in every language. Discover songs by mood through 20-30 second highlights, then play the full track.", None, None)
     m = SEO_ROUTES.match(path)
+    lm = re.match(r"^/legal(?:/([\w-]+))?$", path)
+    if lm and (lm.group(1) or "") in LEGAL_TITLES:
+        title = f"{LEGAL_TITLES[lm.group(1) or '']} | {config.APP_NAME}"
+        desc = f"{LEGAL_TITLES[lm.group(1) or '']} for {config.APP_NAME}: how the service works, your rights and how to reach us."
     try:
         if m and m.group(1) == "song":
             s = db.one(f"{SONG_SELECT} WHERE s.slug=? AND s.status='published'", (m.group(2),))

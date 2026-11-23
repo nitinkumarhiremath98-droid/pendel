@@ -255,6 +255,64 @@ class PENDELAPI(unittest.TestCase):
             self.assertIn("/language/te", r.read().decode())
 
 
+    # ------------------------------------------------------------------ legal & privacy rights
+    def test_legal_pages_are_served_with_titles(self):
+        for path, title in [("/legal", "Legal"), ("/legal/terms", "Terms of Service"), ("/legal/privacy", "Privacy Policy"),
+                            ("/legal/copyright", "Copyright &amp; DMCA Policy"), ("/legal/refunds", "Refund &amp; Cancellation Policy"),
+                            ("/legal/contact", "Contact &amp; Grievance Officer")]:
+            with urllib.request.urlopen(BASE + path) as r:
+                page = r.read().decode()
+            self.assertIn(f"<title>{title} | PENDEL</title>", page, path)
+            self.assertIn('id="view"', page)
+        with urllib.request.urlopen(BASE + "/js/legal.js") as r:
+            js = r.read().decode()
+        for needle in ("[Your Name]", "[Your Contact Email]", "[Bengaluru / Karnataka, India]", "Section 79", "17 U.S.C.", "24–36 hours",
+                       "Digital Personal Data Protection Act, 2023", "100% of the master", "non-refundable", "YouTube Terms of Service"):
+            self.assertIn(needle, js)
+        with urllib.request.urlopen(BASE + "/sw.js") as r:
+            self.assertIn("/js/legal.js", r.read().decode())
+
+    def test_export_my_data(self):
+        self.assertEqual(call("GET", "/api/me/export")[0], 401)
+        st, d = call("POST", "/api/auth/register", {"email": "export@example.com", "password": "Passw0rd!", "display_name": "Exporter", "preferred_languages": ["te"]})
+        tok = d["token"]
+        sid = call("GET", "/api/songs/toota-sitara")[1]["song"]["id"]
+        call("PUT", f"/api/me/favourites/{sid}", token=tok)
+        call("POST", "/api/me/history", {"song_id": sid, "seconds": 40, "context": "full"}, token=tok)
+        call("POST", "/api/playlists", {"title": "Mine", "song_ids": [sid]}, token=tok)
+        st, x = call("GET", "/api/me/export", token=tok)
+        self.assertEqual(st, 200)
+        self.assertEqual(x["account"]["email"], "export@example.com")
+        self.assertEqual(x["account"]["preferred_languages"], ["te"])
+        self.assertNotIn("password_hash", json.dumps(x))
+        self.assertEqual(len(x["favourites"]), 1)
+        self.assertGreaterEqual(len(x["listening_history"]), 1)
+        self.assertEqual(x["playlists"][0]["title"], "Mine")
+        self.assertEqual(len(x["playlists"][0]["songs"]), 1)
+
+    def test_delete_my_account_anonymises_and_keeps_payments(self):
+        st, d = call("POST", "/api/auth/register", {"email": "gone@example.com", "password": "Passw0rd!", "display_name": "Gone"})
+        tok, uid = d["token"], d["user"]["id"]
+        sid = call("GET", "/api/songs/toota-sitara")[1]["song"]["id"]
+        call("PUT", f"/api/me/favourites/{sid}", token=tok)
+        call("POST", "/api/playlists", {"title": "Bye", "song_ids": [sid]}, token=tok)
+        co = call("POST", "/api/subscriptions/checkout", {"plan_id": "premium-monthly", "provider": "sandbox"}, token=tok)[1]
+        call("POST", "/api/subscriptions/verify", {"payment_id": co["payment_id"], "outcome": "success", "method": "upi"}, token=tok)
+        self.assertEqual(call("DELETE", "/api/me", {"password": "wrong"}, token=tok)[0], 400)
+        self.assertEqual(call("DELETE", "/api/me", {"password": "Passw0rd!"}, token=self.admin)[0], 400, "admins can't self-delete")
+        self.assertEqual(call("DELETE", "/api/me", {"password": "Passw0rd!"}, token=tok)[0], 200)
+        self.assertEqual(call("GET", "/api/auth/me", token=tok)[1].get("user"), None)
+        self.assertEqual(call("POST", "/api/auth/login", {"email": "gone@example.com", "password": "Passw0rd!"})[0], 401)
+        u = db.one("SELECT * FROM users WHERE id=?", (uid,))
+        self.assertEqual((u["display_name"], u["password_hash"], u["is_active"]), ("Deleted user", None, 0))
+        self.assertNotIn("gone@", u["email"])
+        self.assertEqual(db.one("SELECT COUNT(*) n FROM favourites WHERE user_id=?", (uid,))["n"], 0)
+        self.assertEqual(db.one("SELECT COUNT(*) n FROM playlists WHERE owner_id=?", (uid,))["n"], 0)
+        self.assertEqual(db.one("SELECT COUNT(*) n FROM payments WHERE user_id=?", (uid,))["n"], 1, "payment record kept for tax law")
+        self.assertEqual(db.one("SELECT COUNT(*) n FROM subscriptions WHERE user_id=? AND status='active'", (uid,))["n"], 0)
+        st, d = call("POST", "/api/auth/register", {"email": "gone@example.com", "password": "Passw0rd!", "display_name": "Back"})
+        self.assertEqual(st, 200, "the email can be used again")
+
     # ------------------------------------------------------------------ v2: world catalogue + mood sessions
     def test_world_language_page_tags_language(self):
         st, d = call("GET", "/api/languages/ta")

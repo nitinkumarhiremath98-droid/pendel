@@ -27,6 +27,7 @@ const routes = [
   [/^\/register$/, V.registerView, "profile"],
   [/^\/premium$/, V.premiumView, ""],
   [/^\/admin(?:\/([\w-]+))?$/, async (...a) => (await import("./admin.js")).adminView(...a), "admin"],
+  [/^\/legal(?:\/([\w-]+))?$/, async (...a) => { const L = await import("./legal.js"); L.setPendingHash(location.hash.slice(1)); return L.legalView(...a); }, "legal"],
 ];
 let cleanup = null;
 let renderSeq = 0;
@@ -34,7 +35,10 @@ let renderSeq = 0;
 export function navigate(href, { replace = false } = {}) {
   const u = new URL(href, location.href);
   if (u.origin !== location.origin) { location.href = href; return; }
-  if (u.pathname + u.search === location.pathname + location.search && !replace) { route(); return; }
+  if (u.pathname + u.search === location.pathname + location.search && !replace) {
+    if (u.hash !== location.hash) history.replaceState({}, "", u.pathname + u.search + u.hash);
+    route(); return;
+  }
   history[replace ? "replaceState" : "pushState"]({}, "", u.pathname + u.search + u.hash);
   route();
 }
@@ -68,6 +72,21 @@ async function route() {
   if (seq === renderSeq) { syncUI(); view.focus({ preventScroll: true }); }
 }
 window.addEventListener("popstate", route);
+
+// ------------------------------------------------------------------ legal footer
+// One footer element kept at the end of #view whatever a view renders (views replace
+// #view's children, sometimes more than once). Hidden on full-bleed routes via CSS.
+const FOOTER_LINKS = [["terms", "Terms of Service"], ["privacy", "Privacy Policy"], ["copyright", "Copyright / DMCA"], ["refunds", "Refunds & Cancellation"], ["contact", "Contact"]];
+const siteFooter = document.createElement("footer");
+siteFooter.className = "site-footer";
+render(siteFooter, html`<nav aria-label="Legal and policies"><ul>${FOOTER_LINKS.map(([k, t]) => html`<li><a href="/legal/${k}" data-link>${t}</a></li>`)}</ul></nav>
+  <p>© ${new Date().getFullYear()} PENDEL · Feel Every Beat · Music belongs to its respective rights holders.</p>`);
+function keepFooter() {
+  const view = $("#view");
+  if (view && view.lastElementChild !== siteFooter) view.appendChild(siteFooter);
+}
+new MutationObserver(keepFooter).observe($("#view"), { childList: true });
+keepFooter();
 
 // ------------------------------------------------------------------ shell: account + sidebar
 function renderAccount() {
@@ -250,6 +269,7 @@ const actions = {
     { label: "Library", icon: "library", run: () => navigate("/library") },
     ...(session.isAdmin ? [{ label: "Admin dashboard", icon: "shield", run: () => navigate("/admin") }] : []),
     ...(!session.premium ? [{ label: "Go Premium", icon: "crown", run: () => navigate("/premium") }] : []),
+    { label: "Legal & privacy", icon: "shield", run: () => navigate("/legal") },
     "-",
     { label: "Log out", icon: "logout", run: () => { player.flushHistory(); setAuth(null, null); toast("You're logged out"); navigate("/"); } },
   ]),
