@@ -117,7 +117,10 @@ async def main(ids):
         await page.wait_for_timeout(500)
         st = await page.evaluate("({state: document.documentElement.dataset.voice, pref: localStorage.getItem('rf_voice'), lang: window.__rec.lang, cont: window.__rec.continuous, interim: window.__rec.interimResults})")
         check(st == {"state": "listening", "pref": None, "lang": "en-IN", "cont": True, "interim": True}, f"passive continuous en-IN listening starts by itself on load: {st}")
-        check(await page.locator("#voice-pill").is_hidden(), "nothing is shown during standby")
+        check(await page.locator("#voice-pill").is_hidden() and await page.locator(".toast").count() == 0, "nothing is shown during standby: no pill, no toast")
+        await page.evaluate("window.__say('the tv is on and someone says play the next song', true); window.__say('pause', true)")
+        await page.wait_for_timeout(300)
+        check(await page.locator("#voice-pill").is_hidden() and await vstate() == "listening", "background speech and commands without the wake phrase change nothing")
         await page.mouse.click(700, 32)  # a first tap somewhere neutral (unlocks the chime, like a real visit)
         gum = await page.evaluate("window.__gum")
         check(all(g["audio"] == {"echoCancellation": True, "noiseSuppression": True, "autoGainControl": True} for g in gum),
@@ -155,7 +158,7 @@ async def main(ids):
         ducked = (await page.evaluate(state))["vol"]
         check(abs(ducked - before * 0.15) < 0.01 and await vstate() == "triggered", f"wake word ducks music to 15% ({before} -> {ducked}) and shows 'triggered'")
         pill = await page.locator("#voice-pill").text_content()
-        check(pill == "🎙️ Listening..." and await page.locator("#voice-pill").is_visible(), f"pill appears only now: {pill!r}")
+        check(pill == "Listening..." and await page.locator("#voice-pill").is_visible(), f"pill appears only now: {pill!r}")
         check(await page.evaluate("window.__osc") >= 2, f"two-tone activation chime played ({await page.evaluate('window.__osc')} oscillators)")
         await page.evaluate("window.__say('hey pendel pause', true)")
         await page.wait_for_timeout(300)
@@ -233,18 +236,20 @@ async def main(ids):
         await page.evaluate("window.__say('hey pendel', true)"); await page.wait_for_timeout(100)
         await page.evaluate("window.__say('play', false)"); await page.wait_for_timeout(100)
         pill = await page.locator("#voice-pill").text_content()
-        check(pill == "🎙️ Heard: play", f"live words shown while listening: {pill!r}")
+        check(pill == "“play”", f"live words shown while listening: {pill!r}")
         await page.evaluate("window.__say('pause', true)"); await page.wait_for_timeout(300)
-        check((await page.evaluate(state))["paused"], "command from a later phrase inside the 7 s window runs")
+        check((await page.evaluate(state))["paused"], "command from a later phrase inside the 6 s window runs")
         await page.evaluate("window.__say('hey pendel resume', true)"); await page.wait_for_timeout(300)
-        # the window closes after 7 s
-        await page.evaluate("window.__say('hey pendel', true)"); await page.wait_for_timeout(7400)
+        # the window closes after 6 s
+        await page.evaluate("window.__say('hey pendel', true)"); await page.wait_for_timeout(6500)
         st = await page.evaluate("(async () => (await import('/js/voice.js')).voiceState())()")
         await page.evaluate("window.__say('pause', true)"); await page.wait_for_timeout(300)
         check(not st["active"] and not (await page.evaluate(state))["paused"] and abs((await page.evaluate(state))["vol"] - before) < 0.01
-              and await page.locator("#voice-pill").is_hidden(), f"after 7 s of silence it returns to hidden standby, volume restored, and plain words are ignored ({st})")
-        await page.evaluate("window.__say('hey pendel pause', true)"); await page.wait_for_timeout(2900)
-        check(await page.locator("#voice-pill").is_hidden(), "the pill hides itself 2.5 s after a command")
+              and await page.locator("#voice-pill").is_hidden(), f"after 6 s of silence it returns to hidden standby, volume restored, and plain words are ignored ({st})")
+        await page.evaluate("window.__say('hey pendel pause', true)"); await page.wait_for_timeout(400)
+        conf = await page.locator("#voice-pill").text_content()
+        await page.wait_for_timeout(1500)
+        check(conf == "Paused" and await page.locator("#voice-pill").is_hidden(), f"brief confirmation ({conf!r}), then the pill slides away and it sleeps again")
         await page.evaluate("window.__say('hey pendel resume', true)"); await page.wait_for_timeout(300)
 
         # volume
@@ -256,7 +261,7 @@ async def main(ids):
         v2 = (await page.evaluate(state))["vol"]
         pill = await page.locator("#voice-pill").text_content()
         slider = await page.evaluate("document.querySelector('.volume').value")
-        check(abs(v1 - 0.7) < 0.01 and abs(v2 - 0.3) < 0.01 and pill == "🎙️ Volume 30%" and slider == "30", f"volume up/down ±20% with the % shown: {v1} -> {v2}, {pill!r}, slider {slider}")
+        check(abs(v1 - 0.7) < 0.01 and abs(v2 - 0.3) < 0.01 and pill == "Volume 30%" and slider == "30", f"volume up/down ±20% with the % shown: {v1} -> {v2}, {pill!r}, slider {slider}")
         await page.evaluate("window.__say('hey pendel mute', true)"); await page.wait_for_timeout(200)
         muted = await page.evaluate("document.getElementById('audio-player').muted")
         await page.evaluate("window.__say('hey pendel unmute', true)"); await page.wait_for_timeout(200)

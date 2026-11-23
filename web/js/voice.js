@@ -9,9 +9,9 @@
 // Two stages:
 //   1. Passive standby: recognition runs continuously and everything is ignored until the wake phrase
 //      ("Hey Pendel", "Hi Pendel", "OK Pendel", or what speech-to-text makes of it: pendle, pedal, panel …).
-//   2. Active window (7 s): the music dips to 15 %, a short chime plays and the pill shows what is heard.
+//   2. Active window (6 s, like Siri): the music dips to 15 %, a short chime plays and the pill shows what is heard.
 //      "Hey Pendel next song" in one breath runs at once; "Hey Pendel" … pause … "play Kesariya" is caught in
-//      the following phrases. After the command (or 7 s of nothing) it goes back to standby and the volume returns.
+//      the following phrases. After the command (or 6 s of nothing) the pill hides, the volume returns and it sleeps again.
 // Quick commands (pause, next, forward 10 …) run from the live (interim) text; "play <song name>" waits for the
 // final text so the whole name is heard.
 import { get } from "./api.js";
@@ -20,7 +20,7 @@ import { toast } from "./ui.js";
 
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const PREF = "rf_voice", SPEAK = "rf_voice_speak";
-const COOLDOWN_MS = 1200, RESTART_MS = 250, ACTIVE_MS = 7000, DUCK_TO = 0.15;
+const COOLDOWN_MS = 1200, RESTART_MS = 250, ACTIVE_MS = 6000, DUCK_TO = 0.15;
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
@@ -136,7 +136,7 @@ export function chime() {
       const o = actx.createOscillator(), g = actx.createGain();
       o.type = "sine"; o.frequency.value = f;
       g.gain.setValueAtTime(0.0001, t0 + d);
-      g.gain.exponentialRampToValueAtTime(0.12, t0 + d + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.09, t0 + d + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.16);
       o.connect(g).connect(actx.destination);
       o.start(t0 + d); o.stop(t0 + d + 0.18);
@@ -150,7 +150,7 @@ export function chime() {
 function watchBlocked(title) {
   const off = player.on("blocked", () => {
     off();
-    show(`🎙️ Tap to start ${title}`, "error", 8000);
+    show(`Tap to start ${title}`, "error", 8000);
     toast(`Tap to start “${title}”`, { action: { label: "Play", onClick: () => player.resume() }, ms: 8000 });
   });
   setTimeout(off, 5000);
@@ -160,19 +160,19 @@ async function startSong(song, queue, index) {
   watchBlocked(song.title);
   await player.play(song, { queue, index });
   syncUI();
-  show(`🎙️ Playing: ${song.title}`);
+  show(`Playing ${song.title}`);
   say(`Playing ${song.title}`);
   log("playing", song.title, song.audio_url ? "(audio file)" : "(YouTube / stream)");
 }
 
 async function playByName(query) {
-  show(`🎙️ Searching “${query}”…`, "processing", 0);
+  show(`Searching “${query}”…`, "processing", 0);
   let songs = [];
   try { songs = (await get(`/api/songs/search?q=${encodeURIComponent(query.slice(0, 100))}&limit=10`, { quiet: true })).songs || []; }
   catch (e) { log("search failed", e); }
   log("search", query, "->", songs.length, "songs");
   if (!songs.length) {
-    show(`🎙️ Couldn't find “${query}”`, "error");
+    show(`Couldn't find “${query}”`, "error");
     toast(`No song found for “${query}”`, { error: true });
     say("Sorry, I couldn't find that song.");
     return;
@@ -184,11 +184,11 @@ async function playByName(query) {
 
 /** "Play something" with nothing loaded: start the popular songs. */
 async function playPopular() {
-  show("🎙️ Finding something to play…", "processing", 0);
+  show("Finding something to play…", "processing", 0);
   let songs = [];
   try { songs = (await get("/api/songs?sort=popular&limit=30", { quiet: true })).songs || []; }
   catch (e) { log("popular songs failed", e); }
-  if (!songs.length) { show("🎙️ Couldn't load songs", "error"); say("Sorry, I couldn't load any songs."); return; }
+  if (!songs.length) { show("Couldn't load songs", "error"); say("Sorry, I couldn't load any songs."); return; }
   const i = Math.max(0, songs.slice(0, 5).findIndex((s) => s.audio_url));
   await startSong(songs[i], songs, i);
 }
@@ -197,47 +197,47 @@ async function playPopular() {
 export async function runCommand(rawOrCmd) {
   const cmd = typeof rawOrCmd === "string" ? parseCommand(rawOrCmd) : rawOrCmd;
   const has = !!player.current;
-  const needSong = () => { show("🎙️ Nothing is playing yet. Try “Hey Pendel, play …”", "error"); say("Nothing is playing yet."); };
+  const needSong = () => { show("Nothing is playing yet. Try “Hey Pendel, play …”", "error"); say("Nothing is playing yet."); };
   log("command", cmd);
   switch (cmd.action) {
-    case "pause": if (!has) return needSong(); player.pause(); syncUI(); show("🎙️ Paused"); break;
+    case "pause": if (!has) return needSong(); player.pause(); syncUI(); show("Paused"); break;
     case "resume":
       if (!has) return playPopular();
       if (!player.playing) { watchBlocked(player.current.song.title); player.resume(); }
-      syncUI(); show(`🎙️ Playing: ${player.current.song.title}`);
+      syncUI(); show(`Playing ${player.current.song.title}`);
       break;
     case "next": {
       if (!has) return playPopular();
-      show("🎙️ Next song…", "processing", 0);
+      show("Next song…", "processing", 0);
       const moved = await player.skipToNext();
       syncUI();
-      show(moved ? `🎙️ Next: ${player.current?.song?.title || "song"}` : "🎙️ No next song", moved ? "ok" : "error");
+      show(moved ? `Next song · ${player.current?.song?.title || ""}`.replace(/ · $/, "") : "No next song", moved ? "ok" : "error");
       break;
     }
-    case "prev": if (!has) return needSong(); await player.prev(); syncUI(); show(`🎙️ Previous: ${player.current?.song?.title || "song"}`); break;
+    case "prev": if (!has) return needSong(); await player.prev(); syncUI(); show(`Previous song · ${player.current?.song?.title || ""}`.replace(/ · $/, "")); break;
     case "seek": {
       if (!has) return needSong();
       const c = player.current, to = media.currentTime + cmd.seconds;
       media.currentTime = Math.max(c.start, Math.min((c.end > c.start ? c.end : Infinity) - 0.2, to));
       syncUI();
-      show(`🎙️ ${cmd.seconds > 0 ? "Forward +" : "Back −"}${Math.abs(cmd.seconds)}s`);
+      show(`${cmd.seconds > 0 ? "Forward +" : "Back −"}${Math.abs(cmd.seconds)}s`);
       break;
     }
-    case "repeat-on": player.repeat = "one"; syncUI(); show("🎙️ Repeat on"); say("Repeat on"); break;
-    case "repeat-off": player.repeat = "off"; syncUI(); show("🎙️ Repeat off"); say("Repeat off"); break;
+    case "repeat-on": player.repeat = "one"; syncUI(); show("Repeat on"); say("Repeat on"); break;
+    case "repeat-off": player.repeat = "off"; syncUI(); show("Repeat off"); say("Repeat off"); break;
     case "volume": case "volume-set": {
       const v = setVolume(cmd.action === "volume" ? Math.round((getVolume() + cmd.delta) * 10) / 10 : cmd.value);
-      show(`🎙️ Volume ${Math.round(v * 100)}%`);
+      show(`Volume ${Math.round(v * 100)}%`);
       break;
     }
-    case "mute": setMuted(true); show("🎙️ Muted"); break;
-    case "unmute": setMuted(false); show(`🎙️ Volume ${Math.round(getVolume() * 100)}%`); break;
-    case "voice-off": show("🎙️ Hey Pendel off. Turn it on again from the page footer or Profile."); say("Okay, I'll stop listening."); setVoiceEnabled(false); break;
-    case "speak-off": store.set(SPEAK, "0"); show("🎙️ Voice replies off"); break;
-    case "speak-on": store.set(SPEAK, "1"); show("🎙️ Voice replies on"); say("Okay"); break;
+    case "mute": setMuted(true); show("Muted"); break;
+    case "unmute": setMuted(false); show(`Volume ${Math.round(getVolume() * 100)}%`); break;
+    case "voice-off": show("Hey Pendel off. Turn it on again from the page footer or Profile."); say("Okay, I'll stop listening."); setVoiceEnabled(false); break;
+    case "speak-off": store.set(SPEAK, "0"); show("Voice replies off"); break;
+    case "speak-on": store.set(SPEAK, "1"); show("Voice replies on"); say("Okay"); break;
     case "play-song": await playByName(cmd.query); break;
-    case "none": show("🎙️ Listening...", "triggered", 0); break;
-    default: show(`🎙️ Didn't catch that: “${cmd.text}”`, "error"); say("Sorry, I didn't catch that.");
+    case "none": show("Listening...", "triggered", 0); break;
+    default: show(`Didn't catch that: “${cmd.text}”`, "error"); say("Sorry, I didn't catch that.");
   }
 }
 
@@ -249,16 +249,29 @@ function setState(state) { // off | waiting | blocked | unsupported | listening 
   document.documentElement.dataset.voice = state;
   listeners.forEach((fn) => { try { fn(state); } catch { /* ignore */ } });
 }
-/** Shows the status pill; it hides itself after `ms` (2.5 s by default). ms = 0 keeps it up until the next message. */
-function show(text, kind = "ok", ms = 2500) {
+/** Shows the Siri-style pill: a live wave while listening, then the result. It slides away by itself after `ms`
+ *  (1.5 s for a confirmation, 2.5 s for a problem); ms = 0 keeps it up until the next message. */
+let pillText = null;
+function show(text, kind = "ok", ms) {
   if (!pill) return;
-  pill.textContent = text;
+  if (!pillText) {
+    pill.innerHTML = '<span class="vp-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><span class="vp-text"></span>';
+    pillText = pill.querySelector(".vp-text");
+  }
+  pillText.textContent = text;
   pill.dataset.kind = kind;
+  pill.classList.remove("leaving");
   pill.hidden = false;
   clearTimeout(pillTimer);
-  if (ms) pillTimer = setTimeout(() => { pill.hidden = true; }, ms);
+  ms ??= kind === "error" ? 2500 : 1500;
+  if (ms) pillTimer = setTimeout(hidePill, ms);
 }
-function hidePill() { clearTimeout(pillTimer); if (pill) pill.hidden = true; }
+function hidePill() {
+  clearTimeout(pillTimer);
+  if (!pill || pill.hidden) return;
+  pill.classList.add("leaving");
+  pillTimer = setTimeout(() => { pill.hidden = true; pill.classList.remove("leaving"); }, 220);
+}
 
 // ------------------------------------------------------------------ the two-stage state machine
 // `phrase` identifies one spoken phrase: the recognition session plus its result index.
@@ -270,12 +283,12 @@ function activate(phrase) {
     duck(DUCK_TO, ACTIVE_MS);
     const rang = chime();
     setState("triggered");
-    show("🎙️ Listening...", "triggered", 0);
+    show("Listening...", "triggered", 0);
     log("wake word heard", { phrase, chime: rang });
   }
   wakePhrase = phrase;
   clearTimeout(activeTimer);
-  activeTimer = setTimeout(() => { if (active) { log("no command within 7 s"); deactivate(); hidePill(); } }, ACTIVE_MS);
+  activeTimer = setTimeout(() => { if (active) { log("no command within 6 s"); deactivate(); hidePill(); } }, ACTIVE_MS);
 }
 function deactivate() {
   active = false;
@@ -293,7 +306,7 @@ function fire(cmd, phrase) {
   if (key === lastFired.key && now - lastFired.at < COOLDOWN_MS) return false; // the same command again within 1.2 s
   lastFired = { key, at: now };
   setState("processing");
-  runCommand(cmd).catch((e) => { log("command failed", e); show("🎙️ Something went wrong", "error"); })
+  runCommand(cmd).catch((e) => { log("command failed", e); show("Something went wrong", "error"); })
     .finally(() => { if (enabled && !active) setState("listening"); });
   return true;
 }
@@ -316,7 +329,7 @@ export function handleTranscript(text, isFinal, resultIndex = 0) {
   }
   if (w && (w.strong || !w.cmd) && phrase !== wakePhrase) activate(phrase); // "Hey Pendel" said again: restart the window
   if (!cmd) return;
-  show(`🎙️ Heard: ${cmd}`, "triggered", 0);
+  show(`“${cmd}”`, "triggered", 0);
   const parsed = parseCommand(cmd);
   if (!isFinal) { if (parsed.instant) { log("live command", cmd); fire(parsed, phrase); } return; }
   if (parsed.action === "none") return;
