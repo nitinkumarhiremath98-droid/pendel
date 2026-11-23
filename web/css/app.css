@@ -569,12 +569,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .lib-search { margin: 4px 0 6px; }
 
 /* "Hey Pendel" voice control */
-.voice-btn { position: relative; }
-.voice-btn[data-state="listening"] { color: var(--accent-strong); }
-.voice-btn[data-state="triggered"], .voice-btn[data-state="processing"] { color: #fff; background: var(--accent-strong); }
-.voice-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: transparent; }
-.voice-btn[data-state="listening"] .voice-dot { background: #22c55e; animation: voice-pulse 1.6s ease-in-out infinite; }
-.voice-btn[data-state="triggered"] .voice-dot, .voice-btn[data-state="processing"] .voice-dot { background: #fff; }
 @keyframes voice-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
 .voice-pill { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--player-h) + 16px); z-index: 70; max-width: min(92vw, 520px);
   padding: 10px 18px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
@@ -582,7 +576,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .voice-pill[data-kind="triggered"], .voice-pill[data-kind="processing"] { border-color: var(--accent-strong); }
 .voice-pill[data-kind="error"] { border-color: #fb7185; }
 @media (max-width: 900px) { .voice-pill { bottom: calc(var(--player-h) + var(--bottom-h) + 16px + env(safe-area-inset-bottom)); } }
-@media (prefers-reduced-motion: reduce) { .voice-btn .voice-dot { animation: none; } }
 
 /* ---------- legal pages & site footer ---------- */
 .site-footer { margin-top: 48px; padding: 22px 0 4px; border-top: 1px solid var(--line); color: var(--text-3); font-size: 13px; }
@@ -631,7 +624,9 @@ body.route-highlights .site-footer, body.route-admin .site-footer { display: non
 .consent-line { margin: 4px 0 14px; }
 @media (max-width: 600px) { .legal-officer > div { grid-template-columns: 1fr; gap: 0; } }
 /* Hey Pendel: active command window (after the wake word) */
-.voice-btn[data-state="triggered"], .voice-btn[data-state="processing"] { background: var(--accent-strong); color: #fff; animation: voice-ring 1.2s ease-out infinite; }
+.voice-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.voice-switch .btn { flex: none; }
+.voice-foot { margin-top: 6px !important; }
+.linklike { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .voice-pill[data-kind="triggered"] { box-shadow: 0 0 0 3px rgba(168, 85, 247, .35), var(--shadow); }
 @keyframes voice-ring { 0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, .55); } 100% { box-shadow: 0 0 0 12px rgba(168, 85, 247, 0); } }
-@media (prefers-reduced-motion: reduce) { .voice-btn[data-state="triggered"], .voice-btn[data-state="processing"] { animation: none; } }

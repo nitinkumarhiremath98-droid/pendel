@@ -110,23 +110,27 @@ async def main(ids):
         bad = {k: (v, WAKE_CASES[k]) for k, v in got.items() if v != WAKE_CASES[k]}
         check(not bad, f"wake phrase detection and stripping {bad or ''}")
 
+        vstate = lambda: page.evaluate("document.documentElement.dataset.voice")
+        # no mic button anywhere in the header
+        check(await page.locator("#voice-btn").count() == 0 and await page.locator(".topbar [aria-label*='voice' i], header [aria-label*='Hey Pendel']").count() == 0, "no microphone button in the header")
         # microphone already allowed (fake media UI) and never turned off: standby starts without a tap
-        btn = page.locator("#voice-btn")
-        check(await btn.is_visible(), "mic button shown in the header")
         await page.wait_for_timeout(500)
-        check(await btn.get_attribute("data-state") == "listening", "auto-enabled on load when the microphone permission is already granted")
-        # button: off, then on again
-        await btn.click(); await page.wait_for_timeout(200)
-        check(await btn.get_attribute("data-state") == "off" and await page.evaluate("localStorage.getItem('rf_voice')") == "0", "tap turns it off and remembers")
-        await btn.click()
-        await page.wait_for_timeout(500)
-        st = await page.evaluate("({state: document.getElementById('voice-btn').dataset.state, pref: localStorage.getItem('rf_voice'), lang: window.__rec.lang, cont: window.__rec.continuous, interim: window.__rec.interimResults})")
-        check(st == {"state": "listening", "pref": "1", "lang": "en-IN", "cont": True, "interim": True}, f"click starts continuous en-IN listening: {st}")
+        st = await page.evaluate("({state: document.documentElement.dataset.voice, pref: localStorage.getItem('rf_voice'), lang: window.__rec.lang, cont: window.__rec.continuous, interim: window.__rec.interimResults})")
+        check(st == {"state": "listening", "pref": None, "lang": "en-IN", "cont": True, "interim": True}, f"passive continuous en-IN listening starts by itself on load: {st}")
+        check(await page.locator("#voice-pill").is_hidden(), "nothing is shown during standby")
+        await page.mouse.click(700, 32)  # a first tap somewhere neutral (unlocks the chime, like a real visit)
         gum = await page.evaluate("window.__gum")
         check(all(g["audio"] == {"echoCancellation": True, "noiseSuppression": True, "autoGainControl": True} for g in gum),
               f"any permission request uses echo cancellation, noise suppression, auto gain: {gum}")
         live = await page.evaluate("window.__streams.flatMap(s => s.getTracks()).filter(t => t.readyState !== 'ended').length")
         check(live == 0, f"no extra microphone stream is held open, so SpeechRecognition owns the mic ({live} live tracks)")
+        # the footer switch: off and on again
+        foot = page.locator(".site-footer [data-action=voice-toggle]")
+        check("Say “Hey Pendel" in (await page.inner_text(".voice-foot")), f"footer shows the status: {await page.inner_text('.voice-foot')!r}")
+        await foot.click(); await page.wait_for_timeout(200)
+        check(await vstate() == "off" and await page.evaluate("localStorage.getItem('rf_voice')") == "0" and await foot.inner_text() == "Turn on", "footer switch turns it off and remembers")
+        await foot.click(); await page.wait_for_timeout(500)
+        check(await vstate() == "listening" and await page.evaluate("localStorage.getItem('rf_voice')") == "1", "…and on again")
 
         # nothing loaded yet: "play something" starts popular music instead of failing
         await page.evaluate("window.__say('hey pendel play something', true)")
@@ -149,9 +153,9 @@ async def main(ids):
         before = (await page.evaluate(state))["vol"]
         await page.evaluate("window.__say('hey pendel', false)")
         ducked = (await page.evaluate(state))["vol"]
-        check(abs(ducked - before * 0.15) < 0.01 and await btn.get_attribute("data-state") == "triggered", f"wake word ducks music to 15% ({before} -> {ducked}) and shows 'triggered'")
+        check(abs(ducked - before * 0.15) < 0.01 and await vstate() == "triggered", f"wake word ducks music to 15% ({before} -> {ducked}) and shows 'triggered'")
         pill = await page.locator("#voice-pill").text_content()
-        check(pill == "🎙️ Listening for command...", f"pill shows the active window: {pill!r}")
+        check(pill == "🎙️ Listening..." and await page.locator("#voice-pill").is_visible(), f"pill appears only now: {pill!r}")
         check(await page.evaluate("window.__osc") >= 2, f"two-tone activation chime played ({await page.evaluate('window.__osc')} oscillators)")
         await page.evaluate("window.__say('hey pendel pause', true)")
         await page.wait_for_timeout(300)
@@ -237,8 +241,11 @@ async def main(ids):
         await page.evaluate("window.__say('hey pendel', true)"); await page.wait_for_timeout(7400)
         st = await page.evaluate("(async () => (await import('/js/voice.js')).voiceState())()")
         await page.evaluate("window.__say('pause', true)"); await page.wait_for_timeout(300)
-        check(not st["active"] and not (await page.evaluate(state))["paused"] and abs((await page.evaluate(state))["vol"] - before) < 0.01,
-              f"after 7 s of silence it returns to standby, volume restored, and plain words are ignored ({st})")
+        check(not st["active"] and not (await page.evaluate(state))["paused"] and abs((await page.evaluate(state))["vol"] - before) < 0.01
+              and await page.locator("#voice-pill").is_hidden(), f"after 7 s of silence it returns to hidden standby, volume restored, and plain words are ignored ({st})")
+        await page.evaluate("window.__say('hey pendel pause', true)"); await page.wait_for_timeout(2900)
+        check(await page.locator("#voice-pill").is_hidden(), "the pill hides itself 2.5 s after a command")
+        await page.evaluate("window.__say('hey pendel resume', true)"); await page.wait_for_timeout(300)
 
         # volume
         await page.evaluate("(async () => (await import('/js/player.js')).setVolume(0.5))()")
@@ -257,6 +264,7 @@ async def main(ids):
         await page.evaluate("(async () => (await import('/js/player.js')).setVolume(" + str(before) + "))()")
 
         # play a song by name, with a misheard wake word
+        await page.evaluate("window.__ytLen = 600")  # fake YouTube videos last 10 minutes from here on
         await page.evaluate("window.__spoken = []; window.__say('hey bundle play kannada love song 7', true)")
         for _ in range(45):  # free plan: a short ad break may come first
             if await page.evaluate("navigator.mediaSession.metadata?.title") == "Kannada Love Song 7":
@@ -268,6 +276,34 @@ async def main(ids):
         spoken = await page.evaluate("window.__spoken")
         check(now["title"] == "Kannada Love Song 7" and now["playing"], f"“Hey Pendel play <name>” searches and plays: {now['title']}")
         check("Playing Kannada Love Song 7" in spoken, f"spoken confirmation: {spoken}")
+        ui = await page.evaluate("({bar: document.querySelector('#player')?.textContent.includes('Kannada Love Song 7'), icon: document.querySelector('#player [data-action=toggle-play] use')?.getAttribute('href')})")
+        check(ui["bar"] and ui["icon"] and ui["icon"].endswith("#pause"), f"player bar shows the song with a pause icon: {ui}")
+
+        # the same commands drive the YouTube player (catalogue songs) as well as <audio> (uploaded songs)
+        yts = "(async () => { const { player, media } = await import('/js/player.js'); const y = window.__ytp; return { engine: media.engine, playing: player.playing, state: y.state, t: y.t, vol: y.vol, muted: y.muted }; })()"
+        check((await page.evaluate(yts))["engine"] == "youtube", "Kannada Love Song 7 plays in the YouTube player")
+        await page.wait_for_timeout(2000)  # spoken reply finished
+        await page.evaluate("window.__say('hey pendel pause', true)"); await page.wait_for_timeout(300)
+        y1 = await page.evaluate(yts)
+        icon = await page.evaluate("document.querySelector('#player [data-action=toggle-play] use')?.getAttribute('href')")
+        await page.evaluate("window.__say('hey pendel play the song', true)"); await page.wait_for_timeout(300)
+        y2 = await page.evaluate(yts)
+        check(y1["state"] == 2 and not y1["playing"] and icon.endswith("#play") and y2["state"] == 1 and y2["playing"], f"YouTube: pause (icon {icon}) then “play the song” resumes: {y1['state']} -> {y2['state']}")
+        await page.evaluate("window.__ytp.t = 30")
+        await page.evaluate("window.__say('hey pendel forward 20 seconds', true)"); await page.wait_for_timeout(300)
+        f = (await page.evaluate(yts))["t"]
+        await page.evaluate("window.__say('hey pendel backward 10 seconds', true)"); await page.wait_for_timeout(300)
+        g = (await page.evaluate(yts))["t"]
+        check(49 < f < 52 and 39 < g < 42, f"YouTube: seekTo forward 20 / back 10: 30 -> {f:.1f} -> {g:.1f}")
+        await page.evaluate("(async () => (await import('/js/player.js')).setVolume(0.6))()")
+        await page.evaluate("window.__say('hey pendel volume down', true)"); await page.wait_for_timeout(300)
+        v = (await page.evaluate(yts))["vol"]
+        await page.evaluate("window.__say('hey pendel mute', true)"); await page.wait_for_timeout(300)
+        m1 = (await page.evaluate(yts))["muted"]
+        await page.evaluate("window.__say('hey pendel unmute', true)"); await page.wait_for_timeout(300)
+        m2 = (await page.evaluate(yts))["muted"]
+        check(v == 40 and m1 and not m2, f"YouTube: setVolume 60 -> {v}, mute {m1}, unmute {not m2}")
+        await page.evaluate("(async () => (await import('/js/player.js')).setVolume(" + str(before) + "))()")
         await page.evaluate("window.__spoken = []; window.__say('hey pendel play zzqx nothing matches', true)")
         await page.wait_for_timeout(1200)
         check("Sorry, I couldn't find that song." in await page.evaluate("window.__spoken"), "not found: toast + spoken apology")
@@ -290,14 +326,14 @@ async def main(ids):
         # transient errors are silent
         toasts0 = await page.locator(".toast").count()
         await page.evaluate("window.__rec.onerror({error: 'no-speech'}); window.__rec.onerror({error: 'aborted'})")
-        check(await page.locator(".toast").count() == toasts0 and await btn.get_attribute("data-state") != "off", "no-speech / aborted are ignored")
-        # permission denied: voice off + one toast
+        check(await page.locator(".toast").count() == toasts0 and await vstate() == "listening", "no-speech / aborted are ignored")
+        # permission revoked: stops quietly and says why in the footer
         await page.evaluate("window.__rec.onerror({error: 'not-allowed'})"); await page.wait_for_timeout(200)
-        check(await btn.get_attribute("data-state") == "off" and "Microphone blocked" in (await page.locator(".toast").last.text_content()), "mic blocked: turns off with a toast")
-
-        # turning it off by click, and the preference
-        await btn.click(); await btn.click()
-        check(await page.evaluate("localStorage.getItem('rf_voice')") == "0" and await btn.get_attribute("data-state") == "off", "click again turns it off and remembers")
+        check(await vstate() == "blocked" and "blocked" in await page.inner_text(".voice-foot"), f"mic blocked: stops, footer explains ({await page.inner_text('.voice-foot')!r})")
+        # spoken off switch
+        await foot.click(); await foot.click(); await page.wait_for_timeout(500)
+        await page.evaluate("window.__say('hey pendel stop listening', true)"); await page.wait_for_timeout(300)
+        check(await vstate() == "off" and await page.evaluate("localStorage.getItem('rf_voice')") == "0", "“Hey Pendel, stop listening” turns it off")
         # lock-screen controls are still wired
         ms = await page.evaluate("navigator.mediaSession.metadata?.album")
         check(ms is not None, f"lock-screen metadata still set (album {ms!r})")
@@ -307,6 +343,21 @@ async def main(ids):
         check("microphone=(self)" in pp, f"Permissions-Policy allows the microphone for PENDEL: {pp}")
         check(not errors, f"no page errors: {errors}")
         await page.screenshot(path=os.path.join(E.TMP, "voice.png"))
+
+        # a first visit where the browser hasn't granted the microphone yet: waits silently for the first tap
+        p2 = await (await b.new_context(viewport={"width": 390, "height": 844})).new_page()
+        await p2.add_init_script(FAKE_SPEECH + "navigator.permissions.query = async (d) => ({ state: d.name === 'microphone' ? 'prompt' : 'granted' });")
+        await p2.route("https://www.youtube.com/iframe_api", lambda r: r.fulfill(status=200, content_type="text/javascript", body=E.FAKE_YT))
+        await p2.goto(E.BASE + "/")
+        await p2.wait_for_selector(".rail .card")
+        await p2.wait_for_timeout(400)
+        w = await p2.evaluate("({state: document.documentElement.dataset.voice, recs: window.__recs.length, pill: document.getElementById('voice-pill').hidden})")
+        check(w == {"state": "waiting", "recs": 0, "pill": True}, f"no permission yet: nothing starts and nothing is shown until a tap {w}")
+        await p2.mouse.click(200, 32)
+        await p2.wait_for_timeout(600)
+        w = await p2.evaluate("({state: document.documentElement.dataset.voice, running: !!window.__rec?.running, gum: window.__gum.length})")
+        check(w["state"] == "listening" and w["running"] and w["gum"] == 1, f"the first tap asks for the microphone once and starts standby {w}")
+        await p2.context.close()
         await b.close()
     return fails
 

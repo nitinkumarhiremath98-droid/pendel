@@ -66,8 +66,6 @@
           <ul class="suggest" id="suggest" role="listbox" hidden></ul>
         </form>
         <div class="top-actions">
-          <!-- "Hey Pendel" voice control (web/js/voice.js). Hidden in browsers without speech recognition. -->
-          <button class="icon-btn voice-btn" id="voice-btn" type="button" data-state="off" aria-pressed="false" aria-label="Turn on Hey Pendel voice control" title="Hey Pendel: off" hidden><svg class="i"><use href="/img/icons.svg#mic"/></svg><span class="voice-dot" aria-hidden="true"></span></button>
           <button class="icon-btn" data-action="toggle-theme" aria-label="Toggle light or dark theme"><svg class="i"><use href="/img/icons.svg#contrast"/></svg></button>
           <div id="account-slot"></div>
         </div>
@@ -77,6 +75,7 @@
   </div>
 
   <!-- Player bar / mini-player -->
+  <!-- "Hey Pendel" (web/js/voice.js): no button; this pill appears only after the wake word. On/off lives in Profile. -->
   <div class="voice-pill" id="voice-pill" role="status" aria-live="polite" hidden></div>
   <section class="player" id="player" aria-label="Music player" hidden>
     <div class="pl-progress-mini"><span></span></div>

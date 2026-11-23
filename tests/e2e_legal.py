@@ -45,7 +45,9 @@ async def main():
         await page.evaluate("window.__noReload = 1")
         for key, title in PAGES.items():
             await page.click(f".site-footer a[href='/legal/{key}']")
-            await page.wait_for_selector("#legal-h1")
+            for _ in range(30):  # wait until the router has rendered this page (the previous page also has an h1)
+                if await page.locator("#legal-h1").count() and await page.inner_text("#legal-h1") == title: break
+                await page.wait_for_timeout(100)
             h1 = await page.inner_text("#legal-h1")
             check(h1 == title and await page.evaluate("window.__noReload") == 1, f"/legal/{key} renders '{h1}' in-app")
             check(await page.evaluate("document.title") == f"{title} | PENDEL", f"/legal/{key} sets the document title")

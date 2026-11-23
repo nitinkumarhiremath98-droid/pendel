@@ -1,4 +1,5 @@
 import { session, onSession, loadSession, get, post, put, patch, del, setAuth } from "./api.js";
+import { setVoiceEnabled, voiceWanted, voiceSupported, onVoiceStatus, voiceStatusText } from "./voice.js";
 import { player, syncUI, updateMuteIcon, setMuted } from "./player.js";
 import { refreshLyrics } from "./lyrics.js";
 import { html, raw, render, icon, $, $$, toast, toastError, modal, closeModal, openMenu, closeMenu, songs, queues, debounce, esc, errorState } from "./ui.js";
@@ -80,7 +81,18 @@ const FOOTER_LINKS = [["terms", "Terms of Service"], ["privacy", "Privacy Policy
 const siteFooter = document.createElement("footer");
 siteFooter.className = "site-footer";
 render(siteFooter, html`<nav aria-label="Legal and policies"><ul>${FOOTER_LINKS.map(([k, t]) => html`<li><a href="/legal/${k}" data-link>${t}</a></li>`)}</ul></nav>
-  <p>© ${new Date().getFullYear()} PENDEL · Feel Every Beat · Music belongs to its respective rights holders.</p>`);
+  <p>© ${new Date().getFullYear()} PENDEL · Feel Every Beat · Music belongs to its respective rights holders.</p>
+  <p class="voice-foot" hidden>Hey Pendel voice control: <span class="voice-foot-status"></span> <button type="button" class="linklike" data-action="voice-toggle"></button></p>`);
+// "Hey Pendel" has no header button: its on/off switch lives here and in Profile
+onVoiceStatus(syncVoiceFoot);
+function syncVoiceFoot() {
+  const p = $(".voice-foot", siteFooter);
+  if (!voiceSupported()) { p.hidden = true; return; }
+  p.hidden = false;
+  $(".voice-foot-status", siteFooter).textContent = voiceStatusText();
+  $("[data-action=voice-toggle]", siteFooter).textContent = voiceWanted() ? "Turn off" : "Turn on";
+}
+syncVoiceFoot();
 function keepFooter() {
   const view = $("#view");
   if (view && view.lastElementChild !== siteFooter) view.appendChild(siteFooter);
@@ -299,6 +311,7 @@ const actions = {
   "open-queue": () => { openDrawer("#queue-drawer"); renderQueue(); },
   "close-queue": () => { $("#queue-drawer").hidden = true; },
   "clear-queue": () => player.clearUpcoming(),
+  "voice-toggle": () => { setVoiceEnabled(!voiceWanted()); syncVoiceFoot(); },
   "toggle-autoplay": (el) => { player.setAutoplay(el.checked); renderQueue(); },
   "queue-jump": (el) => player.jump(+el.dataset.i),
   "queue-remove": (el) => player.removeAt(+el.dataset.i),

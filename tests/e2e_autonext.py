@@ -26,7 +26,7 @@ FAKE_YT = r"""
   window.__played = []; window.__bad = new Set();
   class Player {
     constructor(id, o) {
-      this.o = o; this.t = 0; this.state = -1;
+      this.o = o; this.t = 0; this.state = -1; this.vol = 100; this.muted = false; window.__ytp = this;
       const f = document.createElement("iframe"); f.id = id; f.setAttribute("width", "100%"); f.setAttribute("height", "100%");
       document.getElementById(id).replaceWith(f);
       setTimeout(() => { o.events.onReady?.(); this._load(o.videoId, o.playerVars?.start || 0, o.playerVars?.autoplay); }, 20);
@@ -41,14 +41,14 @@ FAKE_YT = r"""
       if (this.state === S.PLAYING) return;
       window.__played.push(this.vid); this._set(S.BUFFERING); this._set(S.PLAYING);
       clearInterval(this.iv);
-      this.iv = setInterval(() => { this.t += 0.25; if (this.t >= 2) { clearInterval(this.iv); this._set(S.ENDED); } }, 250);
+      this.iv = setInterval(() => { this.t += 0.25; if (this.t >= (window.__ytLen || 2)) { clearInterval(this.iv); this._set(S.ENDED); } }, 250);
     }
     pauseVideo() { clearInterval(this.iv); this._set(S.PAUSED); }
     stopVideo() { clearInterval(this.iv); this._set(S.UNSTARTED); }
     loadVideoById(o) { this._load(o.videoId, o.startSeconds, true); }
     cueVideoById(o) { this._load(o.videoId, o.startSeconds, false); }
-    seekTo(t) { this.t = t; } getCurrentTime() { return this.t; } getDuration() { return 2; }
-    getVideoData() { return { video_id: this.vid }; } setVolume() {} mute() {} unMute() {}
+    seekTo(t) { this.t = t; } getCurrentTime() { return this.t; } getDuration() { return window.__ytLen || 2; }
+    getVideoData() { return { video_id: this.vid }; } setVolume(v) { this.vol = v; } getVolume() { return this.vol; } mute() { this.muted = true; } unMute() { this.muted = false; }
   }
   window.YT = { Player, PlayerState: S };
   window.onYouTubeIframeAPIReady?.();
