@@ -1,7 +1,7 @@
 /* PENDEL service worker: makes the app installable and keeps the app shell available offline.
    Deliberately small: API calls, audio and YouTube are never cached, so listeners always get fresh,
    licensed streams. Bump VERSION when the shell changes. */
-const VERSION = "pendel-v4.3";
+const VERSION = "pendel-v4.4";
 const SHELL = ["/", "/css/app.css", "/js/app.js", "/js/api.js", "/js/ui.js", "/js/player.js", "/js/lyrics.js", "/js/views.js",
   "/js/highlights.js", "/js/voice.js", "/js/admin.js", "/img/logo.svg", "/img/icons.svg", "/img/icons/icon-192.png", "/manifest.webmanifest"];
 

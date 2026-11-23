@@ -20,11 +20,18 @@ FAKE_SPEECH = r"""
     abort() { this.running = false; setTimeout(() => this.onend?.(), 0); }
   }
   window.webkitSpeechRecognition = window.SpeechRecognition = FakeRecognition;
+  window.__idx = 0;
+  // speak one phrase: interim=true sends it as live (not yet final) text of the current phrase
   window.__say = (text, isFinal = true) => {
     const r = window.__rec;
-    const result = Object.assign([{ transcript: text, confidence: 0.9 }], { isFinal });
-    r.onresult?.({ resultIndex: 0, results: [result] });
+    const results = [];
+    results[window.__idx] = Object.assign([{ transcript: text, confidence: 0.9 }], { isFinal });
+    r.onresult?.({ resultIndex: window.__idx, results });
+    if (isFinal) window.__idx += 1;
   };
+  window.__gum = [];
+  const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia = (c) => { window.__gum.push(c); return real(c); };
   window.__spoken = [];
   window.speechSynthesis.speak = (u) => window.__spoken.push(u.text);
 })();
@@ -43,11 +50,15 @@ PARSE_CASES = {
     "repeat": "repeat-on", "repeat the song": "repeat-on", "repeat this song": "repeat-on", "loop": "repeat-on", "repeat on": "repeat-on",
     "repeat off": "repeat-off", "stop repeat": "repeat-off", "unloop": "repeat-off", "disable repeat": "repeat-off",
     "play kesariya": "play-song:kesariya", "play test track": "play-song:test track", "please play vennela daari": "play-song:vennela daari",
+    "forward 10": "seek:10", "backward 10": "seek:-10", "back 10": "seek:-10", "another song": "next",
 }
 WAKE_CASES = {
     "hey pendel pause": "pause", "Hey Pendel, next song": "next song", "hi pendel play kesariya": "play kesariya",
     "pendel stop": "stop", "hey bundle skip": "skip", "hey candle forward 10 seconds": "forward 10 seconds",
-    "hey pendle repeat": "repeat", "next song": None, "candle light": None, "hey pendel": "",
+    "hey pendle repeat": "repeat", "next song": None, "hey pendel": "",
+    "ok pendel next": "next", "yo pendel pause": "pause", "hey pedal pause": "pause", "hi pandal forward 10": "forward 10",
+    "hey pencil next song": "next song", "okay panel skip": "skip", "hey handle repeat": "repeat", "heypendel stop": "stop",
+    "pedal change the song": "change the song", "pendel": "", "i saw the panel": None, "turn the handle slowly": None,
 }
 
 
@@ -69,7 +80,8 @@ async def main(ids):
         api("PATCH", f"/api/admin/songs/{yt_id}", {"audio_url": E.BASE + api("GET", f"/api/stream/{d['id']}?kind=highlight")["url"]}, adm)
 
     async with async_playwright() as p:
-        b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--autoplay-policy=no-user-gesture-required", "--no-sandbox"])
+        b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--autoplay-policy=no-user-gesture-required", "--no-sandbox",
+                                                                                     "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"])
         page = await (await b.new_context(viewport={"width": 1440, "height": 900})).new_page()
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
@@ -92,8 +104,12 @@ async def main(ids):
         btn = page.locator("#voice-btn")
         check(await btn.is_visible(), "mic button shown in the header")
         await btn.click()
+        await page.wait_for_timeout(500)  # microphone permission (fake device) then recognition start
         st = await page.evaluate("({state: document.getElementById('voice-btn').dataset.state, pref: localStorage.getItem('rf_voice'), lang: window.__rec.lang, cont: window.__rec.continuous, interim: window.__rec.interimResults})")
         check(st == {"state": "listening", "pref": "1", "lang": "en-IN", "cont": True, "interim": True}, f"click starts continuous en-IN listening: {st}")
+        gum = await page.evaluate("window.__gum")
+        check(gum and gum[0]["audio"] == {"echoCancellation": True, "noiseSuppression": True, "autoGainControl": True},
+              f"microphone opened with echo cancellation, noise suppression, auto gain: {gum}")
 
         play = """async ([ids, i]) => { const { player } = await import('/js/player.js'); player.setAutoplay(false);
                     const songs = await Promise.all(ids.map(id => fetch('/api/songs/' + id).then(r => r.json()).then(d => d.song)));
@@ -133,13 +149,40 @@ async def main(ids):
         rep = await page.evaluate("(async () => (await import('/js/player.js')).player.repeat)()")
         check(rep == "off", f"repeat off: {rep}")
 
+        # real time: quick commands run from the live (interim) text, once; "play" waits for the final text
+        await page.evaluate("window.__say('hey pendel pause', false)"); await page.wait_for_timeout(250)
+        check((await page.evaluate(state))["paused"], "“pause” runs from live speech, before the phrase ends")
+        await page.evaluate("window.__say('hey pendel pause', true)")
+        await page.evaluate("window.__say('hey pendel play', false)"); await page.wait_for_timeout(250)
+        check((await page.evaluate(state))["paused"], "a bare “play” waits (it may become “play <song>”)")
+        await page.evaluate("window.__say('hey pendel play', true)"); await page.wait_for_timeout(300)
+        check(not (await page.evaluate(state))["paused"], "…and resumes on the final text")
+        await page.evaluate("document.getElementById('audio-player').currentTime = 2")
+        await page.evaluate("window.__say('hey pendel forward 10', false)"); await page.wait_for_timeout(250)
+        await page.evaluate("window.__say('hey pendel forward 10 seconds', false)")
+        await page.evaluate("window.__say('hey pendel forward 10 seconds', true)"); await page.wait_for_timeout(300)
+        t = (await page.evaluate(state))["t"]
+        check(11.5 < t < 13.5, f"“forward 10” from live speech, applied once despite 3 updates: {t:.1f}s")
+        await page.evaluate("window.__say('hey pendel backward 10', false)"); await page.wait_for_timeout(250)
+        t = (await page.evaluate(state))["t"]
+        check(1.5 < t < 3.5, f"“backward 10” from live speech: {t:.1f}s")
+        await page.evaluate("window.__say('hey pendel backward 10', true)")
+        # bare phonetic wake word works for real commands; lyrics with "panel" are ignored
+        await page.evaluate("window.__say('pedal pause', true)"); await page.wait_for_timeout(250)
+        check((await page.evaluate(state))["paused"], "“pedal pause” (misheard wake word) pauses")
+        await page.evaluate("window.__say('hey pendel resume', true)"); await page.wait_for_timeout(250)
+        pill_before = await page.locator("#voice-pill").text_content()
+        await page.evaluate("window.__say('panel of stars shining in the night', true)"); await page.wait_for_timeout(250)
+        check(await page.locator("#voice-pill").text_content() == pill_before and not (await page.evaluate(state))["paused"], "song lyrics containing “panel” don't trigger anything")
+
         # next / previous
         t0 = (await page.evaluate(state))["title"]
+        await page.evaluate("window.__say('hey pendel change the song', false)"); await page.wait_for_timeout(300)
         await page.evaluate("window.__say('hey pendel change the song', true)"); await page.wait_for_timeout(1200)
         t1 = (await page.evaluate(state))["title"]
         await page.evaluate("window.__say('hey pendel previous song', true)"); await page.wait_for_timeout(1200)
         t2 = (await page.evaluate(state))["title"]
-        check(t0 == "Kannada Love Song 0" and t1 == "Kannada Love Song 1" and t2 == "Kannada Love Song 0", f"next then previous: {t0} -> {t1} -> {t2}")
+        check(t0 == "Kannada Love Song 0" and t1 == "Kannada Love Song 1" and t2 == "Kannada Love Song 0", f"“change the song” (live + final = one skip), then previous: {t0} -> {t1} -> {t2}")
 
         # wake word, a pause, then the command in the next phrase
         await page.evaluate("window.__say('hey pendel', true)"); await page.wait_for_timeout(200)
@@ -164,6 +207,17 @@ async def main(ids):
         await page.evaluate("window.__spoken = []; window.__say('hey pendel play zzqx nothing matches', true)")
         await page.wait_for_timeout(1200)
         check("Sorry, I couldn't find that song." in await page.evaluate("window.__spoken"), "not found: toast + spoken apology")
+
+        # one-song queue: "next" still moves on (similar / popular songs are added)
+        await page.evaluate(play, [ids[2:3], 0]); await page.wait_for_timeout(900)
+        await page.evaluate("window.__say('hey pendel next song', true)")
+        moved = None
+        for _ in range(40):
+            moved = await page.evaluate("(async () => { const { player } = await import('/js/player.js'); return [player.queue.length, player.current?.song?.title]; })()")
+            if moved[0] > 1 and moved[1] != "Kannada Love Song 2":
+                break
+            await page.wait_for_timeout(200)
+        check(moved[0] > 1 and moved[1] != "Kannada Love Song 2", f"“next song” with a one-song queue still advances: {moved}")
 
         # keeps listening: the browser ends recognition -> restarted
         n0 = await page.evaluate("window.__rec.starts")

@@ -250,6 +250,24 @@ export const player = {
     this.index = i;
     await this.load(this.queue[i], this.sessionMode === "highlights" || (this.current?.mode === "highlight" && this.hlQueue) ? "highlight" : "full");
   },
+  /** Next track, always: at the end of the queue (even a one-song queue) it adds similar songs first, and if
+   *  none come back, popular songs from the catalogue. Used by voice commands ("change the song"). */
+  async skipToNext() {
+    if (!this.current) return false;
+    if (this.index + 1 >= this.queue.length && this.repeat !== "all" && !(await this.extendQueue())) {
+      try {
+        const d = await get("/api/songs?sort=popular&limit=30", { quiet: true });
+        const fresh = (d.songs || []).filter((s) => !this.queue.some((q) => q.id === s.id));
+        if (!fresh.length) return false;
+        fresh.forEach((s) => songRegistry?.set?.(s.id, s));
+        this.queue.push(...fresh.slice(0, 10)); if (this.original) this.original.push(...fresh.slice(0, 10));
+        emit("queue");
+      } catch { return false; }
+    }
+    const before = this.index;
+    await this.next();
+    return this.index !== before;
+  },
   async prev() {
     if (this.current && this.pos > 3) { media.currentTime = this.current.start; return; }
     if (this.index > 0) { this.index -= 1; await this.load(this.queue[this.index], "full"); }
