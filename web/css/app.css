@@ -566,3 +566,19 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .isearch-results { transition: opacity .15s; }
 .isearch-results.loading { opacity: .55; }
 .lib-search { margin: 4px 0 6px; }
+
+/* "Hey Pendel" voice control */
+.voice-btn { position: relative; }
+.voice-btn[data-state="listening"] { color: var(--accent-strong); }
+.voice-btn[data-state="triggered"], .voice-btn[data-state="processing"] { color: #fff; background: var(--accent-strong); }
+.voice-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: transparent; }
+.voice-btn[data-state="listening"] .voice-dot { background: #22c55e; animation: voice-pulse 1.6s ease-in-out infinite; }
+.voice-btn[data-state="triggered"] .voice-dot, .voice-btn[data-state="processing"] .voice-dot { background: #fff; }
+@keyframes voice-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+.voice-pill { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--player-h) + 16px); z-index: 70; max-width: min(92vw, 520px);
+  padding: 10px 18px; border-radius: 999px; background: var(--glass); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--line-2); box-shadow: var(--shadow); font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: pop .2s var(--ease); }
+.voice-pill[data-kind="triggered"], .voice-pill[data-kind="processing"] { border-color: var(--accent-strong); }
+.voice-pill[data-kind="error"] { border-color: #fb7185; }
+@media (max-width: 900px) { .voice-pill { bottom: calc(var(--player-h) + var(--bottom-h) + 16px + env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: reduce) { .voice-btn .voice-dot { animation: none; } }

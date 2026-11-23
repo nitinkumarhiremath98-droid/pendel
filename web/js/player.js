@@ -21,6 +21,17 @@ export const media = {
   play() { if (yt.active) { yt.player?.playVideo?.(); return Promise.resolve(); } return audio.play(); },
   pause() { if (yt.active) yt.player?.pauseVideo?.(); else audio.pause(); },
 };
+
+// Briefly lower the music (e.g. while the "Hey Pendel" microphone listens), then restore it. Calls during a duck
+// extend it; the listener's own volume setting is never changed.
+let duckState = null;
+export function duck(factor = 0.2, ms = 1500) {
+  const base = duckState ? duckState.base : (yt.active ? (yt.player?.getVolume?.() ?? 100) / 100 : audio.volume);
+  clearTimeout(duckState?.timer);
+  const set = (v) => { try { if (yt.active) yt.player?.setVolume?.(Math.round(v * 100)); else audio.volume = v; } catch { /* not ready */ } };
+  set(base * factor);
+  duckState = { base, timer: setTimeout(() => { set(base); duckState = null; }, ms) };
+}
 function ensureYT() {
   if (window.YT?.Player) return Promise.resolve(true);
   if (!yt.ready) {
