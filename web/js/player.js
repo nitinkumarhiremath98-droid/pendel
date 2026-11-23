@@ -32,6 +32,31 @@ export function duck(factor = 0.2, ms = 1500) {
   set(base * factor);
   duckState = { base, timer: setTimeout(() => { set(base); duckState = null; }, ms) };
 }
+/** Ends a duck straight away (the voice command has finished) and brings the music back to its volume. */
+export function unduck() {
+  if (!duckState) return;
+  clearTimeout(duckState.timer);
+  const base = duckState.base;
+  duckState = null;
+  try { if (yt.active) yt.player?.setVolume?.(Math.round(base * 100)); else audio.volume = base; } catch { /* not ready */ }
+}
+/** The listener's volume (0–1), ignoring any duck in progress. */
+export function getVolume() {
+  const v = +(localStorage.getItem("rf_vol") ?? 80);
+  return Math.max(0, Math.min(1, (Number.isFinite(v) ? v : 80) / 100));
+}
+/** Sets the listener's volume (0–1) everywhere: <audio>, the YouTube player, the sliders and the saved setting. */
+export function setVolume(v) {
+  const vol = Math.max(0, Math.min(1, v));
+  if (duckState) { clearTimeout(duckState.timer); duckState = null; }
+  const pct = Math.round(vol * 100);
+  audio.volume = vol; audio.muted = false;
+  try { yt.player?.setVolume?.(pct); yt.player?.unMute?.(); } catch { /* not ready */ }
+  try { localStorage.setItem("rf_vol", String(pct)); } catch { /* private mode */ }
+  $$(".volume").forEach((o) => { o.value = pct; setRangeFill(o); });
+  updateMuteIcon();
+  return vol;
+}
 function ensureYT() {
   if (window.YT?.Player) return Promise.resolve(true);
   if (!yt.ready) {
@@ -561,12 +586,7 @@ const savedVol = +(localStorage.getItem("rf_vol") ?? 80);
 audio.volume = savedVol / 100;
 $$(".volume").forEach((r) => {
   r.value = savedVol; setRangeFill(r);
-  r.addEventListener("input", () => {
-    audio.volume = r.value / 100; audio.muted = false; localStorage.setItem("rf_vol", r.value);
-    try { yt.player?.setVolume?.(+r.value); yt.player?.unMute?.(); } catch { /* not ready */ }
-    $$(".volume").forEach((o) => { o.value = r.value; setRangeFill(o); });
-    updateMuteIcon();
-  });
+  r.addEventListener("input", () => setVolume(r.value / 100));
 });
 export function setMuted(m) { audio.muted = m; try { m ? yt.player?.mute?.() : yt.player?.unMute?.(); } catch { /* not ready */ } updateMuteIcon(); }
 export function updateMuteIcon() {

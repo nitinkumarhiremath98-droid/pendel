@@ -51,7 +51,12 @@ export function toast(msg, { error = false, action = null, ms = 3200 } = {}) {
   el.className = "toast" + (error ? " error" : "");
   el.setAttribute("role", error ? "alert" : "status");
   el.append(document.createTextNode(msg));
-  if (action) {
+  if (action?.onClick) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "toast-btn"; b.textContent = action.label;
+    b.addEventListener("click", () => { el.remove(); action.onClick(); });
+    el.append(b);
+  } else if (action) {
     const a = document.createElement("a");
     a.href = action.href; a.textContent = action.label;
     if (action.external) { a.target = "_blank"; a.rel = "noopener"; } else a.dataset.link = "";

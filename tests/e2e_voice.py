@@ -31,7 +31,11 @@ FAKE_SPEECH = r"""
   };
   window.__gum = [];
   const real = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-  navigator.mediaDevices.getUserMedia = (c) => { window.__gum.push(c); return real(c); };
+  window.__streams = [];
+  navigator.mediaDevices.getUserMedia = async (c) => { window.__gum.push(c); const s = await real(c); window.__streams.push(s); return s; };
+  window.__osc = 0;
+  const osc = BaseAudioContext.prototype.createOscillator;
+  BaseAudioContext.prototype.createOscillator = function () { window.__osc += 1; return osc.call(this); };
   window.__spoken = [];
   window.speechSynthesis.speak = (u) => window.__spoken.push(u.text);
 })();
@@ -51,6 +55,11 @@ PARSE_CASES = {
     "repeat off": "repeat-off", "stop repeat": "repeat-off", "unloop": "repeat-off", "disable repeat": "repeat-off",
     "play kesariya": "play-song:kesariya", "play test track": "play-song:test track", "please play vennela daari": "play-song:vennela daari",
     "forward 10": "seek:10", "backward 10": "seek:-10", "back 10": "seek:-10", "another song": "next",
+    "play the song": "resume", "play music": "resume", "play something": "resume", "play some music": "resume",
+    "play another song": "next", "pause the song": "pause", "skip 15 seconds": "seek:15", "rewind 20 seconds": "seek:-20",
+    "loop on": "repeat-on", "stop repeating": "repeat-off", "play believer": "play-song:believer",
+    "volume up": "volume:0.2", "louder": "volume:0.2", "volume down": "volume:-0.2", "quieter": "volume:-0.2",
+    "mute": "mute", "unmute": "unmute", "volume 50 percent": "volume-set:0.5",
 }
 WAKE_CASES = {
     "hey pendel pause": "pause", "Hey Pendel, next song": "next song", "hi pendel play kesariya": "play kesariya",
@@ -59,6 +68,7 @@ WAKE_CASES = {
     "ok pendel next": "next", "yo pendel pause": "pause", "hey pedal pause": "pause", "hi pandal forward 10": "forward 10",
     "hey pencil next song": "next song", "okay panel skip": "skip", "hey handle repeat": "repeat", "heypendel stop": "stop",
     "pedal change the song": "change the song", "pendel": "", "i saw the panel": None, "turn the handle slowly": None,
+    "heyy pendel next": "next", "hey panda pause": "pause", "ok pendle play kesariya": "play kesariya",
 }
 
 
@@ -92,7 +102,7 @@ async def main(ids):
 
         # parsing
         got = await page.evaluate("""async (cases) => { const v = await import('/js/voice.js'); const out = {};
-            for (const c of Object.keys(cases)) { const r = v.parseCommand(c); out[c] = r.action + (r.action === 'seek' ? ':' + r.seconds : r.action === 'play-song' ? ':' + r.query : ''); }
+            for (const c of Object.keys(cases)) { const r = v.parseCommand(c); out[c] = r.action + (r.action === 'seek' ? ':' + r.seconds : r.action === 'play-song' ? ':' + r.query : r.action === 'volume' ? ':' + r.delta : r.action === 'volume-set' ? ':' + r.value : ''); }
             return out; }""", PARSE_CASES)
         bad = {k: (v, PARSE_CASES[k]) for k, v in got.items() if v != PARSE_CASES[k]}
         check(not bad, f"all {len(PARSE_CASES)} spoken commands map to the right action {bad or ''}")
@@ -100,16 +110,33 @@ async def main(ids):
         bad = {k: (v, WAKE_CASES[k]) for k, v in got.items() if v != WAKE_CASES[k]}
         check(not bad, f"wake phrase detection and stripping {bad or ''}")
 
-        # button: off -> listening
+        # microphone already allowed (fake media UI) and never turned off: standby starts without a tap
         btn = page.locator("#voice-btn")
         check(await btn.is_visible(), "mic button shown in the header")
+        await page.wait_for_timeout(500)
+        check(await btn.get_attribute("data-state") == "listening", "auto-enabled on load when the microphone permission is already granted")
+        # button: off, then on again
+        await btn.click(); await page.wait_for_timeout(200)
+        check(await btn.get_attribute("data-state") == "off" and await page.evaluate("localStorage.getItem('rf_voice')") == "0", "tap turns it off and remembers")
         await btn.click()
-        await page.wait_for_timeout(500)  # microphone permission (fake device) then recognition start
+        await page.wait_for_timeout(500)
         st = await page.evaluate("({state: document.getElementById('voice-btn').dataset.state, pref: localStorage.getItem('rf_voice'), lang: window.__rec.lang, cont: window.__rec.continuous, interim: window.__rec.interimResults})")
         check(st == {"state": "listening", "pref": "1", "lang": "en-IN", "cont": True, "interim": True}, f"click starts continuous en-IN listening: {st}")
         gum = await page.evaluate("window.__gum")
-        check(gum and gum[0]["audio"] == {"echoCancellation": True, "noiseSuppression": True, "autoGainControl": True},
-              f"microphone opened with echo cancellation, noise suppression, auto gain: {gum}")
+        check(all(g["audio"] == {"echoCancellation": True, "noiseSuppression": True, "autoGainControl": True} for g in gum),
+              f"any permission request uses echo cancellation, noise suppression, auto gain: {gum}")
+        live = await page.evaluate("window.__streams.flatMap(s => s.getTracks()).filter(t => t.readyState !== 'ended').length")
+        check(live == 0, f"no extra microphone stream is held open, so SpeechRecognition owns the mic ({live} live tracks)")
+
+        # nothing loaded yet: "play something" starts popular music instead of failing
+        await page.evaluate("window.__say('hey pendel play something', true)")
+        started = None
+        for _ in range(50):  # free plan: a short ad break may come first
+            started = await page.evaluate("(async () => (await import('/js/player.js')).player.current?.song?.title || null)()")
+            if started: break
+            await page.wait_for_timeout(200)
+        check(bool(started), f"“play something” with nothing loaded starts a popular song: {started}")
+        await page.wait_for_timeout(2000)  # let the spoken "Playing …" reply finish (it dips the music too)
 
         play = """async ([ids, i]) => { const { player } = await import('/js/player.js'); player.setAutoplay(false);
                     const songs = await Promise.all(ids.map(id => fetch('/api/songs/' + id).then(r => r.json()).then(d => d.song)));
@@ -122,7 +149,10 @@ async def main(ids):
         before = (await page.evaluate(state))["vol"]
         await page.evaluate("window.__say('hey pendel', false)")
         ducked = (await page.evaluate(state))["vol"]
-        check(abs(ducked - before * 0.2) < 0.01 and await btn.get_attribute("data-state") == "triggered", f"wake word ducks music to 20% ({before} -> {ducked}) and shows 'triggered'")
+        check(abs(ducked - before * 0.15) < 0.01 and await btn.get_attribute("data-state") == "triggered", f"wake word ducks music to 15% ({before} -> {ducked}) and shows 'triggered'")
+        pill = await page.locator("#voice-pill").text_content()
+        check(pill == "🎙️ Listening for command...", f"pill shows the active window: {pill!r}")
+        check(await page.evaluate("window.__osc") >= 2, f"two-tone activation chime played ({await page.evaluate('window.__osc')} oscillators)")
         await page.evaluate("window.__say('hey pendel pause', true)")
         await page.wait_for_timeout(300)
         check((await page.evaluate(state))["paused"], "“Hey Pendel pause” pauses")
@@ -186,11 +216,45 @@ async def main(ids):
 
         # wake word, a pause, then the command in the next phrase
         await page.evaluate("window.__say('hey pendel', true)"); await page.wait_for_timeout(200)
-        await page.evaluate("window.__say('next song', true)"); await page.wait_for_timeout(1200)
+        await page.evaluate("window.__say('next song', true)")
+        for _ in range(60):  # free plan: an ad break may come before the next full song
+            if (await page.evaluate(state))["title"] == "Kannada Love Song 1": break
+            await page.wait_for_timeout(200)
+        await page.wait_for_timeout(300)
         check((await page.evaluate(state))["title"] == "Kannada Love Song 1", "“Hey Pendel” … “next song” as two phrases")
         # no wake phrase: ignored
         await page.evaluate("window.__say('next song', true)"); await page.wait_for_timeout(800)
         check((await page.evaluate(state))["title"] == "Kannada Love Song 1", "commands without the wake phrase are ignored")
+        # the window shows live words, and stays open across phrases
+        await page.evaluate("window.__say('hey pendel', true)"); await page.wait_for_timeout(100)
+        await page.evaluate("window.__say('play', false)"); await page.wait_for_timeout(100)
+        pill = await page.locator("#voice-pill").text_content()
+        check(pill == "🎙️ Heard: play", f"live words shown while listening: {pill!r}")
+        await page.evaluate("window.__say('pause', true)"); await page.wait_for_timeout(300)
+        check((await page.evaluate(state))["paused"], "command from a later phrase inside the 7 s window runs")
+        await page.evaluate("window.__say('hey pendel resume', true)"); await page.wait_for_timeout(300)
+        # the window closes after 7 s
+        await page.evaluate("window.__say('hey pendel', true)"); await page.wait_for_timeout(7400)
+        st = await page.evaluate("(async () => (await import('/js/voice.js')).voiceState())()")
+        await page.evaluate("window.__say('pause', true)"); await page.wait_for_timeout(300)
+        check(not st["active"] and not (await page.evaluate(state))["paused"] and abs((await page.evaluate(state))["vol"] - before) < 0.01,
+              f"after 7 s of silence it returns to standby, volume restored, and plain words are ignored ({st})")
+
+        # volume
+        await page.evaluate("(async () => (await import('/js/player.js')).setVolume(0.5))()")
+        await page.evaluate("window.__say('hey pendel volume up', true)"); await page.wait_for_timeout(200)
+        v1 = (await page.evaluate(state))["vol"]
+        await page.evaluate("window.__say('hey pendel quieter', true)"); await page.wait_for_timeout(1300)  # 1.2 s repeat guard
+        await page.evaluate("window.__say('hey pendel turn it down', true)"); await page.wait_for_timeout(200)
+        v2 = (await page.evaluate(state))["vol"]
+        pill = await page.locator("#voice-pill").text_content()
+        slider = await page.evaluate("document.querySelector('.volume').value")
+        check(abs(v1 - 0.7) < 0.01 and abs(v2 - 0.3) < 0.01 and pill == "🎙️ Volume 30%" and slider == "30", f"volume up/down ±20% with the % shown: {v1} -> {v2}, {pill!r}, slider {slider}")
+        await page.evaluate("window.__say('hey pendel mute', true)"); await page.wait_for_timeout(200)
+        muted = await page.evaluate("document.getElementById('audio-player').muted")
+        await page.evaluate("window.__say('hey pendel unmute', true)"); await page.wait_for_timeout(200)
+        check(muted and not await page.evaluate("document.getElementById('audio-player').muted"), "mute / unmute")
+        await page.evaluate("(async () => (await import('/js/player.js')).setVolume(" + str(before) + "))()")
 
         # play a song by name, with a misheard wake word
         await page.evaluate("window.__spoken = []; window.__say('hey bundle play kannada love song 7', true)")
