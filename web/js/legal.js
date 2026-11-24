@@ -9,12 +9,12 @@ import { html, raw, render, $ } from "./ui.js";
 
 export const LEGAL = {
   app: "PENDEL",
-  operator: "[Your Name]",                         // person or registered business that runs PENDEL
-  email: "[Your Contact Email]",                   // grievance, privacy, copyright and billing contact
-  location: "[Bengaluru / Karnataka, India]",      // city / state used for jurisdiction and the grievance officer
-  phone: "",                                        // optional: shown on the Contact page if set (gateways often ask for one)
-  address: "",                                      // optional: full postal address, shown if set
-  updated: "23 November 2026",
+  operator: "Nitin Kumar M",
+  email: "nitinkumarhiremath20@gmail.com",
+  location: "Bengaluru / Karnataka, India",
+  phone: "+91 6363400195",
+  address: "Sindhanur, Karnataka, India",
+  updated: "24 November 2026",
 };
 
 const P = (k) => html`<span class="ph">${LEGAL[k]}</span>`;   // highlighted placeholder value
