@@ -310,6 +310,24 @@ class PENDELAPI(unittest.TestCase):
 
 
     # ------------------------------------------------------------------ legal & privacy rights
+    def test_pwa_screenshots_and_asset_links(self):
+        with urllib.request.urlopen(BASE + "/manifest.webmanifest") as r:
+            m = json.loads(r.read())
+        self.assertEqual((m["id"], m["lang"], m["dir"]), ("/", "en", "ltr"))
+        self.assertTrue(m["icons"] and m["shortcuts"] and m["categories"] and m["start_url"])
+        shots = {x["form_factor"]: x for x in m["screenshots"]}
+        self.assertEqual((shots["narrow"]["sizes"], shots["wide"]["sizes"]), ("1080x2340", "1280x800"))
+        for x in m["screenshots"]:
+            with urllib.request.urlopen(BASE + x["src"]) as r:
+                png = r.read()
+                self.assertEqual(r.headers["Content-Type"], "image/png")
+            w, h = int.from_bytes(png[16:20], "big"), int.from_bytes(png[20:24], "big")  # PNG IHDR
+            self.assertEqual(f"{w}x{h}", x["sizes"], x["src"])
+        with urllib.request.urlopen(BASE + "/.well-known/assetlinks.json") as r:
+            self.assertEqual(r.headers["Content-Type"], "application/json")
+            self.assertEqual(r.headers["Cache-Control"], "no-cache")
+            self.assertIsInstance(json.loads(r.read()), list)
+
     def test_legal_pages_are_served_with_titles(self):
         for path, title in [("/legal", "Legal"), ("/legal/terms", "Terms of Service"), ("/legal/privacy", "Privacy Policy"),
                             ("/legal/copyright", "Copyright &amp; DMCA Policy"), ("/legal/refunds", "Refund &amp; Cancellation Policy"),

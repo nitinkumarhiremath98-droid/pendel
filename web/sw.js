@@ -1,7 +1,7 @@
 /* PENDEL service worker: makes the app installable and keeps the app shell available offline.
    Deliberately small: API calls, audio and YouTube are never cached, so listeners always get fresh,
    licensed streams. Bump VERSION when the shell changes. */
-const VERSION = "pendel-v4.9";
+const VERSION = "pendel-v5.0";
 const SHELL = ["/", "/css/app.css", "/js/app.js", "/js/api.js", "/js/ui.js", "/js/player.js", "/js/lyrics.js", "/js/views.js",
   "/js/highlights.js", "/js/voice.js", "/js/admin.js", "/js/legal.js", "/img/logo.svg", "/img/icons.svg", "/img/icons/icon-192.png", "/manifest.webmanifest"];
 
@@ -19,6 +19,7 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (req.method !== "GET" || url.origin !== location.origin) return;            // YouTube, fonts, Apple: straight to network
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/media/")) return; // data and audio: never cached
+  if (url.pathname.startsWith("/.well-known/") || url.pathname.startsWith("/screenshots/")) return; // app-store files: always fresh, not kept offline
   if (req.mode === "navigate") {
     // pages: network first (fresh SEO tags and deploys), cached shell when offline
     e.respondWith(fetch(req).catch(() => caches.match("/")));

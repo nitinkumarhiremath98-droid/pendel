@@ -2537,11 +2537,31 @@ class Handler(BaseHTTPRequestHandler):
                 remaining -= len(chunk)
 
     # ---- static + SEO
+    def assetlinks(self, head=False):
+        """Digital Asset Links for the Google Play app (Trusted Web Activity). Android fetches this to check that the
+        app and pendel.live belong together. The ASSETLINKS_JSON environment variable, if set, replaces
+        web/.well-known/assetlinks.json, so the fingerprint can be set on Render without a new commit."""
+        raw = config.env("ASSETLINKS_JSON", "")
+        if not raw:
+            try:
+                with open(os.path.join(config.WEB_DIR, ".well-known", "assetlinks.json"), encoding="utf-8") as f:
+                    raw = f.read()
+            except OSError:
+                raw = "[]"
+        try:
+            data = json.dumps(json.loads(raw), indent=2).encode()
+        except ValueError:
+            print("[pendel] assetlinks.json is not valid JSON; serving []", file=sys.stderr)
+            data = b"[]"
+        self.send_bytes(200, data, "application/json", {"Cache-Control": "no-cache", "Access-Control-Allow-Origin": "*"}, head)
+
     def static(self, path, head=False):
         if path == "/robots.txt":
             return self.send_bytes(200, f"User-agent: *\nDisallow: /admin\nDisallow: /api/\nSitemap: {config.PUBLIC_URL}/sitemap.xml\n".encode(), "text/plain")
         if path == "/sitemap.xml":
             return self.send_bytes(200, sitemap().encode(), "application/xml")
+        if path == "/.well-known/assetlinks.json":
+            return self.assetlinks(head)
         rel = path.lstrip("/")
         full = os.path.abspath(os.path.join(config.WEB_DIR, rel))
         if rel and full.startswith(config.WEB_DIR + os.sep) and os.path.isfile(full):
@@ -2557,7 +2577,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return
-            cache = "no-cache" if full.endswith((".html", "sw.js")) else "public, max-age=300"
+            cache = "no-cache" if full.endswith((".html", "sw.js", ".webmanifest")) else "public, max-age=300"
             return self.send_bytes(200, data, ctype + ("; charset=utf-8" if ctype.startswith(("text/", "application/javascript")) else ""),
                                    {"ETag": etag, "Cache-Control": cache}, head)
         if "." in os.path.basename(rel):
