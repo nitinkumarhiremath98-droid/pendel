@@ -17,7 +17,7 @@ export const LEGAL = {
   updated: "24 November 2026",
 };
 
-const P = (k) => html`<span class="ph">${LEGAL[k]}</span>`;   // highlighted placeholder value
+const P = (k) => (String(LEGAL[k]).startsWith("[") ? html`<span class="ph">${LEGAL[k]}</span>` : html`${LEGAL[k]}`);  // unfilled placeholders are highlighted
 const mail = (subject) => html`<a href="mailto:${LEGAL.email}?subject=${encodeURIComponent(subject)}">${LEGAL.email}</a>`;
 const L = (page, text) => html`<a href="/legal/${page}" data-link>${text}</a>`;
 
@@ -79,7 +79,7 @@ const CONTENT = {
       <tr><td>Uploads (uploaders only)</td><td>Audio files, artwork, rights and licence details</td><td>Host and stream licensed content; respond to copyright claims</td></tr>
       </tbody></table></div>
       <p><strong>We never receive or store your full card number, CVV, UPI PIN or bank login.</strong> Payments are processed directly by the payment gateway (such as Razorpay, Cashfree or Stripe), which is responsible for that data under its own PCI-DSS certified systems and privacy policy.</p>
-      <p>Voice commands ("Hey Pendel") are recognised by your browser's built-in speech service. ${LEGAL.app} does not record or upload your audio; your browser vendor (for example Google for Chrome) may process it under its own policy. While ${LEGAL.app} is open and you have allowed microphone access, the browser listens for the wake phrase "Hey Pendel". ${LEGAL.app} ignores everything else it hears and stores none of it, but your browser's speech service (for Chrome, Google's servers) receives the audio in order to convert it to text. Your browser shows a microphone indicator while it listens. You can turn this off at any time from the page footer or <a href="/profile" data-link>Profile</a>, by saying "Hey Pendel, stop listening", or by blocking the microphone in your browser's site settings.</p>`],
+      <p>Voice control uses your browser's built-in speech service and is <strong>off by default</strong>. The microphone is used only after you tap the mic button, for a single command (or at most 8 seconds), and then switches off by itself; tap it again to stop sooner. ${LEGAL.app} does not record or store your audio. Your browser's speech service (for Chrome, Google's servers) receives the audio in order to convert it to text, under its own privacy policy; only the resulting command (for example a song name to search) reaches ${LEGAL.app}. Your browser shows a microphone indicator while it listens.</p>`],
     ["storage", "3. Local storage, cookies and offline caching", html`<p>${LEGAL.app} does not use advertising or cross-site tracking cookies. It stores a few items in your browser's <code>localStorage</code> / <code>sessionStorage</code>, which stay on your device:</p><ul>
       <li><code>rf_token</code> — keeps you signed in; <code>rf_theme</code>, <code>rf_vol</code>, <code>rf_autoplay</code>, <code>rf_dock</code>, <code>rf_lyr_tr</code> — your display and player settings; <code>rf_skips</code>, <code>rf_tracks</code>, <code>rf_ad_at</code> — free-tier skip and ad counters.</li>
       <li>As a progressive web app, a <strong>service worker</strong> caches the app shell (HTML, styles, scripts, icons) so it loads fast and opens offline. It <strong>never caches your account data or audio streams</strong>.</li></ul>

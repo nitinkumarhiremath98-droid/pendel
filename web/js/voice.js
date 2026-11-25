@@ -1,36 +1,26 @@
-// "Hey Pendel": hands-free voice control with the browser's own Web Speech API.
-// Nothing is recorded or sent to PENDEL's server: the browser turns speech into text, and only the song
-// name you ask for goes to /api/songs/search. Chrome, Edge and Safari support it; Firefox does not.
-//
-// Hands-free: there is no button. Standby starts by itself when PENDEL opens (straight away if the microphone is
-// already allowed, otherwise on the first tap or key press, which also lets the browser play audio). Nothing is
-// shown during standby; the pill appears only after the wake word. It can be switched off in Profile.
-//
-// Two stages:
-//   1. Passive standby: recognition runs continuously and everything is ignored until the wake phrase
-//      ("Hey Pendel", "Hi Pendel", "OK Pendel", or what speech-to-text makes of it: pendle, pedal, panel …).
-//   2. Active window (6 s, like Siri): the music dips to 15 %, a short chime plays and the pill shows what is heard.
-//      "Hey Pendel next song" in one breath runs at once; "Hey Pendel" … pause … "play Kesariya" is caught in
-//      the following phrases. After the command (or 6 s of nothing) the pill hides, the volume returns and it sleeps again.
-// Quick commands (pause, next, forward 10 …) run from the live (interim) text; "play <song name>" waits for the
-// final text so the whole name is heard.
+// Voice control: tap the mic button, say one command, done.
+// Mic Off (default): the microphone is not used at all. Tap the mic: it turns on (Mic On, pulsing), a live pill shows
+// what you are saying, and the first command you speak ("play Kesariya", "pause", "next song", "volume up",
+// "search arijit" …) runs straight away. Then the mic switches itself off. Tap again while it's on to stop.
+// No wake word is needed (a leading "Hey Pendel" is ignored if you say it anyway).
+// Nothing is recorded or sent to PENDEL's server: the browser's speech service turns speech into text, and only a song
+// name or search goes to the API. Chrome, Edge and Safari support it; Firefox does not (the button is hidden there).
 import { get } from "./api.js";
 import { player, media, duck, unduck, syncUI, getVolume, setVolume, setMuted } from "./player.js";
 import { toast } from "./ui.js";
 
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const PREF = "rf_voice", SPEAK = "rf_voice_speak";
-const COOLDOWN_MS = 1200, RESTART_MS = 250, ACTIVE_MS = 6000, DUCK_TO = 0.15;
+const SPEAK = "rf_voice_speak";
+const LISTEN_MS = 8000, DUCK_TO = 0.15;  // the mic stays on for at most 8 s; music dips to 15 % meanwhile
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
 };
 const log = (...a) => console.debug("[HeyPendel]", ...a);
 
-// ------------------------------------------------------------------ wake phrase
-// What speech-to-text writes for "Pendel" most often. With "hey / heyy / hi / ok / okay / yo" in front it is accepted
-// anywhere in the phrase; on its own it must open the phrase, so song lyrics that happen to contain
-// "panel" or "handle" don't trigger anything.
+// ------------------------------------------------------------------ optional "Hey Pendel" prefix
+// Not needed any more, but people say it out of habit: it is stripped from the command. These are the spellings
+// speech-to-text produces for "Pendel".
 const NAMES = "pendel|pendle|pendal|pandel|pandal|pedal|pencil|panel|panda|bundle|handle|candle|pendul|pendhel|pindle|pebble|paddle";
 const WITH_GREETING = new RegExp(`\\b(?:hey+|hi+|hai|hay|ok|okay|yo)\\s*,?\\s*(?:${NAMES})\\b[\\s,.!?:;-]*`, "i");
 const AT_START = new RegExp(`^\\s*(?:(?:uh|um|so|and|oh)\\s+)?(?:${NAMES})\\b[\\s,.!?:;-]*`, "i");
@@ -82,7 +72,10 @@ export function parseCommand(raw) {
   if (/\b(repeat|loop)\b/.test(c)) return { action: "repeat-on", instant: /\b(repeat (the|this) song|repeat on|loop (it|this|the song))\b/.test(c) };
   if (/\b(stop talking|be quiet|mute (your )?voice|voice off)\b/.test(c)) return { action: "speak-off" };
   if (/\b(talk to me|voice on|speak again)\b/.test(c)) return { action: "speak-on" };
-  if (/\b(stop listening|turn off (hey pendel|voice control|the microphone|listening)|go to sleep)\b/.test(c)) return { action: "voice-off" };
+  if (/\b(stop listening|turn off (hey pendel|voice control|the (mic|microphone)|listening)|mic off|go to sleep|never ?mind|cancel)\b/.test(c)) return { action: "voice-off", instant: true };
+  // "search arijit singh", "search for love songs", "find kesariya", "look up ..."
+  const sq = /^(?:search(?: for)?|find|look up|look for|show me)\s+(.+)$/.exec(c);
+  if (sq) return { action: "search", query: sq[1] };
   // volume: "volume up", "louder", "volume down", "quieter", "mute", "unmute", "volume 50 percent"
   if (/\b(unmute|un mute|sound on)\b/.test(c)) return { action: "unmute", instant: true };
   if (/^(mute|mute (it|the (song|music)|music|sound))$|\bsound off\b/.test(c)) return { action: "mute", instant: true };
@@ -232,7 +225,8 @@ export async function runCommand(rawOrCmd) {
     }
     case "mute": setMuted(true); show("Muted"); break;
     case "unmute": setMuted(false); show(`Volume ${Math.round(getVolume() * 100)}%`); break;
-    case "voice-off": show("Hey Pendel off. Turn it on again from the page footer or Profile."); say("Okay, I'll stop listening."); setVoiceEnabled(false); break;
+    case "voice-off": show("Mic off"); break;
+    case "search": window.rfNavigate(`/search?q=${encodeURIComponent(cmd.query)}`); show(`Searching “${cmd.query}”`); break;
     case "speak-off": store.set(SPEAK, "0"); show("Voice replies off"); break;
     case "speak-on": store.set(SPEAK, "1"); show("Voice replies on"); say("Okay"); break;
     case "play-song": await playByName(cmd.query); break;
@@ -241,17 +235,25 @@ export async function runCommand(rawOrCmd) {
   }
 }
 
-// ------------------------------------------------------------------ UI: status pill only (no button)
-let pill = null, pillTimer = null, status = "off";
-const listeners = new Set();
-function setState(state) { // off | waiting | blocked | unsupported | listening | triggered | processing
-  status = state;
+// ------------------------------------------------------------------ UI: mic button + live transcript pill
+let btn = null, btnLabel = null, pill = null, pillTimer = null, pillText = null;
+
+function setState(state) { // off | listening | processing
   document.documentElement.dataset.voice = state;
-  listeners.forEach((fn) => { try { fn(state); } catch { /* ignore */ } });
+  if (!btn) return;
+  const on = state === "listening";
+  btn.dataset.state = state;
+  btn.setAttribute("aria-pressed", String(on));
+  const label = on ? "Mic On — Tap to stop" : "Mic Off — tap to speak a command";
+  btn.setAttribute("aria-label", label);
+  btn.title = label;
+  if (btnLabel) btnLabel.textContent = on ? "Mic On" : "Mic Off";
+  const use = btn.querySelector("use");
+  if (use) use.setAttribute("href", `/img/icons.svg#${on ? "mic" : "mic-off"}`);
 }
-/** Shows the Siri-style pill: a live wave while listening, then the result. It slides away by itself after `ms`
+
+/** Shows the pill: the live transcript while listening, then the result. It slides away after `ms`
  *  (1.5 s for a confirmation, 2.5 s for a problem); ms = 0 keeps it up until the next message. */
-let pillText = null;
 function show(text, kind = "ok", ms) {
   if (!pill) return;
   if (!pillText) {
@@ -273,226 +275,137 @@ function hidePill() {
   pillTimer = setTimeout(() => { pill.hidden = true; pill.classList.remove("leaving"); }, 220);
 }
 
-// ------------------------------------------------------------------ the two-stage state machine
-// `phrase` identifies one spoken phrase: the recognition session plus its result index.
-let active = false, activeTimer = null, wakePhrase = "", donePhrase = "", lastFired = { key: "", at: 0 }, session = 0;
-
-function activate(phrase) {
-  if (!active) {
-    active = true;
-    duck(DUCK_TO, ACTIVE_MS);
-    const rang = chime();
-    setState("triggered");
-    show("Listening...", "triggered", 0);
-    log("wake word heard", { phrase, chime: rang });
-  }
-  wakePhrase = phrase;
-  clearTimeout(activeTimer);
-  activeTimer = setTimeout(() => { if (active) { log("no command within 6 s"); deactivate(); hidePill(); } }, ACTIVE_MS);
-}
-function deactivate() {
-  active = false;
-  clearTimeout(activeTimer);
-  unduck();
-  if (enabled) setState("listening");
-}
-export const voiceState = () => ({ active, enabled, running, status });
-
-function fire(cmd, phrase) {
-  donePhrase = phrase; // later updates of this phrase (live text -> final text) are ignored
-  deactivate();
-  const key = cmd.action + (cmd.seconds ?? "") + (cmd.query ?? "") + (cmd.delta ?? "") + (cmd.value ?? "");
-  const now = Date.now();
-  if (key === lastFired.key && now - lastFired.at < COOLDOWN_MS) return false; // the same command again within 1.2 s
-  lastFired = { key, at: now };
-  setState("processing");
-  runCommand(cmd).catch((e) => { log("command failed", e); show("Something went wrong", "error"); })
-    .finally(() => { if (enabled && !active) setState("listening"); });
-  return true;
-}
-
-/** Called for every interim and final piece of speech. Exported for tests. */
-export function handleTranscript(text, isFinal, resultIndex = 0) {
-  const phrase = `${session}:${resultIndex}`;
-  if (phrase === donePhrase) return; // this phrase already ran its command
-  const w = wakeInfo(text);
-  let cmd;
-  if (active) {
-    // in the command window: the rest of the wake phrase, or the whole of a later phrase
-    cmd = w ? w.cmd : phrase !== wakePhrase ? text.trim() : "";
-  } else {
-    if (!w) return; // standby: music, lyrics and talk are ignored
-    // a bare "panel …" / "handle …" without "hey" counts only if a real command follows, or it is said on its own
-    if (!w.strong && (w.cmd ? parseCommand(w.cmd).action === "unknown" : !isFinal)) return;
-    cmd = w.cmd;
-    activate(phrase);
-  }
-  if (w && (w.strong || !w.cmd) && phrase !== wakePhrase) activate(phrase); // "Hey Pendel" said again: restart the window
-  if (!cmd) return;
-  show(`“${cmd}”`, "triggered", 0);
-  const parsed = parseCommand(cmd);
-  if (!isFinal) { if (parsed.instant) { log("live command", cmd); fire(parsed, phrase); } return; }
-  if (parsed.action === "none") return;
-  log("final command", cmd);
-  fire(parsed, phrase);
-}
-
-// ------------------------------------------------------------------ microphone + recognition loop
-let rec = null, enabled = false, running = false, recLang = "en-IN", restarts = [], autoStarting = false;
-let lastEvent = 0, watchdog = null;
-
-async function micPermission() {
-  try { return (await navigator.permissions?.query({ name: "microphone" }))?.state || "prompt"; }
-  catch { return "prompt"; }
-}
-
-/** Makes sure the browser has microphone permission, then lets go of the microphone at once (on computers and
- *  phones alike), so SpeechRecognition can own it. Keeping a second stream open locks the device on some
- *  Windows and Android set-ups. */
-async function ensureMic() {
-  if (!navigator.mediaDevices?.getUserMedia) return true;
-  if (await micPermission() === "granted") return true;
-  try {
-    const s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-    s.getTracks().forEach((t) => t.stop());
-    return true;
-  } catch (e) {
-    log("microphone request failed", e?.name);
-    if (e?.name === "NotAllowedError" || e?.name === "SecurityError") return "denied";
-    if (e?.name === "NotFoundError") return "missing";
-    return true; // other problems: let speech recognition try on its own
-  }
-}
+// ------------------------------------------------------------------ one command per tap
+let rec = null, isMicEnabled = false, handled = false, heard = "", listenTimer = null, recLang = "en-IN";
+export const voiceState = () => ({ isMicEnabled, handled, heard, state: document.documentElement.dataset.voice || "off" });
 
 function build() {
   const r = new Recognition();
-  r.continuous = true;
-  r.interimResults = true;
+  r.continuous = false;      // one phrase per tap
+  r.interimResults = true;   // live transcript in the pill
   r.lang = recLang;
   r.maxAlternatives = 1;
-  r.onstart = () => { running = true; autoStarting = false; session += 1; lastEvent = Date.now(); log("recognition started", recLang); };
+  r.onstart = () => log("mic on", recLang);
   r.onresult = (e) => {
-    lastEvent = Date.now();
-    for (let i = e.resultIndex; i < e.results.length; i++) handleTranscript(e.results[i][0].transcript, e.results[i].isFinal, i);
+    if (r !== rec) return;
+    let text = "", final = false;
+    for (let i = 0; i < e.results.length; i++) {
+      if (!e.results[i]) continue;
+      text += e.results[i][0].transcript;
+      final = e.results[i].isFinal;
+    }
+    onSpeech(text, final);
   };
   r.onerror = (e) => {
-    lastEvent = Date.now();
-    if (e.error !== "no-speech" && e.error !== "aborted") log("recognition error", e.error);
-    if (e.error === "no-speech" || e.error === "aborted" || e.error === "network") return; // onend restarts
-    if (e.error === "language-not-supported" && recLang !== "en-US") { recLang = "en-US"; rec = null; return; }
-    if (e.error === "not-allowed" || e.error === "service-not-allowed" || e.error === "audio-capture") {
-      const atStartup = autoStarting;
-      stop(false);
-      // some browsers still want a tap before the first start, even with the permission granted
-      if (atStartup && e.error === "not-allowed") waitForGesture(); else setState("blocked");
-    }
+    if (r !== rec || !isMicEnabled) return;
+    log("recognition error", e.error);
+    if (e.error === "aborted") return;
+    if (e.error === "language-not-supported" && recLang !== "en-US") { recLang = "en-US"; micOff("Try again", "error"); return; }
+    const msg = {
+      "no-speech": "Didn't hear anything. Tap the mic and try again.",
+      "not-allowed": "Microphone blocked. Allow it in the browser's site settings.",
+      "service-not-allowed": "Microphone blocked. Allow it in the browser's site settings.",
+      "audio-capture": "No microphone found.",
+      network: "Voice needs an internet connection.",
+    }[e.error] || "Voice didn't work. Tap the mic to try again.";
+    micOff(msg, "error");
   };
   r.onend = () => {
-    running = false;
-    lastEvent = Date.now();
-    if (enabled) scheduleRestart();
+    if (r !== rec) return;
+    log("recognition ended", { handled, heard });
+    // the browser ends the phrase by itself: use what was heard, or switch off quietly
+    if (isMicEnabled && !handled) {
+      if (heard) execute(parseCommand(heard));
+      else micOff("Didn't hear anything. Tap the mic and try again.", "error");
+    }
   };
   return r;
 }
 
-function scheduleRestart() {
-  // keep listening: restart after 250 ms; if the browser keeps ending it straight away, wait 2 s instead
-  const now = Date.now();
-  restarts = restarts.filter((t) => now - t < 10000).concat(now);
-  setTimeout(() => { if (enabled && !running) listen(); }, restarts.length > 8 ? 2000 : RESTART_MS);
+/** Live and final text of the phrase. Exported for tests. */
+export function onSpeech(text, isFinal) {
+  if (!isMicEnabled || handled) return;
+  heard = (afterWake(text) ?? text).trim(); // "Hey Pendel, pause" still works
+  if (!heard) return;
+  show(`“${heard}”`, "listening", 0);
+  const cmd = parseCommand(heard);
+  if (cmd.action === "none") return;
+  if (isFinal || cmd.instant) execute(cmd); // quick commands run from the live text; "play <name>" waits for all of it
 }
 
-function listen() {
-  if (!rec) rec = build();
-  try { rec.start(); } catch { /* already running */ }
+function execute(cmd) {
+  if (handled) return;
+  handled = true;
+  log("command", heard, "->", cmd);
+  micOff(null);
+  setState("processing");
+  runCommand(cmd).catch((e) => { log("command failed", e); show("Something went wrong", "error"); })
+    .finally(() => { if (!isMicEnabled) setState("off"); });
 }
 
-async function start() {
-  if (!Recognition) return false;
-  enabled = true;
-  setState("listening");
-  const mic = await ensureMic();
-  if (mic === "denied" || mic === "missing") {
-    stop(false);
-    setState("blocked");
-    log(mic === "missing" ? "no microphone found" : "microphone blocked in the browser's site settings");
+/** Mic ON: called from the button's click handler, so recognition starts inside the tap. */
+export function micOn() {
+  if (!Recognition || isMicEnabled) return false;
+  unlockAudio();
+  isMicEnabled = true; handled = false; heard = "";
+  rec = build();
+  try {
+    rec.start();
+  } catch (e) {
+    log("could not start", e);
+    micOff("Voice didn't start. Tap the mic to try again.", "error");
     return false;
   }
-  if (!enabled) return false; // turned off while the permission prompt was open
-  listen();
-  // safety net for mobile Chrome, which sometimes stops listening without telling us
-  clearInterval(watchdog);
-  watchdog = setInterval(() => {
-    if (!enabled) return;
-    if (!running && Date.now() - lastEvent > 3000) listen();
-    else if (running && Date.now() - lastEvent > 30000) { try { rec?.abort(); } catch { /* restart via onend */ } }
-  }, 2000);
+  setState("listening");
+  show("Mic On — Tap to stop", "listening", 0);
+  duck(DUCK_TO, LISTEN_MS);
+  chime();
+  clearTimeout(listenTimer);
+  listenTimer = setTimeout(() => {
+    if (!isMicEnabled) return;
+    if (heard) execute(parseCommand(heard)); else micOff("Didn't hear anything. Tap the mic and try again.", "error");
+  }, LISTEN_MS);
   return true;
 }
 
-function stop(savePref = true) {
-  enabled = false;
-  running = false;
-  deactivate();
-  clearInterval(watchdog);
-  try { rec?.abort(); } catch { /* not started */ }
-  rec = null;
+/** Mic OFF: stops recognition at once and resets the UI. `message` (if any) is shown briefly. */
+export function micOff(message = null, kind = "ok") {
+  const was = isMicEnabled;
+  isMicEnabled = false;
+  clearTimeout(listenTimer);
+  const r = rec;
+  rec = null;            // late events from this recognition are ignored
+  try { r?.abort(); } catch { /* not started */ }
+  unduck();
   setState("off");
-  if (savePref) store.set(PREF, "0");
+  if (message) show(message, kind);
+  else if (was && !handled) hidePill();
 }
 
-/** Turns Hey Pendel on or off (Profile switch, or "Hey Pendel, stop listening"). Remembered on this device. */
-export function setVoiceEnabled(on) {
-  if (!Recognition) return false;
-  store.set(PREF, on ? "1" : "0");
-  unlockAudio();
-  if (!on) { stop(false); return false; }
-  if (!enabled) start();
-  return true;
-}
-export const voiceSupported = () => !!Recognition;
-export const voiceWanted = () => store.get(PREF) !== "0";
-export const voiceStatus = () => (Recognition ? status : "unsupported");
-/** Plain-language status for the on/off switches. */
-export function voiceStatusText() {
-  const st = voiceStatus();
-  if (st === "unsupported") return "Not available in this browser (use Chrome, Edge or Safari)";
-  if (!voiceWanted()) return "Off";
-  return { waiting: "On, tap anywhere to allow the microphone", blocked: "Microphone blocked in the browser's site settings", off: "Starting…" }[st] || "On. Say “Hey Pendel …”";
-}
-export function onVoiceStatus(fn) { listeners.add(fn); return () => listeners.delete(fn); }
-
-// ------------------------------------------------------------------ set-up: start by itself
-// Browsers only show the microphone prompt, and only let pages play sound, after the person has interacted with
-// the page. So when permission isn't granted yet, the first tap or key press anywhere starts listening (and
-// unlocks the chime and the players) — once, silently.
-function onFirstGesture() {
-  document.removeEventListener("pointerdown", onFirstGesture, true);
-  document.removeEventListener("keydown", onFirstGesture, true);
-  unlockAudio();
-  if (voiceWanted() && !enabled && status !== "blocked") { log("first tap: starting"); start(); }
-}
-function waitForGesture() {
-  setState("waiting");
-  document.addEventListener("pointerdown", onFirstGesture, true);
-  document.addEventListener("keydown", onFirstGesture, true);
+export function toggleVoice() {
+  if (!Recognition) {
+    toast("Voice control needs Chrome, Edge or Safari. This browser doesn't support speech recognition.", { error: true });
+    return;
+  }
+  if (isMicEnabled) micOff("Mic off");
+  else micOn();
 }
 
-async function mount() {
+// ------------------------------------------------------------------ set-up
+function mount() {
+  btn = document.getElementById("voice-btn");
   pill = document.getElementById("voice-pill");
-  document.addEventListener("pointerdown", unlockAudio, { once: true, capture: true });
-  if (!Recognition) { setState("unsupported"); log("speech recognition not supported in this browser"); return; }
+  try { localStorage.removeItem("rf_voice"); } catch { /* old always-on setting */ }
+  if (!btn) return;
+  btnLabel = btn.querySelector(".voice-label");
+  if (!Recognition) { btn.hidden = true; return; } // Firefox etc.
+  btn.hidden = false;
+  btn.addEventListener("click", toggleVoice);
+  pill?.addEventListener("click", () => { if (isMicEnabled) micOff("Mic off"); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && isMicEnabled) micOff("Mic off"); });
+  // never keep the microphone on in a hidden tab
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && isMicEnabled) micOff(); });
   setState("off");
-  if (!voiceWanted()) { log("switched off in Profile"); return; }
-  const perm = await micPermission();
-  log("microphone permission:", perm);
-  if (perm === "granted") { autoStarting = true; start(); }
-  else if (perm === "denied") setState("blocked");
-  else waitForGesture();
-  // most phones stop the microphone while the page is hidden: pick up again when the listener comes back
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && enabled && !running) listen();
-  });
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);

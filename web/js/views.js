@@ -1,5 +1,4 @@
 import { session, setAuth, get, post, put, patch, del, upload } from "./api.js";
-import { setVoiceEnabled, voiceWanted, voiceSupported, onVoiceStatus, voiceStatusText } from "./voice.js";
 import { player } from "./player.js";
 import {
   html, raw, render, icon, $, $$, fmtTime, fmtNum, fmtMoney, fmtDate, toast, toastError, modal, closeModal, confirmDialog,
@@ -578,7 +577,6 @@ export async function profileView(view, query, alive) {
         <div class="field"><span class="lbl">Theme</span><div class="chips">${["dark", "light"].map((t) => html`<button type="button" class="chip ${u.theme === t ? "active" : ""}" data-theme-pick="${t}">${t === "dark" ? "Dark" : "Light"}</button>`)}</div></div>
         <button class="btn primary">Save</button></form>
         ${u.auth_provider === "email" ? html`<div class="ed-section"><h4>Change password</h4><form id="pwf"><div class="field"><input class="input" type="password" name="current_password" placeholder="Current password" autocomplete="current-password" required></div><div class="field"><input class="input" type="password" name="new_password" placeholder="New password" autocomplete="new-password" minlength="8" required></div><button class="btn">Update password</button></form></div>` : ""}
-        <div class="ed-section voice-switch"><div><h4 style="margin:0">“Hey Pendel” voice control</h4><p class="muted small" id="voice-status" style="margin:4px 0 0"></p></div><button type="button" class="btn sm" id="voice-toggle" aria-pressed="false"></button></div>
         <div class="ed-section" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="logout">${icon("logout")}Log out</button><button class="btn ghost" id="logout-all">Log out of all devices</button></div>
       </div>
       <div>
@@ -625,16 +623,6 @@ export async function profileView(view, query, alive) {
     if (!(await confirmDialog("Log out everywhere?", "You'll be signed out on every device, including this one."))) return;
     try { await post("/api/auth/logout-all", {}); setAuth(null, null); nav("/login"); } catch (err) { toastError(err); }
   };
-  const syncVoice = () => {
-    const b = $("#voice-toggle"); if (!b) return;
-    $("#voice-status").textContent = voiceStatusText();
-    b.hidden = !voiceSupported();
-    b.textContent = voiceWanted() ? "Turn off" : "Turn on";
-    b.setAttribute("aria-pressed", String(voiceWanted()));
-  };
-  syncVoice();
-  const offVoice = onVoiceStatus(() => { if (!$("#voice-toggle")) return offVoice(); syncVoice(); });
-  $("#voice-toggle").onclick = () => { setVoiceEnabled(!voiceWanted()); syncVoice(); };
   $("#export-data").onclick = async (e) => {
     const b = e.currentTarget; b.disabled = true;
     try {

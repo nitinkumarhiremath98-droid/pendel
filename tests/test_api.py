@@ -338,7 +338,7 @@ class PENDELAPI(unittest.TestCase):
             self.assertIn('id="view"', page)
         with urllib.request.urlopen(BASE + "/js/legal.js") as r:
             js = r.read().decode()
-        for needle in ("[Your Name]", "[Your Contact Email]", "[Bengaluru / Karnataka, India]", "Section 79", "17 U.S.C.", "24–36 hours",
+        for needle in ("operator:", "email:", "location:", "Section 79", "17 U.S.C.", "24–36 hours",
                        "Digital Personal Data Protection Act, 2023", "100% of the master", "non-refundable", "YouTube Terms of Service"):
             self.assertIn(needle, js)
         with urllib.request.urlopen(BASE + "/sw.js") as r:

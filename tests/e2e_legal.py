@@ -54,8 +54,9 @@ async def main():
             cur = await page.get_attribute(".legal-tabs [aria-current=page]", "href")
             check(cur == f"/legal/{key}", f"/legal/{key} marks the current tab")
         body = await page.inner_text("#view")
-        for ph in ("[Your Name]", "[Your Contact Email]", "[Bengaluru / Karnataka, India]"):
-            check(ph in body, f"contact page shows placeholder {ph}")
+        details = await page.evaluate("(async () => { const { LEGAL } = await import('/js/legal.js'); return [LEGAL.operator, LEGAL.email, LEGAL.location]; })()")
+        for ph in details:
+            check(ph in body, f"contact page shows the grievance officer's {'name / email / location'.split(' / ')[details.index(ph)]}")
 
         # in-page table of contents scrolls without changing the route
         await page.click(".site-footer a[href='/legal/terms']")

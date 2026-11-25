@@ -66,6 +66,8 @@
           <ul class="suggest" id="suggest" role="listbox" hidden></ul>
         </form>
         <div class="top-actions">
+          <!-- Voice control (web/js/voice.js): tap to turn the mic on, say one command; it switches itself off. -->
+          <button class="voice-btn" id="voice-btn" type="button" data-state="off" aria-pressed="false" aria-label="Mic Off — tap to speak a command" title="Mic Off — tap to speak a command" hidden><svg class="i"><use href="/img/icons.svg#mic-off"/></svg><span class="voice-label">Mic Off</span></button>
           <button class="icon-btn" data-action="toggle-theme" aria-label="Toggle light or dark theme"><svg class="i"><use href="/img/icons.svg#contrast"/></svg></button>
           <div id="account-slot"></div>
         </div>
@@ -75,7 +77,7 @@
   </div>
 
   <!-- Player bar / mini-player -->
-  <!-- "Hey Pendel" (web/js/voice.js): no button; this pill appears only after the wake word. On/off lives in Profile. -->
+  <!-- Voice control: live transcript and result, shown only while the mic is on and just after a command. -->
   <div class="voice-pill" id="voice-pill" role="status" aria-live="polite" hidden></div>
   <section class="player" id="player" aria-label="Music player" hidden>
     <div class="pl-progress-mini"><span></span></div>
