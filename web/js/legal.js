@@ -10,13 +10,13 @@ import { html, raw, render, $ } from "./ui.js";
 export const LEGAL = {
   app: "PENDEL",
   operator: "Nitin Kumar M",
-  email: "nitinkumarhiremath20@gmail.com",
+  email: "support@pendel.live",
+  grievanceEmail: "grievance@pendel.live",
+  dmcaEmail: "dmca@pendel.live",
   location: "Bengaluru / Karnataka, India",
-  phone: "+91 6363400195",
   address: "Sindhanur, Karnataka, India",
-  updated: "24 November 2026",
+  updated: "26 November 2026",
 };
-
 const P = (k) => (String(LEGAL[k]).startsWith("[") ? html`<span class="ph">${LEGAL[k]}</span>` : html`${LEGAL[k]}`);  // unfilled placeholders are highlighted
 const mail = (subject) => html`<a href="mailto:${LEGAL.email}?subject=${encodeURIComponent(subject)}">${LEGAL.email}</a>`;
 const L = (page, text) => html`<a href="/legal/${page}" data-link>${text}</a>`;
@@ -166,9 +166,10 @@ function officerCard(role = "Grievance Officer") {
     <div><span class="lbl">${role}</span><strong>${P("operator")}</strong></div>
     <div><span class="lbl">Email</span>${mail(role)}</div>
     <div><span class="lbl">Location</span>${P("location")}</div>
-    ${LEGAL.phone ? html`<div><span class="lbl">Phone</span><a href="tel:${LEGAL.phone}">${LEGAL.phone}</a></div>` : ""}
-    ${LEGAL.address ? html`<div><span class="lbl">Address</span>${LEGAL.address}</div>` : ""}
-    <div><span class="lbl">Hours</span>Monday to Friday, 10:00–18:00 IST</div></address>`;
+    ${LEGAL.address ? html`<div><span class="lbl">Address</span>${P("address")}</div>` : ""}
+    <div><span class="lbl">Hours</span>Monday to Friday, 10:00 AM – 6:00 PM IST</div>
+  </address>`;
+}
 }
 
 const tabs = (active) => html`<nav class="legal-tabs" aria-label="Legal documents">${PAGES.map((p) =>
