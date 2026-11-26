@@ -18,7 +18,12 @@ export const LEGAL = {
   updated: "26 November 2026",
 };
 const P = (k) => (String(LEGAL[k]).startsWith("[") ? html`<span class="ph">${LEGAL[k]}</span>` : html`${LEGAL[k]}`);  // unfilled placeholders are highlighted
-const mail = (subject) => html`<a href="mailto:${LEGAL.email}?subject=${encodeURIComponent(subject)}">${LEGAL.email}</a>`;
+// Which address to use: "support" (general), "grievance" (IT Act / DPDP complaints), "dmca" (copyright notices)
+const ADDRESS = { support: "email", grievance: "grievanceEmail", dmca: "dmcaEmail" };
+const mail = (subject, to = "support") => {
+  const addr = LEGAL[ADDRESS[to] || "email"];
+  return html`<a href="mailto:${addr}?subject=${encodeURIComponent(subject)}">${addr}</a>`;
+};
 const L = (page, text) => html`<a href="/legal/${page}" data-link>${text}</a>`;
 
 export const PAGES = [
@@ -113,7 +118,7 @@ const CONTENT = {
 
   copyright: () => [
     ["respect", "1. Our commitment", html`<p>${LEGAL.app} respects the rights of artists, songwriters, labels and publishers. We stream only content that is licensed to us, played through official embeds, or uploaded by people who warrant they own or license it (see the ${L("terms#uploader-warranty", "Uploader copyright warranty")}). We act as an intermediary under <strong>Section 79 of India's Information Technology Act, 2000</strong> and the IT Rules, 2021, and as a service provider under the <strong>US Digital Millennium Copyright Act (17 U.S.C. §512)</strong>.</p>`],
-    ["notice", "2. How to submit a takedown notice", html`<p>If you own the copyright (or are authorised to act for the owner) and believe content on ${LEGAL.app} infringes it, email ${mail("Copyright takedown notice")} with the subject line <strong>"Copyright takedown notice"</strong> and include:</p><ol>
+    ["notice", "2. How to submit a takedown notice", html`<p>If you own the copyright (or are authorised to act for the owner) and believe content on ${LEGAL.app} infringes it, email ${mail("Copyright takedown notice", "dmca")} with the subject line <strong>"Copyright takedown notice"</strong> and include:</p><ol>
       <li>your full name, postal address, phone number and email address;</li>
       <li>identification of the copyrighted work (song title, artist, ISRC / ISWC if available);</li>
       <li>the exact location of the infringing material on ${LEGAL.app} — the song page URL (for example <code>https://pendel.onrender.com/song/…</code>);</li>
@@ -127,10 +132,10 @@ const CONTENT = {
       <li><strong>Within 24–36 hours</strong> of a complete, valid notice we review it and <strong>remove or disable access to the infringing audio</strong>, including files hosted on our Cloudflare R2 storage, and take the song page down.</li>
       <li>We notify the uploader, record the takedown in our audit log, and keep a copy of the notice.</li></ul></div>
       <p>Incomplete notices may delay action; we will tell you what is missing. Content played through the YouTube embed is hosted by YouTube: we will remove it from ${LEGAL.app} on notice, but to remove the video itself please also use <a href="https://support.google.com/youtube/answer/2807622" target="_blank" rel="noopener">YouTube's copyright process</a>.</p>`],
-    ["counter", "4. Counter-notice", html`<p>If your content was removed and you believe that was a mistake or that you have the rights, email ${mail("Copyright counter-notice")} with: your contact details; identification of the removed content and where it appeared; a statement <strong>under penalty of perjury</strong> that you have a good-faith belief it was removed by mistake or misidentification; your consent to the jurisdiction of the courts at ${P("location")} (or, for US users, your local US federal district court) and to accept service of process from the complainant; and your signature. We forward valid counter-notices to the complainant and may restore the content in 10–14 business days unless they tell us they have started court proceedings.</p>`],
+    ["counter", "4. Counter-notice", html`<p>If your content was removed and you believe that was a mistake or that you have the rights, email ${mail("Copyright counter-notice", "dmca")} with: your contact details; identification of the removed content and where it appeared; a statement <strong>under penalty of perjury</strong> that you have a good-faith belief it was removed by mistake or misidentification; your consent to the jurisdiction of the courts at ${P("location")} (or, for US users, your local US federal district court) and to accept service of process from the complainant; and your signature. We forward valid counter-notices to the complainant and may restore the content in 10–14 business days unless they tell us they have started court proceedings.</p>`],
     ["repeat", "5. Repeat infringers", html`<p>We will terminate the accounts and upload access of users who are the subject of repeated valid infringement notices.</p>`],
     ["misuse", "6. False notices", html`<p>Knowingly misrepresenting that content is infringing, or that it was removed by mistake, can make you liable for damages (including under 17 U.S.C. §512(f)). If you are unsure whether a use is infringing, please get legal advice before sending a notice.</p>`],
-    ["agent", "7. Designated copyright agent", html`${officerCard("Copyright agent")}<p class="muted small">Note for the operator: to rely on the US DMCA safe harbour you must also register a designated agent with the US Copyright Office (copyright.gov/dmca-directory).</p>`],
+    ["agent", "7. Designated copyright agent", html`${officerCard("Copyright agent", "dmca")}<p class="muted small">Note for the operator: to rely on the US DMCA safe harbour you must also register a designated agent with the US Copyright Office (copyright.gov/dmca-directory).</p>`],
   ],
 
   refunds: () => [
@@ -152,7 +157,9 @@ const CONTENT = {
   ],
 
   contact: () => [
-    ["contact", "Get in touch", html`<p>For support, account, privacy, copyright or billing questions, email ${mail(`${LEGAL.app} support`)}. Please write from your registered email address and include your song links, payment IDs or screenshots where relevant.</p>`],
+    ["contact", "Get in touch", html`<p>For support, account, privacy or billing questions, email ${mail(`${LEGAL.app} support`)}. Please write from your registered email address and include your song links, payment IDs or screenshots where relevant.</p>
+      <ul><li>Complaints under the IT Act / IT Rules or the DPDP Act: ${mail("Grievance", "grievance")}</li>
+      <li>Copyright / DMCA takedown and counter-notices: ${mail("Copyright takedown notice", "dmca")}</li></ul>`],
     ["grievance", "Grievance Officer", html`<p>Appointed under Rule 3(2) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 and for the purposes of Section 8(10) and Section 13 of the Digital Personal Data Protection Act, 2023.</p>${officerCard()}
       <ul><li>We <strong>acknowledge complaints within 24 hours</strong> and <strong>resolve them within 15 days</strong> of receipt.</li>
       <li>Complaints about content that exposes a person's private areas, shows nudity or sexual acts, or impersonates someone are acted on within 24 hours.</li>
@@ -161,15 +168,14 @@ const CONTENT = {
   ],
 };
 
-function officerCard(role = "Grievance Officer") {
+function officerCard(role = "Grievance Officer", to = "grievance") {
   return html`<address class="legal-officer">
     <div><span class="lbl">${role}</span><strong>${P("operator")}</strong></div>
-    <div><span class="lbl">Email</span>${mail(role)}</div>
+    <div><span class="lbl">Email</span>${mail(role, to)}</div>
     <div><span class="lbl">Location</span>${P("location")}</div>
     ${LEGAL.address ? html`<div><span class="lbl">Address</span>${P("address")}</div>` : ""}
     <div><span class="lbl">Hours</span>Monday to Friday, 10:00 AM – 6:00 PM IST</div>
   </address>`;
-}
 }
 
 const tabs = (active) => html`<nav class="legal-tabs" aria-label="Legal documents">${PAGES.map((p) =>
