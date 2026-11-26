@@ -92,7 +92,38 @@ dock?.addEventListener("click", (e) => {
   applyDock();
 });
 applyDock();
-function showDock(on) { if (dock) dock.hidden = !on; document.body.classList.toggle("has-video", on); }
+function showDock(on) { if (dock) dock.hidden = !on; document.body.classList.toggle("has-video", on); syncNowPlayingVideo(); }
+
+// Now Playing screen: the video sits right beside the album art. The YouTube player itself is never moved in the
+// DOM (moving an iframe reloads it and restarts the song): it stays a fixed element and is pinned over the
+// .np-video-slot placeholder while the screen is open, then returns to its usual corner. It always keeps
+// YouTube's 200x200 px minimum and is never hidden while playing.
+const npScreen = document.getElementById("fullplayer");
+const npSlot = npScreen?.querySelector(".np-video-slot");
+let npRaf = 0;
+function pinDock() {
+  npRaf = 0;
+  const open = npScreen && !npScreen.hidden && dock && !dock.hidden;
+  const r = open && npSlot ? npSlot.getBoundingClientRect() : null;
+  const inRow = !!(r && r.width >= 200 && r.height > 0);
+  dock?.classList.toggle("in-np", inRow);
+  if (inRow) {
+    dock.style.setProperty("--np-top", `${Math.round(r.top)}px`);
+    dock.style.setProperty("--np-left", `${Math.round(r.left)}px`);
+    const h = `${dock.offsetHeight}px`;
+    if (npSlot.style.height !== h) npSlot.style.height = h;
+  }
+  if (open) npRaf = requestAnimationFrame(pinDock); // follows the opening animation, scrolling and resizing
+}
+function syncNowPlayingVideo() {
+  if (!npScreen) return;
+  const video = !!(dock && !dock.hidden);
+  npScreen.classList.toggle("has-video", video);
+  cancelAnimationFrame(npRaf); npRaf = 0;
+  if (!npScreen.hidden && video) pinDock();
+  else dock?.classList.remove("in-np");
+}
+if (npScreen) new MutationObserver(syncNowPlayingVideo).observe(npScreen, { attributes: true, attributeFilter: ["hidden", "class"] });
 function stopYT() {
   if (!yt.active) return;
   yt.active = false; clearInterval(yt.timer);

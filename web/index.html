@@ -120,7 +120,11 @@
     </header>
     <div class="fp-body">
       <div class="fp-left">
-        <img class="fp-art" alt="">
+        <!-- artwork + (for YouTube songs) the video side by side; the YouTube player is pinned over .np-video-slot -->
+        <div class="np-visual-row">
+          <img class="fp-art" alt="">
+          <div class="np-video-slot" aria-hidden="true"></div>
+        </div>
         <div class="fp-info">
           <div><h2 class="fp-title"></h2><a class="fp-artist" data-link></a></div>
           <button class="icon-btn pl-fav" data-action="player-fav" aria-label="Add to favourites"><svg class="i"><use href="/img/icons.svg#heart"/></svg></button>

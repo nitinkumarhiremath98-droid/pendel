@@ -280,6 +280,15 @@ input[type="range"]:hover::-webkit-slider-runnable-track { background: linear-gr
 .fp-body { flex: 1; display: grid; grid-template-columns: minmax(300px, 460px) minmax(0, 560px); justify-content: center; gap: 56px; padding: 10px 32px 32px; min-height: 0; }
 .fp-left { display: flex; flex-direction: column; gap: 16px; justify-content: center; }
 .fp-art { width: 100%; max-width: 420px; aspect-ratio: 1; border-radius: 22px; object-fit: cover; box-shadow: 0 30px 90px rgba(0,0,0,.6); align-self: center; }
+/* artwork + YouTube video side by side (the video only exists for YouTube songs) */
+.np-visual-row { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; }
+.np-video-slot { display: none; flex: none; width: 200px; height: 228px; }
+.fullplayer.has-video .np-video-slot { display: block; }
+.fullplayer.has-video .fp-art { flex: 0 1 220px; width: 220px; min-width: 76px; max-width: 220px; aspect-ratio: 1 / 1; border-radius: 14px; object-fit: cover; align-self: center; box-shadow: 0 18px 50px rgba(0,0,0,.55); }
+/* the YouTube player pinned over the slot: 200x200 px video (YouTube's minimum) plus the "Full song via YouTube" caption */
+.yt-dock.in-np { top: var(--np-top); left: var(--np-left); right: auto; bottom: auto; width: 200px; border-radius: 12px; box-shadow: 0 18px 50px rgba(0,0,0,.55); border-color: rgba(255,255,255,.14); }
+.yt-dock.in-np .yt-frame-wrap { width: 200px; height: 200px; }
+.yt-dock.in-np .yt-dock-btn { display: none; }
 .fp-info { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .fp-title { font-size: 26px; font-weight: 800; margin: 0; line-height: 1.15; }
 .fp-artist { opacity: .8; } .fp-artist:hover { text-decoration: underline; }
@@ -490,6 +499,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   .fp-lyrics { display: none; padding: 10px 0 30vh; }
   .fullplayer.show-lyrics .fp-lyrics { display: block; }
   .fullplayer.show-lyrics .fp-art { display: none; }
+  .fullplayer.show-lyrics .np-visual-row { display: none; }   /* lyrics view: the video goes back to its corner */
+  .fullplayer.has-video .fp-art { flex-basis: 140px; width: 140px; max-width: 140px; }
+  .fullplayer.has-video .fp-body { grid-template-columns: minmax(0, 1fr); padding-left: 16px; padding-right: 16px; gap: 16px; }
+  .fullplayer.has-video .fp-left { min-width: 0; justify-content: flex-start; padding-top: 8px; }   /* near the top; artwork shrinks on narrow phones */
   .fp-vol { display: none; }
   .tiles { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
